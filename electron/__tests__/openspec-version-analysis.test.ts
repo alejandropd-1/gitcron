@@ -471,7 +471,7 @@ describe('Verificación de versión de OpenSpec con criterio (Grupo 9c)', () => 
 
   describe('9c.6: Rangos y versión objetivo no se modifican automáticamente', () => {
     it('SUPPORTED_OPENSPEC_VERSIONS y OPENSPEC_CYCLE_TARGET_VERSION permanecen inmutables', () => {
-      expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.12.0');
+      expect(OPENSPEC_CYCLE_TARGET_VERSION).toBe('1.13.0');
       expect(SUPPORTED_OPENSPEC_VERSIONS.min).toBe('1.5.0');
       expect(SUPPORTED_OPENSPEC_VERSIONS.max).toBeUndefined();
     });

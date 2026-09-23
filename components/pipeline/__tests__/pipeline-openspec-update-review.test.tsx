@@ -965,7 +965,7 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
       ...mockStatus,
       cli: {
         ...mockStatus.cli,
-        runtimeVersion: '1.12.0',
+        runtimeVersion: '1.13.0',
       },
       repoState: 'initialized',
       integrationState: 'up-to-date',

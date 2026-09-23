@@ -380,7 +380,7 @@ export function evaluateConsumedSurfaces(
       verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: argumentos CLI o estructura del payload de instrucciones pueden haber cambiado.`
-        : `Estructura de instrucción y contexto verificada contra el ciclo vigente (1.11.0).`,
+        : `Estructura de instrucción y contexto verificada contra el ciclo vigente (1.13.0).`,
     },
     {
       surface: 'validate',
@@ -388,7 +388,7 @@ export function evaluateConsumedSurfaces(
       verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: las reglas o códigos de salida de validación estricta pueden diferir.`
-        : `Validación estricta compatible con el formato de esquemas 1.11.0.`,
+        : `Validación estricta compatible con el formato de esquemas 1.13.0.`,
     },
     {
       surface: 'archive',
@@ -408,7 +408,7 @@ export function evaluateConsumedSurfaces(
     },
     {
       surface: 'profiles',
-      description: 'Topología de skills del perfil (.agents/skills/* conforme a OpenSpec 1.11.0)',
+      description: 'Topología de skills del perfil (.agents/skills/* conforme a OpenSpec 1.13.0)',
       verdict: isMajorBump ? 'breaking' : 'compatible',
       evidence: isMajorBump
         ? `Salto mayor a v${availableVersion}: posible reestructuración de la topología de skills y agentes.`

@@ -694,5 +694,50 @@ describe('OpenSpecTasksView (Grupo 8: Tareas 8.1, 8.2, 8.4, 8.8, 8.12)', () => {
       expect(currentHoverMatch).toBeTruthy();
       expect(currentHoverMatch![1]).toMatch(/background:\s*color-mix\(in srgb,\s*var\(--color-bg-overlay\)\s+75%,\s*var\(--color-text-primary\)\)/);
     });
+
+    it('cuando artifacts es null pero hay tareas, la vista markdown no queda vacía y reconstruye desde tasks', () => {
+      const changeWithoutArtifacts: OpenSpecChangeEvidence = {
+        ...mockChange,
+        artifacts: null,
+      };
+      renderView(changeWithoutArtifacts);
+
+      // Cambiar a vista Markdown
+      fireEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+
+      // Cambiar a modo crudo para inspeccionar el valor del textarea
+      const editRawBtn = screen.getByRole('button', { name: /Editar Markdown|pipeline\.openspec\.task\.editInRaw/i });
+      fireEvent.click(editRawBtn);
+
+      const textarea = screen.getByRole('textbox', { name: /Editor Markdown|pipeline\.openspec\.task\.viewRaw/i }) as HTMLTextAreaElement;
+      expect(textarea.value).toContain('- [ ] 1.1 Primera tarea');
+      expect(textarea.value).toContain('- [x] 1.2 Segunda tarea');
+    });
+
+    it('cuando artifacts es null y gitReadFile está disponible, rescata el tasks.md exacto de disco', async () => {
+      const changeWithoutArtifacts: OpenSpecChangeEvidence = {
+        ...mockChange,
+        artifacts: null,
+      };
+      const exactDiskContent = '## 1. Cierre\n\n- [ ] 1.1 Tarea leida de disco\n';
+      const gitReadFile = vi.fn().mockResolvedValue({ success: true, data: exactDiskContent });
+      (window as any).api.gitReadFile = gitReadFile;
+
+      renderView(changeWithoutArtifacts);
+
+      await waitFor(() => {
+        expect(gitReadFile).toHaveBeenCalledWith('C:/repo', 'openspec/changes/demo-change/tasks.md');
+      });
+
+      // Cambiar a vista Markdown
+      fireEvent.click(screen.getByRole('button', { name: 'Markdown' }));
+
+      // Cambiar a modo crudo para inspeccionar el valor del textarea
+      const editRawBtn = screen.getByRole('button', { name: /Editar Markdown|pipeline\.openspec\.task\.editInRaw/i });
+      fireEvent.click(editRawBtn);
+
+      const textarea = screen.getByRole('textbox', { name: /Editor Markdown|pipeline\.openspec\.task\.viewRaw/i }) as HTMLTextAreaElement;
+      expect(textarea.value).toBe(exactDiskContent);
+    });
   });
 });

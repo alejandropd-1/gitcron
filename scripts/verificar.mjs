@@ -27,7 +27,7 @@ const CODIGOS_ANSI = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*[A-Za-z]`, 
  * actualiza acá con causa. Medidos el 2026-09-21.
  */
 const ESLINT_PREEXISTENTES = [
-  { archivo: 'components/pipeline/OpenSpecDashboard.tsx', linea: 1095 },
+  { archivo: 'components/pipeline/OpenSpecDashboard.tsx', linea: 1101 }, // corrido de 1095 por sincronización de onSelectChange
   { archivo: 'components/pipeline/OpenSpecInspector.tsx', linea: 131 },
   { archivo: 'components/pipeline/OpenSpecInspector.tsx', linea: 187 },
 ];

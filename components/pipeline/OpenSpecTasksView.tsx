@@ -68,6 +68,11 @@ type PendingConfirm =
 
 const MARKDOWN_VIEW_PREF_KEY = 'gitcron:openspec:tasks-markdown-view-mode';
 
+function reconstructMarkdownFromTasks(tasks: TaskEvidence[]): string {
+  if (!tasks || tasks.length === 0) return '';
+  return tasks.map((t) => `- [${t.completed ? 'x' : ' '}] ${t.text}`).join('\n') + '\n';
+}
+
 export function OpenSpecTasksView({
   repoPath,
   selectedChange,
@@ -140,7 +145,10 @@ export function OpenSpecTasksView({
   const [menuCoords, setMenuCoords] = useState<{ x: number; y: number }>({ x: 0, y: 0 });
 
   // Estados del editor Markdown (Tareas 8.2 y 8.12)
-  const diskRawTasks = selectedChange.artifacts?.tasks ?? '';
+  const initialDiskMarkdown = selectedChange.artifacts?.tasks
+    ?? (selectedChange.tasks && selectedChange.tasks.length > 0 ? reconstructMarkdownFromTasks(selectedChange.tasks) : '');
+  const [diskBaseline, setDiskBaseline] = useState<string>(initialDiskMarkdown);
+  const diskRawTasks = selectedChange.artifacts?.tasks ?? diskBaseline;
   const [rawText, setRawText] = useState<string>(diskRawTasks);
   const [isRawDirty, setIsRawDirty] = useState(false);
   const [isRawSaving, setIsRawSaving] = useState(false);
@@ -159,10 +167,39 @@ export function OpenSpecTasksView({
   const [prevArtifactTasks, setPrevArtifactTasks] = useState(selectedChange.artifacts?.tasks);
   if (selectedChange.artifacts?.tasks !== prevArtifactTasks) {
     setPrevArtifactTasks(selectedChange.artifacts?.tasks);
-    if (!isRawDirty) {
-      setRawText(selectedChange.artifacts?.tasks ?? '');
+    if (selectedChange.artifacts?.tasks) {
+      setDiskBaseline(selectedChange.artifacts.tasks);
+      if (!isRawDirty) {
+        setRawText(selectedChange.artifacts.tasks);
+      }
     }
   }
+
+  // Rescate de tasks.md directo de disco si el snapshot no trajo artifacts aún
+  useEffect(() => {
+    if (selectedChange.artifacts?.tasks) return;
+    if (!fixtureActive && repoPath && selectedChange.changeId) {
+      const api = typeof window !== 'undefined' ? window.api : undefined;
+      if (api?.gitReadFile) {
+        let cancelled = false;
+        const taskPath = `openspec/changes/${selectedChange.changeId}/tasks.md`;
+        void api.gitReadFile(repoPath, taskPath).then((res) => {
+          if (cancelled) return;
+          if (res?.success && typeof res.data === 'string') {
+            setDiskBaseline(res.data);
+            if (!isRawDirty) {
+              setRawText(res.data);
+            }
+          }
+        }).catch(() => {
+          // ignore error
+        });
+        return () => {
+          cancelled = true;
+        };
+      }
+    }
+  }, [selectedChange.artifacts?.tasks, selectedChange.changeId, repoPath, fixtureActive, isRawDirty]);
 
   // Auto-ajustar alto de textarea al comenzar edición
   useEffect(() => {
@@ -524,6 +561,7 @@ export function OpenSpecTasksView({
       );
 
       if (res?.success) {
+        setDiskBaseline(rawText);
         setIsRawDirty(false);
         setSuccess?.(t('pipeline.openspec.task.rawSaved'));
         onRefresh?.();

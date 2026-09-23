@@ -3,7 +3,7 @@
 Desktop Git client built with modern web tooling. GitCron is meant to cover a personal GitKraken-like workflow without a subscription, with a strong focus on visual history, safe Git operations, and GitHub integration.
 
 <p align="center">
-  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.14.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
+  <img alt="GitCron version" src="https://img.shields.io/badge/GitCron-v1.15.0-fd9d1a?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Windows installer" src="https://img.shields.io/badge/Windows-installer-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="macOS DMG" src="https://img.shields.io/badge/macOS-DMG-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
   <img alt="Linux AppImage" src="https://img.shields.io/badge/Linux-AppImage-5ed8ff?style=for-the-badge&amp;labelColor=2c3440">
@@ -181,11 +181,16 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
 - **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
 
-### 🔵 Pipeline — Workspace OpenSpec (v1.14.0)
+### 🔵 Pipeline — Workspace OpenSpec (v1.15.0)
 
 Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
 
-- **Workspace de tres zonas**: navegación de cambios activos, archivados y especificaciones a la izquierda; trabajo al centro con el ciclo Explore → Propose → Apply → Validate → Archive; actividad y alertas a la derecha.
+- **Workspace de tres zonas unificado**: navegación de cambios activos, archivados y especificaciones a la izquierda; trabajo al centro con el ciclo Explore → Propose → Apply → Validate → Archive; actividad y alertas a la derecha. Transición fluida con ancho unificado (`1100px`) y conmutación entre panel y riel sin saltos de maquetación.
+- **Grafo de artefactos cronológico y ordenado por dependencias**: visualización devuelta por el motor CLI (ciclo SDD 1.13) en una línea horizontal continua, con estado de artefactos (`description`, `dependencies`, `unlocks`, `resolvedOutputPath`, `existingOutputPaths`) y ficha de inspección única.
+- **Recorrido paso a paso del ciclo de vida**: flujo estructurado para explorar, proponer, aplicar y archivar cambios con seguimiento de la sesión del modelo de IA en tiempo real, bitácora acotada con scroll independiente e interruptores dedicados para filtrar canales.
+- **Pase explícito al cambio creado**: finalizada la sesión de propuesta, la aplicación ofrece pasar al cambio generado mediante confirmación explícita sin saltos intempestivos de contexto.
+- **Editor y visor interactivo de tareas (`tasks.md`)**: sincronización de casillas y estados entre el modo visual y el Markdown de disco, con rescate directo de disco si el snapshot no pobló artefactos y numeración secuencial editable al crear o modificar tareas.
+- **Vigilante Git nativo y eficiente**: observador recursivo sobre `fs.watch` con filtrado y estabilización de eventos de 200 ms, eliminando bloqueos `EPERM` en Windows al renombrar carpetas o archivar cambios.
 - **Guía del próximo paso**: una función pura deriva el estado real —tarea pendiente, sesión corriendo, validación fallida, listo para archivar, decisión esperando— y de ahí salen la etiqueta y la habilitación de cada acción. Archivar no aparece antes de que la validación pase.
 - **Empezar un cambio sin escribir comandos**: dos ramas, Propose para una tarea definida y Explore para una idea por definir. Pide objetivo, nombre validado contra el mismo contrato del CLI y restricciones opcionales; la instrucción generada queda visible bajo divulgación progresiva.
 - **Ejecutar con el runtime que tengas**: descubre los runtimes instalados, informa el alcance que cada uno declara y abre una sesión que puede editar el repositorio. Toda sesión que escriba exige confirmación explícita antes de arrancar.
@@ -193,7 +198,7 @@ Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abiert
 - **Evidencia sin inventar**: un dato ausente, incompatible o sin fixture se representa como `unknown` o `pending_fixture`, nunca como cero o verde. Un proceso que termina no marca una tarea como hecha: el progreso se relee de `tasks.md`.
 - **Sesiones persistidas**: cada corrida guarda runtime, cambio, tarea, tiempos y resultado en SQLite, y el historial sobrevive a reinicios.
 
-### 🟡 Preparar el commit desde Pipeline (v1.14.0)
+### 🟡 Preparar el commit desde Pipeline (v1.15.0)
 
 El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no confirma: confirmar sigue siendo una acción humana desde Commit.
 
@@ -201,7 +206,7 @@ El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no c
 - **Atribución con su fuente declarada**: que un archivo viva bajo la carpeta de su cambio es un hecho; que lo diga la rama es una declaración. El hecho manda.
 - **El mensaje se corrige en el mismo lugar donde se decide qué entra**, escribiendo sobre el mismo estado que después se confirma.
 
-### 🟣 Redacción del asunto con IA local (v1.14.0)
+### 🟣 Redacción del asunto con IA local (v1.15.0)
 
 El tipo convencional de un commit —`feat`, `fix`, `chore`— es el único dato que ninguna fuente del repositorio contiene: no está en el diff, ni en las rutas, ni en la rama, ni en las tareas. Un modelo local lo acierta, y por eso esta función existe.
 
@@ -498,9 +503,9 @@ Download the latest release from [GitHub Releases](https://github.com/alejandrop
 
 | Platform | File                                                                  |
 | -------- | --------------------------------------------------------------------- |
-| Windows  | `GitCron Setup 1.14.0.exe`                                            |
-| macOS    | `GitCron-1.14.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
-| Linux    | `GitCron-1.14.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
+| Windows  | `GitCron Setup 1.15.0.exe`                                            |
+| macOS    | `GitCron-1.15.0.dmg` _(build on macOS with `pnpm package:mac`)_       |
+| Linux    | `GitCron-1.15.0.AppImage` _(build on Linux with `pnpm package:linux`)_ |
 
 > **Note:** Installers are not code-signed. Windows will show a SmartScreen warning — click **"More info" → "Run anyway"** to proceed.
 

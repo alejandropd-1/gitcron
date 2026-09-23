@@ -48,4 +48,4 @@
 - [x] 6.2 `pnpm exec tsc --noEmit` sin errores de tipado; eslint sin avisos nuevos (los tres errores preexistentes de `set-state-in-effect` en `OpenSpecDashboard.tsx` y `OpenSpecInspector.tsx` no se arreglan ni se silencian en este cambio).
 - [x] 6.3 `pnpm test` en verde en dos pasadas consecutivas, informando «Test Files» y «Tests» de cada una.
 - [x] 6.4 `openspec validate recorrido-de-artefactos-openspec --strict` en cero; `git diff --check` en cero; `git status --short --branch` informado, sin confirmar nada en Git.
-- [ ] 6.5 Revisión visual y funcional en la aplicación. **La marca Alejandro.**
+- [x] 6.5 Revisión visual y funcional en la aplicación. **La marca Alejandro.**

@@ -4,6 +4,37 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.15.0] - 2026-09-23 - El ciclo SDD completo, visible y sin trabas
+
+Esta versión consolida el recorrido de artefactos OpenSpec en GitCron: el ciclo SDD pasa a ser un flujo de trabajo continuo, observable y accionable directamente en la aplicación, con un vigilante de archivos que ya no genera bloqueos en Windows.
+
+### 🤖 Pipeline & Workspace OpenSpec
+
+#### Added
+- **Grafo de artefactos cronológico y ordenado por dependencias.** El motor OpenSpec CLI (ciclo SDD 1.13) devuelve directamente el grafo estructurado (`description`, `dependencies`, `unlocks`, `resolvedOutputPath`, `existingOutputPaths`). Se presenta en una línea temporal horizontal continua con selección clara del nodo y una ficha unificada inferior que detalla estado, rutas, acción o motivo de bloqueo.
+- **Recorrido estructurado del ciclo de cambio.** Flujo paso a paso para explorar, proponer, aplicar y archivar cambios con seguimiento de la respuesta del modelo en tiempo real. La bitácora cuenta con altura acotada y scroll independiente para no desplazar la pantalla al infinito, e interruptores dedicados para filtrar canales sin solapar estilos.
+- **Pase explícito al cambio creado.** Al terminar la sesión de propuesta de un cambio, la aplicación declara la finalización y ofrece pasar al nuevo cambio mediante confirmación explícita, evitando saltos de contexto intempestivos mientras la persona lee los resultados.
+- **Editor y visor interactivo de tareas (`tasks.md`).** Sincronización bidireccional entre la lista interactiva de tareas y el archivo Markdown en disco. Ante cualquier desfase de snapshot, la vista rescata de inmediato el contenido exacto de disco vía canal seguro de lectura, garantizando visualización instantánea y sin pantallas en blanco tanto en vista cruda como formateada.
+- **Numeración de tareas transparente y editable.** Al crear o editar tareas, el número propuesto se presenta en su propio campo editable y borrable, evitando la síntesis de identificadores internos opacos en el listado visual.
+- **Soporte de especificación y ciclo OpenSpec 1.13.0.** Actualización del análisis de versiones y compatibilidad con las últimas capacidades de introspección del CLI.
+
+#### Changed
+- **Reorganización del cuerpo SDD para cualquier pantalla.** El contenedor adopta un ancho unificado (`--sdd-body-width: 1100px`) y una transición idéntica de 320 px y curva compartida entre el riel flotante y el panel derecho, garantizando estabilidad visual absoluta sin saltos de maquetación al alternar paneles.
+- **Retiro de restricciones artificiales de bordes.** Se retiran las comprobaciones sintéticas de bordes sobre el cuerpo SDD, preservando intactas las aserciones estructurales y visuales de Chronometric Graph.
+
+### 🟢 Vista Clásica & Core
+
+#### Fixed
+- **Vigilante recursivo nativo en sustitución de Chokidar.** Observador directo sobre `fs.watch` con lista de exclusión para directorios de soporte y estabilización de eventos de 200 ms. GitCron deja de retener bloqueos `EPERM` en Windows al renombrar carpetas o al archivar cambios desde la terminal o el explorador de archivos.
+- **Sincronización robusta de selección de cambios.** La selección manual de cambios en el tablero notifica inmediatamente al backend, asegurando la consistencia de artefactos en memoria entre diferentes pestañas y vistas.
+
+#### Quality
+- **Suite de verificación canónica (`pnpm verificar`).** Integración del script de comprobación integral (`scripts/verificar.mjs`) que ejecuta en secuencia canónica `pnpm build`, doble pasada de Vitest, TypeScript, ESLint estricto con control de errores preexistentes, validación estricta de OpenSpec y control de trampas de desarrollo.
+
+**Validación:** `build` en 0 · `tsc --noEmit` en 0 · 205 archivos y 2191 pruebas en verde · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido.
+
+---
+
 ## [v1.14.0] - 2026-08-11 - Que borrar no pueda ser un accidente
 
 Borrar una rama en GitCron podía terminar pidiéndole a GitHub que borrara `main`, y frente a un worktree o a un directorio con dependencias sólo volcaba el error crudo de Git. Esta versión cierra esos caminos y, donde la operación no puede completarse, explica por qué y ofrece la salida.

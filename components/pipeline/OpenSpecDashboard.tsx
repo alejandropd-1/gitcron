@@ -297,6 +297,9 @@ export function OpenSpecDashboard({
     const next = typeof val === 'function' ? val(selection) : val;
     setSelectionState(next);
     usePipelineStore.getState().setSelectedChangeId(next);
+    if (next) {
+      onSelectChange?.(next);
+    }
   };
   const [centerTab, setCenterTab] = useState<CenterTab>('work');
   const [evidenceTab, setEvidenceTab] = useState<DetailTab>('proposal');
@@ -391,12 +394,15 @@ export function OpenSpecDashboard({
     return usePipelineStore.subscribe((state, prevState) => {
       if (state.selectedChangeId !== prevState.selectedChangeId) {
         setSelectionState(state.selectedChangeId);
+        if (state.selectedChangeId) {
+          onSelectChange?.(state.selectedChangeId);
+        }
       }
       if (state.openSpecificationId !== prevState.openSpecificationId) {
         setOpenSpecificationIdState(state.openSpecificationId);
       }
     });
-  }, []);
+  }, [onSelectChange]);
 
   const reviewOpen = usePipelineStore((state) => state.reviewOpen);
   const setReviewOpen = usePipelineStore((state) => state.setReviewOpen);
@@ -2707,6 +2713,7 @@ export function OpenSpecDashboard({
                     ) : (
                       <section className={styles.startScreen} aria-label={t('pipeline.switcher.tasks')}>
                         <OpenSpecTasksView
+                          key={selectedChange.changeId}
                           repoPath={repoPath}
                           selectedChange={selectedChange}
                           fixtureActive={fixtureActive}

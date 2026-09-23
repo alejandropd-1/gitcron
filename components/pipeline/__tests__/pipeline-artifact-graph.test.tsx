@@ -392,4 +392,36 @@ describe('grafo de artefactos de OpenSpec', () => {
     expect(screen.getByText('Descripción de design')).toBeTruthy();
     expect(screen.queryByText('Descripción de proposal')).toBeNull();
   });
+
+  it('cuando isArchived es true, no consulta el IPC, no muestra error y presenta los artefactos como done', () => {
+    const getArtifactGraphMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getArtifactGraph: getArtifactGraphMock,
+      },
+    };
+
+    const onSelectTab = vi.fn();
+    render(
+      <PipelineArtifactGraph
+        repoPath="C:/repo"
+        changeId="cambio-archivado"
+        isArchived={true}
+        activeTab="proposal"
+        onSelectTab={onSelectTab}
+      />,
+    );
+
+    expect(getArtifactGraphMock).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    const proposalTab = screen.getByRole('tab', { name: /proposal/i });
+    expect(proposalTab).toBeTruthy();
+
+    const doneStates = screen.getAllByText('pipeline.openspec.graph.state.done');
+    expect(doneStates.length).toBe(4);
+
+    fireEvent.click(screen.getByRole('tab', { name: /tasks/i }));
+    expect(onSelectTab).toHaveBeenCalledWith('tasks');
+  });
 });

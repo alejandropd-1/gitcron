@@ -2835,6 +2835,7 @@ export function OpenSpecDashboard({
                       <PipelineDetails
                         snapshot={snapshot}
                         repoPath={repoPath}
+                        isArchived={true}
                         selectedChange={{
                           changeId: selectedArchive.changeId,
                           intent: null,

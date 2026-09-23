@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 
 const execFileMock = vi.fn();
@@ -218,6 +219,30 @@ describe('pipeline:openspec:artifact-graph', () => {
       expect(result.ok).toBe(false);
       expect(result.error).toContain('Change not found');
       expect(result.artifacts).toBeUndefined();
+    });
+
+    it('si el CLI falla porque el cambio fue archivado pero existe en openspec/changes/archive, devuelve artefactos completados', async () => {
+      const err = new Error('Command failed') as any;
+      err.stderr = 'Change not found';
+      execFileMock.mockImplementation((_file: string, _args: string[], _opts: any, cb: any) => {
+        cb(err);
+      });
+
+      const tmpRepo = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-arch-test-'));
+      const archDir = path.join(tmpRepo, 'openspec', 'changes', 'archive', '2026-09-23-cambio-archivado');
+      fs.mkdirSync(archDir, { recursive: true });
+
+      try {
+        const result = await artifactGraphOpenSpecWithCli(tmpRepo, 'cambio-archivado', {
+          runtime: mockRuntime,
+        });
+
+        expect(result.ok).toBe(true);
+        expect(result.artifacts).toHaveLength(4);
+        expect(result.artifacts?.every((a) => a.status === 'done')).toBe(true);
+      } finally {
+        fs.rmSync(tmpRepo, { recursive: true, force: true });
+      }
     });
   });
 });

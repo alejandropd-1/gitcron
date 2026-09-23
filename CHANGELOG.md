@@ -4,6 +4,20 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.15.1] - 2026-09-23 - Grafo de artefactos para cambios archivados
+
+Esta versión corrige la visualización del grafo de artefactos al consultar o completar el archivado de un cambio OpenSpec, evitando el error de búsqueda del CLI sobre cambios que ya no residen en la carpeta activa.
+
+### 🤖 Pipeline & Workspace OpenSpec
+
+#### Fixed
+- **Soporte de cambios archivados en el grafo de artefactos.** Al archivar un cambio o navegar por el historial de cambios archivados, la vista de detalle suprime la llamada fallida a `openspec status` y sintetiza de inmediato el grafo canónico completo con todos sus artefactos (`proposal`, `specs`, `design`, `tasks`) en estado `done`.
+- **Resolución resiliente en el backend CLI.** En `artifactGraphOpenSpecWithCli`, si la consulta al CLI arroja error porque el cambio ya fue archivado a `openspec/changes/archive/`, el backend detecta su presencia en el archivo y retorna la estructura completada en lugar de propagar un banner rojo de error.
+
+**Validación:** `build` en 0 · `tsc --noEmit` en 0 · 205 archivos y 2193 pruebas en verde · `eslint` limpio sobre lo tocado · `git diff --check` limpio.
+
+---
+
 ## [v1.15.0] - 2026-09-23 - El ciclo SDD completo, visible y sin trabas
 
 Esta versión consolida el recorrido de artefactos OpenSpec en GitCron: el ciclo SDD pasa a ser un flujo de trabajo continuo, observable y accionable directamente en la aplicación, con un vigilante de archivos que ya no genera bloqueos en Windows.

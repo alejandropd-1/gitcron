@@ -1,3 +1,5 @@
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 import type {
   InstructionsOpenSpecResult,
   OpenSpecArtifactGraphResult,
@@ -571,6 +573,26 @@ export async function artifactGraphOpenSpecWithCli(
     });
     parsedStatus = JSON.parse(stdout);
   } catch (error) {
+    // Si status falla porque el cambio ya fue archivado, verificar si reside en archive/
+    try {
+      const archiveBase = path.join(repoPath, 'openspec', 'changes', 'archive');
+      const entries = await fs.readdir(archiveBase);
+      const isArchived = entries.some((entry) => entry === changeId || entry.endsWith(`-${changeId}`));
+      if (isArchived) {
+        return {
+          ok: true,
+          artifacts: [
+            { id: 'proposal', status: 'done', requires: [] },
+            { id: 'specs', status: 'done', requires: ['proposal'] },
+            { id: 'design', status: 'done', requires: ['proposal'] },
+            { id: 'tasks', status: 'done', requires: ['proposal'] },
+          ],
+        };
+      }
+    } catch {
+      // Ignorar fallo de lectura de archive y propagar el error original del CLI
+    }
+
     const detail = error as { stderr?: unknown; stdout?: unknown; message?: unknown };
     const reason = [detail.stderr, detail.stdout, detail.message]
       .map((part) => (typeof part === 'string' ? part.trim() : ''))

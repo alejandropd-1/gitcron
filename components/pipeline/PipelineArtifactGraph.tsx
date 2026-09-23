@@ -93,6 +93,7 @@ export interface PipelineArtifactGraphProps {
   activeTab?: DetailTab;
   onSelectTab?: (tab: DetailTab) => void;
   onLaunch?: (instruction: string, changeId: string) => void;
+  isArchived?: boolean;
 }
 
 export function PipelineArtifactGraph({
@@ -103,10 +104,12 @@ export function PipelineArtifactGraph({
   activeTab,
   onSelectTab,
   onLaunch,
+  isArchived,
 }: PipelineArtifactGraphProps) {
   const t = useT();
 
   const shouldFetch =
+    !isArchived &&
     !initialGraph &&
     Boolean(
       repoPath &&
@@ -121,6 +124,18 @@ export function PipelineArtifactGraph({
   const [confirmingArtifactId, setConfirmingArtifactId] = useState<string | null>(null);
   const [launchingArtifactId, setLaunchingArtifactId] = useState<string | null>(null);
   const [internalSelectedId, setInternalSelectedId] = useState<string | null>(null);
+
+  const archivedGraph = useMemo<OpenSpecArtifactGraphResult | null>(() => {
+    if (!isArchived) return null;
+    return {
+      ok: true,
+      artifacts: CANONICAL_ARTIFACTS.map((id) => ({
+        id,
+        status: 'done' as OpenSpecArtifactState,
+        requires: id === 'proposal' ? [] : ['proposal'],
+      })),
+    };
+  }, [isArchived]);
 
   const legacyGraph = useMemo<OpenSpecArtifactGraphResult | null>(() => {
     if (status && status.available && status.artifacts.length > 0) {
@@ -142,8 +157,8 @@ export function PipelineArtifactGraph({
     return null;
   }, [status]);
 
-  const graphResult = initialGraph ?? fetchedGraph ?? legacyGraph;
-  const error = initialGraph && !initialGraph.ok ? (initialGraph.error ?? 'error') : fetchError;
+  const graphResult = initialGraph ?? (isArchived ? archivedGraph : fetchedGraph) ?? legacyGraph;
+  const error = isArchived ? null : (initialGraph && !initialGraph.ok ? (initialGraph.error ?? 'error') : fetchError);
 
   useEffect(() => {
     if (!shouldFetch || !repoPath || !changeId) {

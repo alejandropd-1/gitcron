@@ -16,6 +16,7 @@ export type PipelineDetailsProps = {
   /** Pestaña activa. Controlada desde afuera para poder abrir un archivo desde la navegación. */
   tab?: DetailTab;
   onTabChange?: (tab: DetailTab) => void;
+  isArchived?: boolean;
 };
 
 /** Un artefacto ausente se declara como tal, no se muestra como cuerpo vacío. */
@@ -41,8 +42,14 @@ export function PipelineDetails({
   selectedChange = null,
   tab,
   onTabChange,
+  isArchived: propsIsArchived,
 }: PipelineDetailsProps) {
   const t = useT();
+  const isArchived = Boolean(
+    propsIsArchived ||
+    (selectedChange?.changeId &&
+      _snapshot?.openSpec?.archivedChanges?.some((a) => a.changeId === selectedChange.changeId)),
+  );
   // Controlado si el contenedor pasa `tab`; si no, se gobierna solo.
   const [ownTab, setOwnTab] = useState<DetailTab>('proposal');
   const activeTab = tab ?? ownTab;
@@ -79,6 +86,7 @@ export function PipelineDetails({
           status={selectedChange.status}
           activeTab={activeTab}
           onSelectTab={setActiveTab}
+          isArchived={isArchived}
         />
       </div>
 

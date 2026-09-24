@@ -239,7 +239,7 @@ export const AgentProposalReview: React.FC<AgentProposalReviewProps> = ({
             <textarea
               value={finalContent}
               onChange={(e) => setManualText(e.target.value)}
-              className="flex-1 w-full bg-bg-surface text-text-primary font-mono text-xs p-3 rounded border border-border-subtle/30 resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
+              className="flex-1 w-full bg-bg-input text-text-primary font-mono text-xs p-3 rounded border border-border-subtle resize-none focus:outline-none focus:border-primary/50 leading-relaxed"
               spellCheck={false}
             />
           </div>

@@ -156,7 +156,7 @@ export function GraphSearchControl({
               ref={filterInputRef}
               value={filterText}
               onChange={(e) => onFilterTextChange(e.target.value)}
-              className="w-full bg-bg-base/70/70 border border-border-subtle/20 rounded px-8 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/55"
+              className="w-full bg-bg-input border border-border-subtle rounded px-8 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/55"
               placeholder={t('toolbar.filter')}
             />
             {filterText && (

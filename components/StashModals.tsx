@@ -65,7 +65,7 @@ export function StashCreateModal({ open, onClose, message, onMessageChange, onSu
               onChange={(e) => onMessageChange(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
               placeholder={t('stashModal.messagePlaceholder')}
-              className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-git-mod/50 mb-2"
+              className="w-full bg-bg-input border border-border-subtle rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-git-mod/50 mb-2"
             />
             <p className="text-[length:var(--font-size-xs)] text-text-secondary leading-relaxed mb-5">
               {t('stashModal.desc')}

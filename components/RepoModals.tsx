@@ -70,7 +70,7 @@ function TextInput({
       onChange={(e) => onChange(e.target.value)}
       placeholder={placeholder}
       className={cn(
-        'h-11 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55',
+        'h-11 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55',
         mono && 'font-mono text-xs',
       )}
     />
@@ -340,7 +340,7 @@ function RepoList({
           value={filter}
           onChange={(event) => setFilter(event.target.value)}
           placeholder={t('clone.search')}
-          className="h-11 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 pl-9 pr-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
+          className="h-11 w-full rounded-lg border border-border-subtle bg-bg-input pl-9 pr-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
         />
       </div>
 

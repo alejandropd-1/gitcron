@@ -103,7 +103,6 @@ export function RepoTabs({
         <img
           src="/gitcron-icon.png"
           alt="GitCron"
-          data-keep-color
           className="w-4 h-4 rounded-sm"
         />
         <span className="text-sm font-bold text-primary tracking-tight">GitCron</span>

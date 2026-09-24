@@ -654,16 +654,24 @@
   padding: var(--space-2) var(--space-2);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  background: var(--color-bg-overlay);
-  color: var(--color-primary);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
+}
+.messageField input::placeholder {
+  color: var(--color-text-secondary);
+  opacity: 0.85;
 }
 /* El contorno no se apaga: antes iba `outline: none` con un cambio de borde de
    un píxel como único reemplazo, y encima sobre `:focus`, así que también se
    disparaba al hacer clic. */
 .messageField input:focus-visible { border-color: var(--color-primary); outline: var(--focus-ring); outline-offset: 1px; }
 .messageField input:focus:not(:focus-visible) { border-color: var(--color-primary); }
-.messageField input:disabled { color: var(--color-text-secondary); }
+.messageField input:disabled {
+  background: color-mix(in srgb, var(--color-bg-base) 70%, var(--color-border-subtle));
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
+}
 
 /* La frase de espera, debajo del campo.
    Se probó encima, con fondo semitransparente, y se leía encimada con el texto
@@ -702,9 +710,14 @@
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-default);
-  background: var(--color-bg-overlay);
-  color: var(--color-text-secondary);
+  background: var(--color-bg-input);
+  color: var(--color-text-primary);
   font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
+}
+.aiRow select:disabled {
+  background: color-mix(in srgb, var(--color-bg-base) 70%, var(--color-border-subtle));
+  color: var(--color-text-secondary);
+  cursor: not-allowed;
 }
 /* El contador vive dentro de la fila de la IA, en el hueco que dejan los dos
    números. Antes estaba en una línea propia arriba: aparecía de golpe al
@@ -855,7 +868,7 @@
   padding: 0 var(--space-3) 0 var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-default);
-  background: var(--color-bg-overlay);
+  background: var(--color-bg-input);
 }
 .aiNumber > span {
   color: var(--color-text-secondary);
@@ -867,7 +880,7 @@
   padding: 0;
   border: 0;
   background: none;
-  color: var(--color-primary);
+  color: var(--color-text-primary);
   font-weight: 650; font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
   text-align: right;
 }
@@ -950,7 +963,44 @@
   cursor: pointer;
 }
 .fileChoice:hover { background: var(--color-bg-overlay); }
-.fileChoice input { cursor: pointer; }
+.fileChoice input[type='checkbox'],
+.flowCheck input[type='checkbox'] {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 14px;
+  height: 14px;
+  flex: 0 0 14px;
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-overlay);
+  display: inline-grid;
+  place-content: center;
+  margin: 0;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease;
+}
+.fileChoice input[type='checkbox']:hover,
+.flowCheck input[type='checkbox']:hover {
+  border-color: var(--color-primary);
+}
+.fileChoice input[type='checkbox']:focus-visible,
+.flowCheck input[type='checkbox']:focus-visible {
+  outline: var(--focus-ring);
+  outline-offset: 1px;
+}
+.fileChoice input[type='checkbox']:checked,
+.flowCheck input[type='checkbox']:checked {
+  background-color: var(--color-primary);
+  border-color: var(--color-primary);
+}
+.fileChoice input[type='checkbox']:checked::after,
+.flowCheck input[type='checkbox']:checked::after {
+  content: '';
+  width: 8px;
+  height: 8px;
+  clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+  background-color: var(--color-bg-base);
+}
 
 /* Estado del archivo, con los mismos colores que el panel de preparación de Git.
    `M` modificado, `A` agregado, `D` borrado, `R` renombrado, `U` sin seguimiento. */
@@ -1316,7 +1366,7 @@
 .liveActivity > header em { color: var(--color-text-secondary); font-style: normal; }
 .liveDot { width: 0.3rem; height: 0.3rem; background: var(--color-text-secondary); box-shadow: none; }
 .liveDot[data-active='true'] { background: var(--color-primary); box-shadow: 0 0 0.55rem color-mix(in srgb, var(--color-primary) 48%, transparent); }
-.sessionSelect { width: 100%; min-width: 0; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-default); background: var(--color-bg-overlay); color: var(--color-text-primary); padding: var(--space-2) var(--space-2); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
+.sessionSelect { width: 100%; min-width: 0; border: 1px solid var(--color-border-subtle); border-radius: var(--radius-default); background: var(--color-bg-input); color: var(--color-text-primary); padding: var(--space-2) var(--space-2); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; }
 .sessionContext { margin: var(--space-2) 0 0; color: var(--color-text-secondary); font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace; overflow-wrap: anywhere; }
 .liveActivity ol { margin: 0; padding: var(--space-2) 0 0; list-style: none; }
 .liveActivity li { position: relative; display: grid; grid-template-columns: 2.5rem 1.4rem minmax(0, 1fr); gap: var(--space-2); min-height: 4.6rem; padding: var(--space-2) 0; }
@@ -1782,7 +1832,7 @@ summary.centerBlock {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-default);
-  background: color-mix(in srgb, var(--color-bg-overlay) 85%, transparent);
+  background: var(--color-bg-input);
   color: var(--color-text-primary);
   font-size: var(--font-size-xs); font-family: var(--font-mono), ui-monospace, monospace;
   resize: vertical;
@@ -3318,7 +3368,7 @@ summary.centerBlock {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-base);
+  background: var(--color-bg-input);
   color: var(--color-text-primary);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: var(--font-size-xs);
@@ -3496,7 +3546,7 @@ summary.centerBlock {
   padding: var(--space-2) var(--space-3);
   border: 1px solid var(--color-primary);
   border-radius: var(--radius-sm);
-  background: var(--color-bg-base);
+  background: var(--color-bg-input);
   color: var(--color-text-primary);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: var(--font-size-xs);
@@ -3617,7 +3667,7 @@ summary.centerBlock {
   padding: var(--space-3);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-default);
-  background: var(--color-bg-base);
+  background: var(--color-bg-input);
   color: var(--color-text-primary);
   font-family: var(--font-mono), ui-monospace, monospace;
   font-size: var(--font-size-xs);

@@ -406,7 +406,7 @@ export function AmendLastCommitModal({
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
                   placeholder={lastCommitMessage || ''}
-                  className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-git-mod/40 resize-none"
+                  className="w-full bg-bg-input border border-border-subtle rounded p-2 text-sm text-text-primary h-24 focus:outline-none focus:border-git-mod/40 resize-none"
                 />
               </div>
             </div>
@@ -530,7 +530,7 @@ export function SquashCommitsModal({
                   value={squashMessage}
                   onChange={(e) => setSquashMessage(e.target.value)}
                   placeholder={commits[0]?.message ?? ''}
-                  className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-20 focus:outline-none focus:border-git-mod/40 resize-none"
+                  className="w-full bg-bg-input border border-border-subtle rounded p-2 text-sm text-text-primary h-20 focus:outline-none focus:border-git-mod/40 resize-none"
                 />
               </div>
             </div>
@@ -600,7 +600,7 @@ export function NewBranchModal({
         onChange={(e) => onBranchNameChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
         placeholder={t('newBranch.namePlaceholder')}
-        className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
+        className="w-full bg-bg-input border border-border-subtle rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/50 mb-4"
       />
       <div className="flex gap-2 justify-end">
         <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
@@ -664,7 +664,7 @@ export function CreateTagModal({
             onChange={(e) => onTagNameChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
             placeholder="v1.0.0"
-            className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+            className="w-full bg-bg-input border border-border-subtle rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/50"
           />
         </div>
         <div>
@@ -674,7 +674,7 @@ export function CreateTagModal({
             onChange={(e) => onTagMessageChange(e.target.value)}
             onKeyDown={(e) => { if (e.key === 'Enter') onCreate(); if (e.key === 'Escape') onClose(); }}
             placeholder="Release v1.0.0"
-            className="w-full bg-bg-base/70 border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50"
+            className="w-full bg-bg-input border border-border-subtle rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/50"
           />
         </div>
       </div>
@@ -781,7 +781,7 @@ export function RenameBranchModal({
         onChange={(e) => onNewNameChange(e.target.value)}
         onKeyDown={(e) => { if (e.key === 'Escape') onClose(); }}
         placeholder={t('rename.newName')}
-        className="w-full bg-bg-base border border-border-subtle/15 rounded px-3 py-2 text-sm focus:outline-none focus:border-secondary/50 mb-4"
+        className="w-full bg-bg-input border border-border-subtle rounded px-3 py-2 text-sm text-text-primary focus:outline-none focus:border-secondary/50 mb-4"
       />
       <div className="flex gap-2 justify-end">
         <button onClick={onClose} className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary">{t('modal.cancel')}</button>
@@ -1069,7 +1069,7 @@ export function InitializeRepoGuardModal({
               }}
               placeholder={t('initGuard.remoteUrlPlaceholder')}
               disabled={isBusy}
-              className="h-10 w-full rounded border border-border-subtle/25 bg-bg-base/90 px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
+              className="h-10 w-full rounded border border-border-subtle bg-bg-input px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
             />
             <p className="mt-2 text-xs leading-relaxed text-text-secondary">
               {t('initGuard.remoteUrlHint')}
@@ -1258,7 +1258,7 @@ export function PublishRepositoryModal({
             onChange={(event) => { setUrl(event.target.value); if (error) setError(null); }}
             placeholder="https://github.com/usuario/repositorio.git"
             disabled={isLoading}
-            className="h-10 w-full rounded border border-border-subtle/25 bg-bg-base/90 px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
+            className="h-10 w-full rounded border border-border-subtle bg-bg-input px-3 font-mono text-xs text-text-primary outline-none transition-colors placeholder:text-text-secondary/55 focus:border-primary/60 disabled:opacity-60"
           />
           <div className="mt-3 flex justify-between gap-2">
             <button type="button" onClick={() => { setMode('choose'); setError(null); }} className="px-3 py-2 text-xs text-text-secondary hover:text-text-primary">
@@ -1337,7 +1337,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
             value={name}
             onChange={(e) => setName(e.target.value)}
             placeholder={t('remote.namePlaceholder')}
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
           />
         </div>
         <div>
@@ -1348,7 +1348,7 @@ export function AddRemoteModal({ show, onClose, onAdd, isLoading }: AddRemoteMod
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://github.com/user/repo.git"
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
           />
         </div>
         <div className="flex gap-2 justify-end mt-2">
@@ -1420,7 +1420,7 @@ export function RenameRemoteModal({ remote, onClose, onRename, isLoading }: Rena
             value={newName}
             onChange={(e) => setNewName(e.target.value)}
             placeholder={t('remote.namePlaceholder')}
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55"
           />
         </div>
         <div className="flex gap-2 justify-end mt-2">
@@ -1492,7 +1492,7 @@ export function SetRemoteUrlModal({ remote, onClose, onSetUrl, isLoading }: SetR
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://github.com/user/repo.git"
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
           />
         </div>
         <div className="flex gap-2 justify-end mt-2">
@@ -1576,7 +1576,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
               readOnly
               value={folderPath}
               placeholder={t('worktree.folderPlaceholder')}
-              className="h-10 flex-1 rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-xs text-text-primary outline-none font-mono"
+              className="h-10 flex-1 rounded-lg border border-border-subtle bg-bg-input px-3 text-xs text-text-primary outline-none font-mono"
             />
             <button
               type="button"
@@ -1595,7 +1595,7 @@ export function NewWorktreeModal({ show, onClose, onAdd, onPickFolder, isLoading
           <select
             value={branch}
             onChange={(e) => setBranch(e.target.value)}
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors focus:border-secondary/55"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors focus:border-secondary/55"
           >
             {branches.map((br) => (
               <option key={br} value={br} className="bg-bg-base text-text-primary text-xs font-mono">
@@ -1676,7 +1676,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
             value={url}
             onChange={(e) => setUrl(e.target.value)}
             placeholder="https://github.com/user/repo.git"
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
           />
         </div>
         <div>
@@ -1687,7 +1687,7 @@ export function NewSubmoduleModal({ show, onClose, onAdd, isLoading }: NewSubmod
             value={path}
             onChange={(e) => setPath(e.target.value)}
             placeholder={t('submodule.pathPlaceholder')}
-            className="h-10 w-full rounded-lg border border-border-subtle/20 bg-bg-base/80 px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
+            className="h-10 w-full rounded-lg border border-border-subtle bg-bg-input px-3 text-sm text-text-primary outline-none transition-colors placeholder:text-text-secondary/65 focus:border-secondary/55 font-mono text-xs"
           />
         </div>
         <div className="flex gap-2 justify-end mt-2">

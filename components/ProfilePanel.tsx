@@ -232,7 +232,7 @@ export function ProfilePanel({
                       if (e.key === 'Enter') handleConnectGitHub();
                     }}
                     placeholder="ghp_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
-                    className="w-full bg-bg-base border border-border-subtle/15 rounded-lg px-3 py-2.5 text-xs font-mono focus:outline-none focus:border-secondary/50"
+                    className="w-full bg-bg-input border border-border-subtle rounded-lg px-3 py-2.5 text-xs font-mono text-text-primary focus:outline-none focus:border-secondary/50"
                   />
                   <button
                     onClick={handleConnectGitHub}

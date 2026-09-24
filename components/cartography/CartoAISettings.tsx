@@ -133,7 +133,7 @@ export function CartoAISettings() {
                 onChange={(e) => setSettings({ ...settings, model: e.target.value })}
                 onBlur={(e) => patch({ model: e.target.value })}
                 placeholder={t('cartography.ai.modelPlaceholderLocal')}
-                className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+                className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
               />
             </div>
           )}
@@ -248,7 +248,7 @@ function OnlineAccess({ model, onModelChange }: { model: string; onModelChange: 
           onChange={(e) => setKeyDraft(e.target.value)}
           autoComplete="off"
           placeholder={hasKey ? t('cartography.ai.keyPlaceholderReplace') : t('cartography.ai.keyPlaceholderPaste')}
-          className="min-w-0 flex-1 rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+          className="min-w-0 flex-1 rounded-lg border border-border-subtle bg-bg-input px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
         />
         <button
           type="button"
@@ -301,7 +301,7 @@ function ModelSelect({ value, onChange }: { value: string; onChange: (v: string)
             onChange(v);
           }
         }}
-        className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm text-text-primary focus:border-secondary/50 focus:outline-none"
+        className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-2 text-sm text-text-primary focus:border-secondary/50 focus:outline-none"
       >
         <option value="">{t('cartography.ai.modelDefaultOption')}</option>
         {OPENROUTER_MODELS.map((m) => (
@@ -319,7 +319,7 @@ function ModelSelect({ value, onChange }: { value: string; onChange: (v: string)
           spellCheck={false}
           autoComplete="off"
           placeholder={t('cartography.ai.modelCustomPlaceholder')}
-          className="w-full rounded-lg border border-border-subtle/20 bg-bg-base/70 px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
+          className="w-full rounded-lg border border-border-subtle bg-bg-input px-3 py-2 text-sm font-mono text-text-primary placeholder:text-text-secondary/50 focus:border-secondary/50 focus:outline-none"
         />
       )}
     </div>

@@ -8,7 +8,7 @@
  * Key design decisions:
  * - Colors are STABLE per branch name: "main" always gets its specific color,
  *   "feature/x" always gets another. Derived from a hash of the branch name.
- * - Current branch always gets #a3f185 (neon green).
+ * - Current branch always gets var(--color-secondary).
  * - Remote branches of the same name share color with their local counterpart.
  * - Fallback to sequential lane colors when no branch name is available.
  */
@@ -283,10 +283,10 @@ function parseRefs(refs: string[] | undefined, currentBranch?: string): ParsedRe
   if (!refs || refs.length === 0) return [];
   return refs.map((raw) => {
     if (raw.startsWith('tag: ')) {
-      return { raw, name: raw.slice(5), type: 'tag' as const, isCurrent: false, color: '#fd9d1a' };
+      return { raw, name: raw.slice(5), type: 'tag' as const, isCurrent: false, color: 'var(--color-git-mod)' };
     }
     if (raw === 'refs/stash' || raw.startsWith('refs/stash')) {
-      return { raw, name: 'stash', type: 'stash' as const, isCurrent: false, color: '#9eacc0' };
+      return { raw, name: 'stash', type: 'stash' as const, isCurrent: false, color: 'var(--color-text-secondary)' };
     }
     if (raw.includes('/')) {
       const color = colorForBranch(raw, currentBranch);
@@ -512,8 +512,7 @@ function GraphRowView({
             opacity: selected ? 0.6 : branchHighlighted ? 0.54 : 0.42,
           }}
         />
-      {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta los carriles y nodos del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
-      <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }} data-keep-color>
+        <svg width={graphWidth} height={ROW_H} className="block relative z-10" style={{ overflow: 'visible' }}>
         {/* Pass-through lanes */}
         {row.activeLanes.map(({ lane, color }) => (
           <line
@@ -566,7 +565,7 @@ function GraphRowView({
           cx={PADDING_LEFT + row.lane * LANE_W}
           cy={ROW_H / 2}
           r={DOT_R}
-          fill="#020f1e"
+          fill="var(--color-bg-base)"
           stroke={row.laneColor}
           strokeWidth={2.5}
         />
@@ -587,19 +586,19 @@ function GraphRowView({
 
       {/* ── Column 3: Description ── */}
       <div className="flex-1 min-w-0 flex items-center gap-3 pl-4 pr-3">
-        <span className={cn('truncate text-sm select-text', selected ? 'text-[#d9e7fc]' : 'text-[#d9e7fc] group-hover:text-[#d9e7fc]')}>
+        <span className={cn('truncate text-sm select-text text-text-primary', selected && 'font-medium')}>
           {mainMessage}
         </span>
         {hasCoauthor && (
-          <span className="text-xs text-[#697789] shrink-0 italic">{tNow('graph.coAuthored')}</span>
+          <span className="text-xs text-text-secondary shrink-0 italic">{tNow('graph.coAuthored')}</span>
         )}
       </div>
 
       {/* ── Right meta ── */}
-      <div className="flex items-center text-[11px] font-mono shrink-0 pr-3 text-[#697789]">
+      <div className="flex items-center text-[11px] font-mono shrink-0 pr-3 text-text-secondary">
         <span className="text-right truncate" style={{ width: columnWidths.date }}>{formatDate(row.commit.date)}</span>
         <span
-          className={cn('text-right select-text', selected ? 'text-[#a3f185]' : '')}
+          className={cn('text-right select-text font-mono', selected ? 'text-git-add font-bold' : '')}
           style={{
             width: columnWidths.hash,
             ...(!selected ? { color: row.laneColor, opacity: 0.8 } : undefined),
@@ -669,8 +668,7 @@ function WIPRow({
       </div>
 
       <div className="shrink-0 overflow-visible" style={{ width: graphColumnWidth }}>
-        {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta los carriles y nodos del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
-        <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }} data-keep-color>
+        <svg width={graphWidth} height={ROW_H} className="block" style={{ overflow: 'visible' }}>
           <line
             x1={PADDING_LEFT} y1={ROW_H / 2} x2={PADDING_LEFT} y2={ROW_H}
             stroke={laneColor} strokeWidth={2} strokeDasharray="3 3" opacity={0.6}

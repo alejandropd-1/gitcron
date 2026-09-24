@@ -2085,14 +2085,12 @@ export function ChronometricGraph({
       id="chronometric-container"
     >
       {/* 2D Infinite Interactive Canvas Viewport */}
-      {/* Provisional: data-keep-color evita que el filtro global de tema claro invierta el lienzo del grafo. Se retira en el change reemplazar-tema-claro-invertido. */}
       <div
         ref={containerRef}
         onMouseDown={handleMouseDown}
         className={`flex-1 overflow-hidden relative cursor-grab ${
           isDragging ? 'cursor-grabbing' : ''
         }`}
-        data-keep-color
       >
         <svg
           width="100%"
@@ -2233,6 +2231,15 @@ export function ChronometricGraph({
             .chrono-node-label-enter {
               animation: chrono-node-label-enter 5.15s ease-out both;
             }
+            .chrono-tcar-reticle {
+              opacity: 0.85;
+            }
+            :global(html.light) .chrono-tcar-reticle {
+              opacity: 1;
+            }
+            :global(html.light) #tcar-reticle-art {
+              filter: contrast(1.35) brightness(0.68) saturate(1.4) drop-shadow(0 2px 4px color-mix(in srgb, var(--color-text-primary) 30%, transparent));
+            }
             .chrono-tcar-enter {
               animation: chrono-tcar-enter 2.75s ease-out both;
               mix-blend-mode: screen;
@@ -2240,6 +2247,46 @@ export function ChronometricGraph({
             .chrono-tcar-exit {
               animation: chrono-tcar-exit 1.65s ease-in both;
               mix-blend-mode: screen;
+            }
+            :global(html.light) .chrono-tcar-enter {
+              animation: chrono-tcar-enter-light 2.75s ease-out both;
+              mix-blend-mode: normal;
+            }
+            :global(html.light) .chrono-tcar-exit {
+              animation: chrono-tcar-exit-light 1.65s ease-in both;
+              mix-blend-mode: normal;
+            }
+            @keyframes chrono-tcar-enter-light {
+              0% {
+                opacity: 0;
+                filter: blur(6px) contrast(1.1) brightness(0.9);
+              }
+              30% {
+                opacity: 0.35;
+                filter: blur(4px) contrast(1.2) brightness(0.95);
+              }
+              68% {
+                opacity: 0.8;
+                filter: blur(1.5px) contrast(1.25) brightness(0.98);
+              }
+              100% {
+                opacity: 1;
+                filter: blur(0) contrast(1) brightness(1);
+              }
+            }
+            @keyframes chrono-tcar-exit-light {
+              0% {
+                opacity: 1;
+                filter: blur(0) contrast(1) brightness(1);
+              }
+              38% {
+                opacity: 0.55;
+                filter: blur(2px) contrast(1.2) brightness(0.95);
+              }
+              100% {
+                opacity: 0;
+                filter: blur(6px) contrast(1.1) brightness(0.9);
+              }
             }
             .chrono-future-lines-enter {
               animation: chrono-future-lines-enter 5.15s ease-out both;
@@ -2617,7 +2664,7 @@ export function ChronometricGraph({
                 >
                   <g
                     transform={`translate(${headCommitNode.x}, ${headCommitNode.y}) scale(0.18) translate(-360, -360)`}
-                    opacity={0.85}
+                    className="chrono-tcar-reticle"
                   >
                     <g id="tcar-reticle-art" style={{ transformOrigin: '360px 360px' }}>
                       <path fill="#80d1e2" d="M128.94,233.7s47.13,24.25,84.98,51.05c12.09-23.46,29.72-43.59,51.17-58.67l-17.17-11.81H30.72c-2.23,5.02-4.34,10.1-6.34,15.24,82.61-3.21,104.56,4.18,104.56,4.18Z"/>
@@ -2658,7 +2705,7 @@ export function ChronometricGraph({
                 >
                   <g
                     transform={`translate(${reticle.x}, ${reticle.y}) scale(0.18) translate(-360, -360)`}
-                    opacity={0.85}
+                    className="chrono-tcar-reticle"
                   >
                     <use href="#tcar-reticle-art" />
                   </g>
@@ -2954,7 +3001,7 @@ export function ChronometricGraph({
                               width={badgeWidth}
                               height={14}
                               rx={2}
-                              fill="#020f1e"
+                              fill="var(--color-bg-surface)"
                               stroke={node.laneColor}
                               strokeWidth={1}
                               opacity={0.9}
@@ -3589,35 +3636,35 @@ export function ChronometricGraph({
                         {selectedBranchIsMaterialized ? renderMaterializedFinalState() : renderPredictionJudgeBar()}
                         </div>
                     ) : selectedSpeculativeId ? (
-                      <p className="text-[10px] leading-relaxed text-[#697789]/75">
+                      <p className="text-[10px] leading-relaxed text-text-secondary/75">
                         {predictionHistoryLoading ? t('centauro.historyLoading') : t('centauro.livePending')}
                       </p>
                       ) : selectedCommit ? (
                         /* ---- TARGET_LOCKED — commit selected ---- */
                         <div className="flex flex-col gap-1 animate-in fade-in duration-200">
-                          <div className="flex items-center justify-between border-b border-[#5ed8ff]/20 pb-1.5 mb-0.5">
+                          <div className="flex items-center justify-between border-b border-primary/25 pb-1.5 mb-0.5">
                             <div className="flex items-center gap-1.5">
-                              <Crosshair size={10} className="text-[#5ed8ff]" />
-                              <span className="text-[11px] font-bold text-[#5ed8ff] tracking-wider uppercase">
+                              <Crosshair size={10} className="text-primary" />
+                              <span className="text-[11px] font-bold text-primary tracking-wider uppercase">
                                 TARGET_LOCKED // LOCK_STABLE
                               </span>
                             </div>
                             <button
                               onClick={(e) => { e.stopPropagation(); navigator.clipboard.writeText(selectedCommit.hash); }}
-                              className="px-1.5 py-0.5 border border-[#5ed8ff]/35 hover:border-[#5ed8ff]/75 text-[#5ed8ff] hover:bg-[#5ed8ff]/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
+                              className="px-1.5 py-0.5 border border-primary/40 hover:border-primary/80 text-primary hover:bg-primary/10 rounded font-mono text-[7px] tracking-wider transition-all duration-150 uppercase cursor-pointer"
                             >
                               {t('centauro.copySha')}
                             </button>
                           </div>
-                          <div className="flex flex-col gap-0.5 text-[8.5px] text-[#9eacc0]">
+                          <div className="flex flex-col gap-0.5 text-[8.5px] text-text-secondary">
                             <div className="flex items-center justify-between">
-                              <span>SHA // <span className="text-[#5ed8ff] font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
+                              <span>SHA // <span className="text-primary font-bold">{selectedCommit.shortHash.toUpperCase()}</span></span>
                               <span className="text-[7.5px] opacity-80">{new Date(selectedCommit.date).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }).toUpperCase()}</span>
                             </div>
-                            <div className="truncate text-[#d9e7fc] text-[9px] font-semibold border-l-2 border-[#5ed8ff]/50 pl-1.5 my-0.5">
+                            <div className="truncate text-text-primary text-[9px] font-semibold border-l-2 border-primary/50 pl-1.5 my-0.5">
                               {selectedCommit.message}
                             </div>
-                            <div className="flex items-center justify-between text-[7.5px] text-[#697789] pt-0.5 border-t border-[#3c495a]/15">
+                            <div className="flex items-center justify-between text-[7.5px] text-text-secondary pt-0.5 border-t border-border-subtle/30">
                               <span className="truncate max-w-[140px]">AUTHOR: {selectedCommit.authorName.toUpperCase()}</span>
                               <span className="truncate max-w-[150px]">PARENT: {selectedCommit.parents[0]?.substring(0, 7).toUpperCase() || 'ROOT'}</span>
                             </div>
@@ -3626,27 +3673,27 @@ export function ChronometricGraph({
                       ) : (
                         /* ---- IDLE — no branch selected. Show summary or composed list ---- */
                         <div className="flex flex-col gap-2">
-                          <div className="flex items-center gap-2 border-b border-[#5ed8ff]/20 pb-1.5">
-                            <Compass size={10} className="text-[#697789]" />
-                            <span className="text-[10px] font-bold text-[#697789] tracking-wider uppercase">
+                          <div className="flex items-center gap-2 border-b border-primary/25 pb-1.5">
+                            <Compass size={10} className="text-text-secondary" />
+                            <span className="text-[10px] font-bold text-text-secondary tracking-wider uppercase">
                               TARGET_ACQUISITION // SCANNING
                             </span>
                           </div>
                           {centauroReaderActive && liveSpeculativeBranches.length > 0 ? (
                             <div className="flex flex-col gap-2">
-                              <p className="text-[10px] text-[#697789]/70 italic">
+                              <p className="text-[10px] text-text-secondary/70 italic">
                                 {t('centauro.clickHint')}
                               </p>
                               <div className="flex flex-col gap-0.5">
                                 {liveSpeculativeBranches.map((b, bi) => {
                                   const d = decisions[b.id] ?? decisions[b.message];
-                                  const branchColor = d ? OUTCOME_COLOR[d.outcome] : '#5ed8ff';
+                                  const branchColor = d ? OUTCOME_COLOR[d.outcome] : 'var(--color-primary)';
                                   const num = b.predictionIndex ?? (bi + 1);
                                   return (
                                   <button
                                     key={b.id}
                                     onClick={() => handleSelectSpeculative(b.id)}
-                                    className="flex items-center gap-2 border-l-2 border-[#5ed8ff]/20 pl-2 py-0.5 cursor-pointer hover:border-[#5ed8ff]/60 hover:bg-[#5ed8ff]/5 transition-colors text-left w-full"
+                                    className="flex items-center gap-2 border-l-2 border-primary/25 pl-2 py-0.5 cursor-pointer hover:border-primary/60 hover:bg-primary/5 transition-colors text-left w-full"
                                   >
                                     <span
                                       className="text-[9px] font-bold shrink-0 w-5 text-center"
@@ -3654,20 +3701,20 @@ export function ChronometricGraph({
                                     >
                                       #{num}
                                     </span>
-                                    <span className="text-[10px] text-[#d9e7fc]/80 truncate flex-1">{b.message}</span>
-                                    <span className="text-[9px] text-[#5ed8ff]/60 shrink-0">{b.type}</span>
-                                    <span className="text-[9px] text-[#697789]/50 shrink-0 w-8 text-right">{Math.round(b.confidence * 100)}%</span>
+                                    <span className="text-[10px] text-text-primary/80 truncate flex-1">{b.message}</span>
+                                    <span className="text-[9px] text-primary/75 shrink-0">{b.type}</span>
+                                    <span className="text-[9px] text-text-secondary/60 shrink-0 w-8 text-right">{Math.round(b.confidence * 100)}%</span>
                                   </button>
                                   );
                                 })}
                               </div>
                             </div>
                           ) : centauroReaderActive ? (
-                            <p className="text-[10px] text-[#697789]/70">
+                            <p className="text-[10px] text-text-secondary/70">
                               {t('centauro.noPredictions')}
                             </p>
                           ) : (
-                            <p className="text-[10px] leading-relaxed text-[#697789]/75">
+                            <p className="text-[10px] leading-relaxed text-text-secondary/75">
                               {t('centauro.emptyHud')}
                             </p>
                           )}

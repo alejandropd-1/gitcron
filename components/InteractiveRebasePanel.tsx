@@ -353,7 +353,7 @@ export default function InteractiveRebasePanel({
                           <textarea
                             value={item.newMessage ?? ''}
                             onChange={(e) => handleMessageChange(item.hash, e.target.value)}
-                            className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-xs font-mono text-text-primary h-14 focus:outline-none focus:border-secondary/30 resize-none"
+                            className="w-full bg-bg-input border border-border-subtle rounded p-2 text-xs font-mono text-text-primary h-14 focus:outline-none focus:border-secondary/30 resize-none"
                             placeholder={t('rebase.newMessagePlaceholder')}
                           />
                         </div>

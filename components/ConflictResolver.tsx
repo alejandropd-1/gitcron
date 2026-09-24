@@ -241,7 +241,7 @@ export function ConflictResolver({
                   <textarea
                     value={current}
                     onChange={(event) => setResolutions((prev) => prev.map((value, index) => index === segment.conflictIndex ? event.target.value : value))}
-                    className="w-full min-h-28 max-h-64 bg-bg-surface border border-border-subtle/20 rounded p-2 text-[length:var(--font-size-xs)] leading-relaxed text-text-primary font-mono resize-y focus:outline-none focus:border-git-mod/50"
+                    className="w-full min-h-28 max-h-64 bg-bg-input border border-border-subtle rounded p-2 text-[length:var(--font-size-xs)] leading-relaxed text-text-primary font-mono resize-y focus:outline-none focus:border-git-mod/50"
                     spellCheck={false}
                   />
                 </label>

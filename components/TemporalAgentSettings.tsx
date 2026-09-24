@@ -870,7 +870,7 @@ function TagInput({
 }
 
 const selectStyle: React.CSSProperties = {
-  background: 'var(--color-bg-surface)',
+  background: 'var(--color-bg-input)',
   color: 'var(--color-text-primary)',
   border: '1px solid var(--color-border-subtle)',
   borderRadius: 'var(--radius-md)',

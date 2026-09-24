@@ -56,21 +56,25 @@ fallan en el tema claro.
 - **WHEN** se incorpora un tema nuevo
 - **THEN** la comprobación de contraste lo incluye en la misma tanda, no después
 
-### Requirement: Una superficie de tema fijo SHALL declararse como tal y decir por qué
+### Requirement: Las superficies de datos y visualización SHALL acompañar el tema activo con contraste verificado
 
-Una superficie que no acompaña el cambio de tema SHALL declararlo de forma explícita, con el motivo,
-y SHALL presentar su propio fondo en lugar de apoyarse en el fondo del tema activo.
+Las superficies de visualización gráfica (incluyendo `CommitGraph.tsx` y `ChronometricGraph.tsx`) SHALL responder al tema activo (`color-scheme`) asegurando que sus carriles, conexiones, nodos, insignias y textos satisfagan un ratio de contraste adecuado contra el fondo activo.
 
-El caso declarado: los 212 colores exentos de los grafos protegidos —`ChronometricGraph.tsx` y `CommitGraph.tsx`, que no se tocan sin validación visual explícita de Alejandro— —203 en `ChronometricGraph.tsx` y 9
-en `CommitGraph.tsx`— son literales que no responden a tokens. Al retirar el filtro, un tema por
-tokens no los alcanza y quedarían con color de tema oscuro sobre fondo claro. Un lienzo de datos con
-tema fijo es una decisión legítima, como en los editores de video y los mapas; lo que no es legítimo
-es que quede así por omisión.
+En `CommitGraph.tsx`, los textos de mensaje de commit, fecha, autor y etiquetas utilizan tokens semánticos del sistema (`--color-text-primary`, `--color-text-secondary`, `--color-git-add`, `--color-bg-base`), retirando los literales no adaptativos. En `ChronometricGraph.tsx`, el lienzo (`#chronometric-container`) adopta `--color-bg-base`, y los doce colores de carril (`--color-graph-branch-1` a `12`) declaran mediante `light-dark()` valores oscuros saturados de alto contraste para el tema claro y valores luminosos para el tema oscuro. Las imágenes, videos y avatares de usuario se renderizan en sus colores naturales sin transformaciones ni filtros de compensación.
 
-#### Scenario: Superficie que no responde al tema activo
-- **WHEN** una superficie conserva sus colores al cambiar de tema
-- **THEN** declara su propio fondo y el motivo por el que no acompaña el cambio
+#### Scenario: Visualización de grafos en tema claro
+- **WHEN** el usuario activa el tema claro en el grafo clásico o cronométrico
+- **THEN** los nodos, conexiones, insignias y comentarios se renderizan con los valores de alto contraste correspondientes al tema activo sobre el fondo claro
 
-#### Scenario: Superficie de tema fijo sobre fondo del tema activo
-- **WHEN** una superficie de tema fijo se apoya en el fondo del tema activo
-- **THEN** se le da fondo propio, para que su contraste interno no dependa del tema
+#### Scenario: Controles nativos y medios
+- **WHEN** se presentan avatares, videos o imágenes
+- **THEN** se dibujan con sus colores originales sin sufrir inversiones ni modificaciones cromáticas
+
+### Requirement: Un control nativo NO SHALL depender de una transformación aplicada al documento
+
+Los controles nativos del navegador (como `<select>`, `<option>`, selectores de fecha, casillas de verificación y barras de desplazamiento) que se dibujan fuera del árbol del documento NO SHALL depender de transformaciones visuales o filtros aplicados al DOM para obtener sus colores legibles. La legibilidad de los controles nativos SHALL derivar directamente de los tokens declarados para el tema activo y la directiva `color-scheme`.
+
+#### Scenario: Presentación de opciones en controles nativos desplegables
+- **WHEN** se abre un menú desplegable nativo (`<select>`) en cualquier tema soportado
+- **THEN** las opciones (`<option>`) toman los colores del tema activo sin requerir reglas de inversión cruzada ni hacks de compensación
+

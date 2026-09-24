@@ -13,7 +13,7 @@ export interface ContrastPairCheck {
   bgToken?: string;
 }
 
-export function getGlobalsCssTokens(): Record<string, string> {
+export function getGlobalsCssTokens(theme: 'dark' | 'light' = 'dark'): Record<string, string> {
   const cssPath = path.resolve(process.cwd(), 'app/globals.css');
   const content = fs.readFileSync(cssPath, 'utf-8');
   const tokens: Record<string, string> = {};
@@ -22,6 +22,10 @@ export function getGlobalsCssTokens(): Record<string, string> {
   while ((match = regex.exec(content)) !== null) {
     const key = match[1];
     let val = match[2].trim().replace(/\/\*.*?\*\//g, '').trim();
+    const ldMatch = val.match(/^light-dark\(\s*([^,\s]+)\s*,\s*([^)\s]+)\s*\)$/i);
+    if (ldMatch) {
+      val = theme === 'light' ? ldMatch[1] : ldMatch[2];
+    }
     tokens[key] = val;
   }
   for (const [k, v] of Object.entries(tokens)) {
@@ -89,6 +93,24 @@ export const PALETTE_PAIRS: ContrastPairCheck[] = [
     bgToken: '--color-bg-overlay',
     foreground: cssTokens['--color-text-secondary'] || '#d8dee9',
     background: cssTokens['--color-bg-overlay'] || '#3b4252',
+    minRatio: 4.5,
+  },
+  {
+    description: '--color-text-primary on --color-bg-input',
+    type: 'text',
+    fgToken: '--color-text-primary',
+    bgToken: '--color-bg-input',
+    foreground: cssTokens['--color-text-primary'] || '#eceff4',
+    background: cssTokens['--color-bg-input'] || '#242933',
+    minRatio: 4.5,
+  },
+  {
+    description: '--color-text-secondary on --color-bg-input',
+    type: 'text',
+    fgToken: '--color-text-secondary',
+    bgToken: '--color-bg-input',
+    foreground: cssTokens['--color-text-secondary'] || '#d8dee9',
+    background: cssTokens['--color-bg-input'] || '#242933',
     minRatio: 4.5,
   },
   // Accents as text on dark backgrounds
@@ -204,31 +226,48 @@ export const PALETTE_PAIRS: ContrastPairCheck[] = [
   },
 ];
 
-describe('palette-contrast - Verificación de contraste WCAG AA', () => {
-  it('todos los pares de color deben cumplir con el ratio mínimo exigido', () => {
-    const tokens = getGlobalsCssTokens();
-    const failingPairs: Array<{
-      description: string;
-      foreground: string;
-      background: string;
-      ratio: number;
-      minRatio: number;
-    }> = [];
+export function evaluateThemeContrast(theme: 'dark' | 'light') {
+  const tokens = getGlobalsCssTokens(theme);
+  const failingPairs: Array<{
+    description: string;
+    foreground: string;
+    background: string;
+    ratio: number;
+    minRatio: number;
+  }> = [];
 
-    for (const pair of PALETTE_PAIRS) {
-      const fg = pair.fgToken ? (tokens[pair.fgToken] || pair.foreground) : pair.foreground;
-      const bg = pair.bgToken ? (tokens[pair.bgToken] || pair.background) : pair.background;
-      const ratio = getContrastRatio(fg, bg);
-      if (ratio < pair.minRatio) {
-        failingPairs.push({
-          description: pair.description,
-          foreground: fg,
-          background: bg,
-          ratio: Number(ratio.toFixed(2)),
-          minRatio: pair.minRatio,
-        });
-      }
+  for (const pair of PALETTE_PAIRS) {
+    const fg = pair.fgToken ? (tokens[pair.fgToken] || pair.foreground) : pair.foreground;
+    const bg = pair.bgToken ? (tokens[pair.bgToken] || pair.background) : pair.background;
+    const ratio = getContrastRatio(fg, bg);
+    if (ratio < pair.minRatio) {
+      failingPairs.push({
+        description: pair.description,
+        foreground: fg,
+        background: bg,
+        ratio: Number(ratio.toFixed(2)),
+        minRatio: pair.minRatio,
+      });
     }
+  }
+
+  return {
+    tokens,
+    total: PALETTE_PAIRS.length,
+    failingPairs,
+  };
+}
+
+describe('palette-contrast - Verificación de contraste WCAG AA (temas: dark, light)', () => {
+  // Temas recorridos: 'dark' y 'light'.
+  // Archivo analizado: app/globals.css
+  // Umbrales aplicados:
+  // - 4.5:1 para texto normal (tokens de texto primario, secundario y acentos)
+  // - 3.0:1 para focus ring y elementos de interfaz destacados
+  // - 1.2:1 para bordes sutiles de controles
+
+  it('tema oscuro: todos los pares de color deben cumplir con el ratio mínimo exigido', () => {
+    const { failingPairs } = evaluateThemeContrast('dark');
 
     if (failingPairs.length > 0) {
       const summary = failingPairs
@@ -238,7 +277,25 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
         )
         .join('\n');
       expect.fail(
-        `Se encontraron ${failingPairs.length} pares con contraste insuficiente:\n${summary}`
+        `[Tema Oscuro] Se encontraron ${failingPairs.length} pares con contraste insuficiente:\n${summary}`
+      );
+    }
+
+    expect(failingPairs.length).toBe(0);
+  });
+
+  it('tema claro: todos los pares de color deben cumplir con el ratio mínimo exigido', () => {
+    const { failingPairs } = evaluateThemeContrast('light');
+
+    if (failingPairs.length > 0) {
+      const summary = failingPairs
+        .map(
+          (p) =>
+            `  - [${p.description}] (${p.foreground} sobre ${p.background}) -> Obtenido: ${p.ratio}:1, Requerido: ${p.minRatio}:1`
+        )
+        .join('\n');
+      expect.fail(
+        `[Tema Claro] Se encontraron ${failingPairs.length} pares con contraste insuficiente:\n${summary}`
       );
     }
 
@@ -249,7 +306,7 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
     const cssPath = path.resolve(process.cwd(), 'app/globals.css');
     const content = fs.readFileSync(cssPath, 'utf-8');
 
-    const gitAddMatch = content.match(/--color-git-add:\s*(#[0-9a-fA-F]{3,8})/);
+    const gitAddMatch = content.match(/--color-git-add:\s*(?:light-dark\([^,]+,\s*)?(#[0-9a-fA-F]{3,8})/i);
     expect(gitAddMatch?.[1]?.toLowerCase()).toBe('#a3be8c');
 
     const secondaryMatch = content.match(/--color-secondary:\s*([^;]+);/);
@@ -260,7 +317,7 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
     const cssPath = path.resolve(process.cwd(), 'app/globals.css');
     const content = fs.readFileSync(cssPath, 'utf-8');
 
-    const warningMatch = content.match(/--color-warning:\s*(#[0-9a-fA-F]{3,8})/);
+    const warningMatch = content.match(/--color-warning:\s*(?:light-dark\([^,]+,\s*)?(#[0-9a-fA-F]{3,8})/i);
     expect(warningMatch?.[1]?.toLowerCase()).toBe('#d8a657');
   });
 
@@ -305,6 +362,7 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
       '--color-bg-base',
       '--color-bg-surface',
       '--color-bg-overlay',
+      '--color-bg-input',
       '--color-border-subtle',
       '--color-text-primary',
       '--color-text-secondary',
@@ -317,7 +375,7 @@ describe('palette-contrast - Verificación de contraste WCAG AA', () => {
       '--color-accent-purple',
     ];
 
-    expect(verifiedSharedTokens.length).toBe(13);
-    expect(PALETTE_PAIRS.length).toBe(18);
+    expect(verifiedSharedTokens.length).toBe(14);
+    expect(PALETTE_PAIRS.length).toBe(20);
   });
 });

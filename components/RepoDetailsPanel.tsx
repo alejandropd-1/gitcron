@@ -138,7 +138,7 @@ export function RepoDetailsPanel({
           </span>
         </div>
         <textarea
-          className="w-full bg-bg-base/70 border border-border-subtle/15 rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-secondary/30 resize-none"
+          className="w-full bg-bg-input border border-border-subtle rounded p-2 text-sm text-text-primary h-16 focus:outline-none focus:border-primary/50 resize-none"
           placeholder={t('staging.commitMsgPlaceholder')}
           value={commitMessage}
           onChange={(event) => setCommitMessage(event.target.value)}

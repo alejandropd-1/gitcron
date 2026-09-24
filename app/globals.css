@@ -17,19 +17,25 @@
 @theme {
   /* ==========================================================================
      A. SHARED DESIGN TOKENS (Global layout, dialogs, texts and utility grids)
+     Mecanismo de tema: `light-dark(claro, oscuro)` según CSS Color Module Level 5.
+     Cada token semántico declara su valor claro y oscuro en una sola línea,
+     sin duplicar selectores ni mantener listas paralelas de tokens (Tarea 1.1).
+     El navegador resuelve el valor según `color-scheme` (dark por defecto en html,
+     light en html.light).
      ========================================================================== */
 
   /* Shared Base Backgrounds (Affects: app/page.tsx, HelpModal, RepoModals, ContextMenus) */
-  --color-bg-base: #2e3440; /* Primary canvas / content area backdrop (clearer than frame) */
-  --color-bg-surface: #272c36; /* Window frame, toolbars, sidebars, list panels (darker armazón) */
-  --color-bg-overlay: #3b4252; /* Dialogs, dropdowns, ContextMenu cards | Chronometric Hover HUD backdrop */
+  --color-bg-base: light-dark(#d0d7e4, #2e3440); /* Primary canvas / content area backdrop (claro: slate suave #d0d7e4, oscuro: Nord0 #2e3440) */
+  --color-bg-surface: light-dark(#c2ccdb, #272c36); /* Window frame, toolbars, sidebars, list panels (claro: slate medio #c2ccdb, oscuro: #272c36 armazón) */
+  --color-bg-overlay: light-dark(#c2ccdb, #3b4252); /* Dialogs, dropdowns, ContextMenu cards (claro: slate medio #c2ccdb sin blancos plenos deslumbrantes, oscuro: Nord1 #3b4252) */
+  --color-bg-input: light-dark(#e7edf7, #242933); /* Interactive input container background (claro: slate suave elevado #e7edf7, oscuro: Nord sunken #242933) */
 
   /* Shared Border Contrast (Affects: panels, dividers) */
-  --color-border-subtle: #4c566a; /* Panel separators, tab boundaries | Chronometric Canvas grid lines */
+  --color-border-subtle: light-dark(#a8b5c8, #4c566a); /* Panel separators, tab boundaries (claro: slate #a8b5c8, oscuro: Nord3 #4c566a) */
 
   /* Shared Typography Colors (Affects: all UI texts, labels, buttons) */
-  --color-text-primary: #eceff4; /* Primary readable headings, active states, active tag label titles */
-  --color-text-secondary: #d8dee9; /* Muted descriptions, secondary labels | Chronometric Canvas axis metadata labels */
+  --color-text-primary: light-dark(#202632, #eceff4); /* Primary readable headings, active states (claro: Nord0 profundo #202632 10.49:1, oscuro: Nord6 #eceff4) */
+  --color-text-secondary: light-dark(#434d5f, #d8dee9); /* Muted descriptions, secondary labels (claro: Nord3 profundo #434d5f 5.89:1, oscuro: Nord4 #d8dee9) */
 
   /* Shared Typography Scale (Affects: text-size across all views) */
   /* 10px - Rotulacion accesoria: tags, badges y encabezados de columna. NO es texto
@@ -52,17 +58,17 @@
   --font-size-2xl: 1.5rem; /* 24px - Títulos principales de página / modal */
 
   /* Shared Brand Accents & Semantic States (Affects: buttons, selections, status badges) */
-  --color-primary: #5ed8ff; /* Active Cyan brand identity, highlights, pull request indicator icons */
-  --color-error: #ff716c; /* Muted warnings, conflict states, deletion indicators | Chronometric Canvas WIP orbits */
-  --color-warning: #d8a657; /* Muted amber warning and attention notices. Diferencia semántica con --color-git-mod (#fd9d1a): indica atención del sistema / advertencia, no modificación de archivo o rama */
+  --color-primary: light-dark(#065877, #5ed8ff); /* Active Cyan brand identity, highlights, pull request indicator icons */
+  --color-error: light-dark(#a81c1c, #ff716c); /* Muted warnings, conflict states, deletion indicators | Chronometric Canvas WIP orbits */
+  --color-warning: light-dark(#6d4700, #d8a657); /* Muted amber warning and attention notices. Diferencia semántica con --color-git-mod (#8f3c00) */
 
   /* Shared Semantics Git Status Badge Colors (Affects: HelpModal, Sidebar, File list badges M, A, D, U, R) */
-  --color-git-add: #a3be8c; /* Staged modifications / Added files (Green - Nord14) */
-  --color-git-delete: #ff716c; /* Untracked deletions / Deleted files (Red) */
-  --color-git-mod: #fd9d1a; /* Staged modifications / Orange tag labels | Chronometric Canvas Tag orbits */
+  --color-git-add: light-dark(#1e5e22, #a3be8c); /* Staged modifications / Added files (Green - Nord14) */
+  --color-git-delete: light-dark(#a81c1c, #ff716c); /* Untracked deletions / Deleted files (Red) */
+  --color-git-mod: light-dark(#8f3c00, #fd9d1a); /* Staged modifications / Orange tag labels | Chronometric Canvas Tag orbits */
 
   /* Shared Auxiliary Accent */
-  --color-accent-purple: #b58bf8; /* Deep purple helper tag colors */
+  --color-accent-purple: light-dark(#5929a5, #b58bf8); /* Deep purple helper tag colors */
 
   /* Shared Spacing Scale (Affects: padding, margin, gap across all views) */
   --space-0: 0;
@@ -104,19 +110,19 @@
   /* Active HEAD Branch Highlighting & WIP Stage Badges (Classic specific highlights) */
   --color-secondary: var(--color-git-add); /* HEAD indicator star/dots checkmarks, success toast text | Chronometric HEAD crosshair */
 
-  /* Dynamic Commit Lane Lines (Shared colors but primary visualization in Classic CommitGraph lines) */
-  --color-graph-branch-1: #5ed8ff; /* Lane color 1 */
-  --color-graph-branch-2: #fd9d1a; /* Lane color 2 */
-  --color-graph-branch-3: #ff716c; /* Lane color 3 */
-  --color-graph-branch-4: #39bce2; /* Lane color 4 */
-  --color-graph-branch-5: #ffb462; /* Lane color 5 */
-  --color-graph-branch-6: #d0bcff; /* Lane color 6 */
-  --color-graph-branch-7: #68b24f; /* Lane color 7 */
-  --color-graph-branch-8: #f472b6; /* Lane color 8 */
-  --color-graph-branch-9: #a78bfa; /* Lane color 9 */
-  --color-graph-branch-10: #34d399; /* Lane color 10 */
-  --color-graph-branch-11: #fb923c; /* Lane color 11 */
-  --color-graph-branch-12: #60a5fa; /* Lane color 12 */
+  /* Dynamic Commit Lane Lines (Shared colors for Classic CommitGraph and ChronometricGraph) */
+  --color-graph-branch-1: light-dark(#065877, #5ed8ff); /* Lane color 1 (Cyan) */
+  --color-graph-branch-2: light-dark(#8f3c00, #fd9d1a); /* Lane color 2 (Orange) */
+  --color-graph-branch-3: light-dark(#a81c1c, #ff716c); /* Lane color 3 (Coral) */
+  --color-graph-branch-4: light-dark(#025887, #39bce2); /* Lane color 4 (Sky) */
+  --color-graph-branch-5: light-dark(#78350f, #ffb462); /* Lane color 5 (Amber) */
+  --color-graph-branch-6: light-dark(#5929a5, #d0bcff); /* Lane color 6 (Lavender) */
+  --color-graph-branch-7: light-dark(#1e5e22, #68b24f); /* Lane color 7 (Green) */
+  --color-graph-branch-8: light-dark(#8b1373, #f472b6); /* Lane color 8 (Pink) */
+  --color-graph-branch-9: light-dark(#4d1796, #a78bfa); /* Lane color 9 (Violet) */
+  --color-graph-branch-10: light-dark(#0a5c56, #34d399); /* Lane color 10 (Teal) */
+  --color-graph-branch-11: light-dark(#912e06, #fb923c); /* Lane color 11 (Rust) */
+  --color-graph-branch-12: light-dark(#163ea8, #60a5fa); /* Lane color 12 (Blue) */
 
   /* ==========================================================================
      C. CRONOMETRIC VIEW TOKENS (Affects: components/ChronometricGraph.tsx)
@@ -251,22 +257,18 @@ textarea:focus-visible,
   outline-offset: 2px;
 }
 
-/* ──────────── Light theme (experimental) ──────────── */
+/* ──────────── Light theme (genuine tokens) ──────────── */
 /*
- * GitCron is designed around a dark palette ("The Compiled Soul"). The light
- * theme is implemented as a global color inversion + hue rotation, applied
- * only when <html class="light"> is present. This gives a usable light mode
- * without rewriting every hardcoded hex in the components. Elements that need
- * to keep their original colors (user avatars, branch colors in the graph)
- * are marked with `data-keep-color` and are inverted back to compensate.
+ * GitCron uses semantic tokens defined via `light-dark()` under @theme.
+ * The active palette resolves automatically from `color-scheme`.
+ * No global CSS filter is applied (Phase 4 - Tareas 4.1, 4.2, 4.3, 4.4, 0b.1).
  */
-/* Smooth transition when switching between dark ↔ light themes.
-   The filter on <body> is the cheapest property to animate — it runs on the
-   compositor, avoids layout/paint, and covers the whole page in one pass. */
 body {
+  background-color: var(--color-bg-base);
+  color: var(--color-text-primary);
   transition:
-    filter 1.85s ease,
-    background-color 1.5s ease-in-out;
+    background-color 0.25s ease,
+    color 0.25s ease;
 }
 
 .app-titlebar {
@@ -277,34 +279,8 @@ body {
   -webkit-app-region: no-drag;
 }
 
-[data-keep-color],
-[data-keep-color] * {
-  transition: filter 0.55s ease;
-}
-
 html.light {
   color-scheme: light;
-  background: #f5f5f7;
-}
-html.light body {
-  filter: invert(0.92) hue-rotate(180deg);
-}
-html.light img,
-html.light video,
-html.light [data-keep-color],
-html.light [data-keep-color] * {
-  filter: invert(0.92) hue-rotate(180deg);
-}
-
-/* Corrección provisional para tema claro con filtro invertido:
-   El popup del <select> es renderizado por Chromium fuera del árbol del DOM
-   y no es alcanzado por el filtro invert(0.92) de body. Por lo tanto, los valores
-   de color se aplican cruzados (el fondo del tema oscuro sirve de texto y el texto
-   sirve de fondo para que las opciones del popup se lean con alto contraste).
-   Provisional: el change 'reemplazar-tema-claro-invertido' retira el filtro y esta regla (0b.1). */
-html.light option {
-  background-color: var(--color-text-primary);
-  color: var(--color-bg-base);
 }
 
 /* ──────────── Scrollbars (matching "The Compiled Soul" palette) ──────────── */
@@ -1977,7 +1953,7 @@ body, .font-sans {
   padding: var(--space-2) var(--space-2);
   border: 1px solid var(--color-border-subtle);
   border-radius: var(--radius-md);
-  background-color: var(--color-bg-overlay);
+  background-color: var(--color-bg-input);
   color: var(--color-text-primary);
   font-size: var(--font-size-sm);
   font-family: inherit;

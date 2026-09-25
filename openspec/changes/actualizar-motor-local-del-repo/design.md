@@ -103,3 +103,64 @@ presentación, la instalación la hace el runner. Lo que no puede pasar es insta
 - [Un proyecto sin la dependencia en el manifiesto pero con el binario en `node_modules/.bin`
   (instalado como transitiva)] → la instalación local la agrega como dependencia de desarrollo
   directa, que es lo que la acción local de la tarjeta ya hace hoy.
+
+## Grupo 6 — agregado tras la revisión en pantalla
+
+Ver proposal.md, «Agregado tras la revisión en pantalla». Medido el 2026-09-25 corriendo
+`inspectInstalledEvidence` sobre una copia de OdontoPau con las copias viejas repuestas desde Git:
+`conflicts: ["Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents)."]`,
+`configuredTools: ["agents","codex"]`, `legacy: ["codex"]`, las cinco `.codex/skills/openspec-*` con
+origen `legacy-codex`. Y sobre OdontoPau sin ellas: `configuredTools: ["agents"]`,
+`presentToolDirectories: ["agents","codex","github"]`, 1 de 2 agentes → `integrationState:
+'outdated'` por `hasUnconfiguredTarget` (`electron/ipc/pipeline-openspec.ts:266-282`). OpenSpec
+1.13.2 escribe el dueño de la carpeta compartida en `.agents/skills/.openspec-target` (un valor, p.
+ej. `codex`; `dist/core/shared-skill-target.js`, `readSharedSkillTarget`), y `openspec init --force`
+sobre la copia dejó las cinco `.codex/` intactas: «Left 5 files in .codex/ that differ from the copy
+in .agents/. Nothing was overwritten».
+
+### 7. El motivo sale del estado, no del plan
+
+`generateUpdatePlan` (`electron/pipeline/openspec-preview.ts:157-167`) deja de poner el texto fijo
+de la POC en `reason`. El motivo de `blocked` se deriva del estado con un código tipado, ampliando
+`deriveUpdateBlockReason` (`lib/openspec-update-guide.ts`) más allá de `cli-not-installed` y
+`version-unknown`: `legacy-coexistence` (hay skills de origen `legacy-codex`/`legacy-agent`),
+`customized` (integración `custom`), `evidence-unknown` (lectura incompleta) y `unclassified`. La
+revisión (`OpenSpecUpdateReview.tsx`, `resolveBlockReasonText`) traduce el código; no muestra
+`updatePlan.reason` ni el texto libre de `conflicts`, que está sólo en castellano.
+
+Alternativa descartada: mostrar el texto de `conflicts` tal cual. Es texto interno, en un solo
+idioma y con nombres de carpeta técnicos; el código tipado se traduce y se prueba.
+
+### 8. Retirar copias viejas: el proceso principal decide qué se borra
+
+Dos canales nuevos en `electron/ipc/pipeline-openspec.ts`, con el patrón de validación de los
+existentes (`validateStrictPayloadKeys`, `validateRepo`):
+
+- `pipeline:openspec:legacy-skills-plan` `{ repoPath }` → para cada copia vieja (skills de origen
+  `legacy-codex`/`legacy-agent` según `inspectInstalledEvidence`), si se puede retirar y, si no,
+  por qué: `untracked` (no seguida en Git) o `modified` (cambios sin confirmar). Sólo lectura.
+- `pipeline:openspec:remove-legacy-skills` `{ repoPath }` → vuelve a calcular la lista en el proceso
+  principal (no acepta rutas del renderer), borra sólo las retirables con `fs.rm` recursivo bajo
+  `withRepoWatcherPaused` (en Windows un handle abierto impide borrar), no confirma nada y devuelve
+  `{ removed, skipped: [{ path, reason }], engineStatus }` con el estado recalculado.
+
+La revisión reemplaza la sección «Limpieza de configuración legacy (--force)» por «Copias viejas de
+las instrucciones»: lista las retirables con un botón «Retirar copias viejas» (con confirmación que
+enumera las carpetas) y las no retirables con su motivo. La revisión deja de pasar `force` al
+recorrido; si el prop `force` del runner queda sin uso, se saca. `runUpdate` conserva su parámetro
+(es la API del canal y sus pruebas).
+
+Alternativa descartada: correr `openspec init --force`. Medido: no borra copias que difieren, y
+reinicializar para limpiar mezcla dos operaciones.
+
+### 9. La marca de la carpeta compartida configura la herramienta
+
+`inspectInstalledEvidence` lee `.agents/skills/.openspec-target` (con la misma contención de rutas
+que ya usa para el resto) y, si nombra una herramienta del registro, la agrega a `configuredTools`.
+Dos consecuencias a cuidar:
+
+- La regla de conflicto (`openspec-evidence.ts:420-426`) hoy usa `configuredTools.includes('codex')`
+  como «hay legacy»: con la marca, Codex estaría siempre en `configuredTools` y el conflicto sería
+  permanente. La regla pasa a mirar si hay skills de origen `legacy-codex`/`legacy-agent`.
+- `.codex/` presente sólo con `config.toml` sigue en `presentToolDirectories`, pero ya no deja a
+  Codex «sin configurar».

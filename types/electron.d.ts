@@ -664,7 +664,7 @@ interface ElectronAPI {
     }) => Promise<{ success: boolean; stdout?: string; stderr?: string; error?: string }>;
     installLocal: (options: { repoPath: string; targetVersion?: string }) => Promise<import('./pipeline').OpenSpecInstallResult>;
     installGlobal: (options?: { repoPath?: string; targetVersion?: string }) => Promise<import('./pipeline').OpenSpecInstallResult>;
-    getInstallPlan: (repoPath?: string) => Promise<import('./pipeline').OpenSpecInstallPlan>;
+    getInstallPlan: (options?: string | { repoPath?: string; targetVersion?: string }) => Promise<import('./pipeline').OpenSpecInstallPlan>;
     /** Canal de escritura 7.2a. Opcional: cuando el preload aún no lo expone, el toggle del panel de perfil queda deshabilitado con motivo. */
     setWorkflow?: (options: { workflow: string; enabled: boolean }) => Promise<import('./pipeline').SetOpenSpecWorkflowResult>;
     /** Canal de escritura: cambia el perfil global a 'core' o 'custom'. */

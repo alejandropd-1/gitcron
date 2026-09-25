@@ -478,8 +478,8 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:install-local', options),
     installGlobal: (options?: { repoPath?: string; targetVersion?: string }) =>
       ipcRenderer.invoke('pipeline:openspec:install-global', options),
-    getInstallPlan: (repoPath?: string) =>
-      ipcRenderer.invoke('pipeline:openspec:install-plan', { repoPath }),
+    getInstallPlan: (options?: string | { repoPath?: string; targetVersion?: string }) =>
+      ipcRenderer.invoke('pipeline:openspec:install-plan', typeof options === 'string' ? { repoPath: options } : options),
     setWorkflow: (options: { workflow: string; enabled: boolean }) =>
       ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
     setProfile: (payload: { profile: string }) =>

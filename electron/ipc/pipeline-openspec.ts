@@ -1048,7 +1048,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
   ipc.handle(
     'pipeline:openspec:install-plan',
     async (_event, payload?: unknown): Promise<OpenSpecInstallPlan> => {
-      validateStrictPayloadKeys(payload, ['repoPath']);
+      validateStrictPayloadKeys(payload, ['repoPath', 'targetVersion']);
       const rawRepoPath = (payload as any)?.repoPath;
       let validRepoPath: string | undefined = undefined;
       if (rawRepoPath !== undefined && rawRepoPath !== null) {
@@ -1059,7 +1059,16 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         validRepoPath = validated;
       }
 
-      return resolvePackageManagerInstallPlan(validRepoPath);
+      const rawTargetVersion = (payload as any)?.targetVersion;
+      let targetVersion: string | undefined = undefined;
+      if (rawTargetVersion !== undefined && rawTargetVersion !== null) {
+        if (typeof rawTargetVersion !== 'string' || !isValidTargetVersion(rawTargetVersion)) {
+          throw new Error(`Versión de destino inválida: "${String(rawTargetVersion)}"`);
+        }
+        targetVersion = rawTargetVersion.trim();
+      }
+
+      return resolvePackageManagerInstallPlan(validRepoPath, { targetVersion });
     },
   );
 

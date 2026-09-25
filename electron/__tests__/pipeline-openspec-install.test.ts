@@ -760,6 +760,48 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
         'IPC Security Error: Unknown payload property "maliciousKey"',
       );
     }, 30_000);
+
+    it('rechaza un targetVersion inválido', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      await expect(
+        planHandler!({}, { repoPath: tempDir, targetVersion: '1.13.0 & echo MAL' })
+      ).rejects.toThrow('Versión de destino inválida: "1.13.0 & echo MAL"');
+    }, 30_000);
+
+    it('acepta un targetVersion válido y genera el comando con esa versión', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      const plan = await planHandler!({}, { repoPath: tempDir, targetVersion: '1.13.0' });
+      expect(plan.globalCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(plan.globalCommand).not.toContain('@latest');
+    }, 30_000);
   });
 
   describe('pipeline:openspec:set-profile (IPC Channel)', () => {

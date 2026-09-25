@@ -59,7 +59,6 @@ export const OpenSpecGlobalInstallConfirm: React.FC<OpenSpecGlobalInstallConfirm
   const [rollbackDone, setRollbackDone] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const handleConfirm = async (overrideTarget?: string | null) => {
     if (isBusy || isInstalling) return;

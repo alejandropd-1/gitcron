@@ -33,7 +33,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
         disabledReason="Bloqueado por rama protegida"
       />
@@ -174,7 +174,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={false}
         warnings={{ mainBranch: 'main', dirtyCount: 3 }}
       />
@@ -184,6 +184,9 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     fireEvent.click(updateBtn);
 
     expect(screen.queryByText(/Estás en «main»/i)).toBeNull();
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
+
     await waitFor(() => {
       expect(installGlobalMock).toHaveBeenCalledTimes(1);
     });
@@ -221,13 +224,16 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
       />
     );
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText(/la versión no se puede leer/i);
     expect(runUpdateMock).not.toHaveBeenCalled();
@@ -268,13 +274,16 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: null, latest: '1.13.0' }}
+        engine={{ installed: null, latest: '1.13.0', provenance: 'global' }}
         integration={true}
       />
     );
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText(/la versión no se puede leer/i);
     expect(screen.queryByRole('button', { name: /Volver a/i })).toBeNull();
@@ -298,13 +307,16 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
       />
     );
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText('Permiso denegado al escribir en npm global');
     expect(runUpdateMock).not.toHaveBeenCalled();
@@ -365,13 +377,16 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const { rerender } = render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
       />
     );
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText('Listo: motor v1.13.0 · integración al día');
 
@@ -469,7 +484,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        engine={{ installed: '1.13.0', latest: '1.13.1', provenance: 'global' }}
         repoInitialized={true}
         integration={false}
         onEngineInstalled={onEngineInstalled}
@@ -484,6 +499,9 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText('Listo: motor v1.13.1 · integración al día');
 
@@ -522,7 +540,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        engine={{ installed: '1.13.0', latest: '1.13.1', provenance: 'global' }}
         repoInitialized={false}
         integration={false}
       />
@@ -538,6 +556,9 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
 
     await screen.findByText(/Motor v1\.13\.1 instalado y respondiendo\./i);
 
@@ -561,7 +582,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.13.0', latest: '1.13.1' }}
+        engine={{ installed: '1.13.0', latest: '1.13.1', provenance: 'global' }}
         repoInitialized={true}
         integration={false}
         disabledReason="Bloqueado por repositorio sucio"
@@ -667,8 +688,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
 
     const alert = screen.getByRole('alert');
     expect(alert.textContent).toContain(
-      'Actualización del motor no disponible (procedencia: managed)'
+      'No se puede actualizar el motor desde acá: lo administra otra herramienta'
     );
+    expect(alert.textContent).not.toContain('managed');
+    expect(alert.textContent).not.toContain('unknown');
 
     fireEvent.click(updateBtn);
     expect(installLocalMock).not.toHaveBeenCalled();
@@ -686,9 +709,12 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
 
     const updateBtnUnknown = screen.getByRole('button', { name: 'Actualizar' });
     expect(updateBtnUnknown.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByRole('alert').textContent).toContain(
-      'Actualización del motor no disponible (procedencia: unknown)'
+    const alertUnknown = screen.getByRole('alert');
+    expect(alertUnknown.textContent).toContain(
+      'No se puede actualizar el motor desde acá: GitCron no pudo saber si es la copia de este repositorio o la del sistema'
     );
+    expect(alertUnknown.textContent).not.toContain('unknown');
+    expect(alertUnknown.textContent).not.toContain('managed');
     fireEvent.click(updateBtnUnknown);
     expect(installLocalMock).not.toHaveBeenCalled();
     expect(installGlobalMock).not.toHaveBeenCalled();
@@ -727,8 +753,11 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
 
     expect(runUpdateMock).not.toHaveBeenCalled();
     expect(
-      screen.getByText('No se actualizó la integración porque el motor no responde')
+      screen.getByText('No se actualizó la integración porque el motor no quedó en la versión pedida')
     ).toBeTruthy();
+    expect(
+      screen.queryByText('No se actualizó la integración porque el motor no responde')
+    ).toBeNull();
     expect(screen.queryByText(/Listo: motor/i)).toBeNull();
     expect(useGitStore.getState().success).toBeNull();
   });
@@ -789,6 +818,72 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     await screen.findByText(/Motor v1\.5\.0 instalado y respondiendo\./i);
   });
 
+  it('20b) 3.5: handleRollback usa siempre ranEngine y no props mutadas: tras mismatch rerender con engine.installed="1.13.1" y provenance="global" sigue llamando installLocal con "1.5.0"', async () => {
+    const installLocalMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.5.0', provenance: 'local' },
+          doctor: { data: {} },
+          globalConfig: { profileState: 'ready' },
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.5.0', provenance: 'local' },
+          doctor: { data: {} },
+          globalConfig: { profileState: 'ready' },
+        },
+      });
+
+    const installGlobalMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+        installGlobal: installGlobalMock,
+      },
+    };
+
+    const { rerender } = render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.5.0', latest: '1.13.2', provenance: 'local' }}
+        integration={false}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText(/El motor responde v1\.5\.0 pero se pidió v1\.13\.2 \(local del repositorio\)/i);
+
+    // Se mutan las props en un rerender externo:
+    rerender(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.13.1', latest: '1.13.2', provenance: 'global' }}
+        integration={false}
+      />
+    );
+
+    // El botón debe seguir ofreciendo volver a la versión capturada al correr (1.5.0) y no a 1.13.1
+    const rollbackBtn = screen.getByRole('button', { name: 'Volver a v1.5.0' });
+    expect(screen.queryByRole('button', { name: 'Volver a v1.13.1' })).toBeNull();
+    fireEvent.click(rollbackBtn);
+
+    await waitFor(() => {
+      expect(installLocalMock).toHaveBeenCalledTimes(2);
+    });
+    // Llamó al canal local original con targetVersion: '1.5.0', no al canal global ni con '1.13.1'
+    expect(installLocalMock.mock.calls[1][0]).toEqual({
+      repoPath: '/mock/repo',
+      targetVersion: '1.5.0',
+    });
+    expect(installGlobalMock).not.toHaveBeenCalled();
+  });
+
   it('21) 4.1: con procedencia global: confirmación previa con datos del canal, cancelar con 0 llamadas, confirmar con 1 llamada; warnings aparecen antes', async () => {
     const installGlobalMock = vi.fn().mockResolvedValue({
       success: true,
@@ -802,12 +897,15 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       success: true,
       filesUpdated: ['package.json'],
     });
-    const getInstallPlanMock = vi.fn().mockResolvedValue({
-      detectedManager: 'npm',
-      packageManagerPath: '/usr/local/bin/npm',
-      nodePath: '/usr/local/bin/node',
-      globalCommand: 'npm install -g @fission-ai/openspec@1.13.0',
-      hasManifest: false,
+    const getInstallPlanMock = vi.fn().mockImplementation((payload) => {
+      const ver = (typeof payload === 'object' && payload?.targetVersion) ? payload.targetVersion : 'latest';
+      return Promise.resolve({
+        detectedManager: 'npm',
+        packageManagerPath: '/usr/local/bin/npm',
+        nodePath: '/usr/local/bin/node',
+        globalCommand: `npm install -g @fission-ai/openspec@${ver}`,
+        hasManifest: false,
+      });
     });
     (window as any).api = {
       pipelineOpenSpec: {
@@ -817,14 +915,31 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       },
     };
 
+    const initialStalePlan = {
+      detectedManager: 'npm' as const,
+      packageManagerPath: '/usr/local/bin/npm',
+      nodePath: '/usr/local/bin/node',
+      localCommand: null,
+      globalCommand: 'npm install -g @fission-ai/openspec@latest',
+      hasManifest: false,
+    };
+
     const { rerender } = render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
         engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
+        installPlan={initialStalePlan}
         openRepoPaths={['/mock/repo1', '/mock/repo2']}
       />
     );
+
+    await waitFor(() => {
+      expect(getInstallPlanMock).toHaveBeenCalledWith({
+        repoPath: '/mock/repo',
+        targetVersion: '1.13.0',
+      });
+    });
 
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
@@ -832,8 +947,9 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     // No debe haber llamado todavía a installGlobal
     expect(installGlobalMock).not.toHaveBeenCalled();
 
-    // Muestra la confirmación global con comando y repositorios
+    // Muestra la confirmación global con comando específico y NO @latest
     await screen.findByText(/npm install -g @fission-ai\/openspec@1\.13\.0/);
+    expect(screen.queryByText(/@latest/)).toBeNull();
     expect(screen.getByText(/\/mock\/repo1, \/mock\/repo2/)).toBeTruthy();
 
     // Cancelar no ejecuta y restaura el botón

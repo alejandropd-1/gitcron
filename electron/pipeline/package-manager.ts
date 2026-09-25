@@ -264,7 +264,7 @@ export interface PackageManagerInstallPlan {
  */
 export function resolvePackageManagerInstallPlan(
   repoPath?: string | null,
-  options?: { exists?: (p: string) => boolean },
+  options?: { exists?: (p: string) => boolean; targetVersion?: string },
 ): PackageManagerInstallPlan {
   const exists = options?.exists ?? existsSync;
   const hasManifest = repoPath ? exists(path.join(repoPath, 'package.json')) : false;
@@ -282,8 +282,13 @@ export function resolvePackageManagerInstallPlan(
     };
   }
 
-  const localArgs = getPackageManagerInstallArgs(pm.name, 'local');
-  const globalArgs = getPackageManagerInstallArgs(pm.name, 'global');
+  const isPinningSpecificVersion = Boolean(options?.targetVersion);
+  const targetPackage = options?.targetVersion
+    ? `@fission-ai/openspec@${options.targetVersion}`
+    : '@fission-ai/openspec@latest';
+
+  const localArgs = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, isPinningSpecificVersion);
+  const globalArgs = getPackageManagerInstallArgs(pm.name, 'global', targetPackage);
 
   const localCmd = `${pm.name} ${localArgs.join(' ')}`;
   const globalCmd = `${pm.name} ${globalArgs.join(' ')}`;

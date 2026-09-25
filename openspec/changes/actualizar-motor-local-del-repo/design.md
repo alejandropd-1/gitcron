@@ -189,3 +189,19 @@ motor en lugar de mantenerlo a mano.
 `pipeline:openspec:run-update` suma `engineStatus` recalculado a su resultado (el mismo
 `buildEngineStatusSnapshot` que usan los canales de instalación). El runner lo usa para decidir si
 dice «integración al día»; la fila de integración sigue marcando que el comando corrió.
+
+### 12. Tres lectores, una regla
+
+Medido en la tercera revisión en pantalla (2026-09-25): con la cabecera ya al día, el perfil de
+workflows decía «Falta en Codex y GitHub Workflows: la integración está desactualizada» con un
+«Actualizar» por workflow que no lo puede arreglar, y AGENTES mostraba «Codex .codex sin configurar».
+Son dos lectores más, independientes del que arreglaron 6.2 y 6.6:
+
+- `readOpenSpecTooling` (`electron/pipeline/repo-evidence-reader.ts:148-162`) marca configurada una
+  herramienta sólo si `<su carpeta>/skills` tiene skills de OpenSpec: `.codex/skills` quedó vacía.
+- La divergencia del perfil (`electron/ipc/pipeline-openspec.ts:359-415`) compara contra los
+  workflows globales cada target de `installedWorkflowsByTarget` más cada carpeta presente sin
+  comparar, con lista vacía: `codex` y `github` salen «divergentes».
+
+La marca de la carpeta compartida se resuelve en una sola función y la usan los tres lectores. El
+registro de herramientas completo desde el motor sigue siendo un cambio aparte (ver decisión 10).

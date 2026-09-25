@@ -55,6 +55,10 @@ siempre, sin que ninguna actualización pueda arreglarla.
 - **WHEN** `.agents/skills` declara que la atiende Codex y `.codex/` existe sólo con la configuración propia de Codex
 - **THEN** Codex cuenta como configurada y la integración no queda desactualizada por esa carpeta
 
+#### Scenario: Toda la pantalla dice lo mismo
+- **WHEN** Codex está servida desde `.agents` y OdontoPau tiene `.github` con su integración continua
+- **THEN** ni el bloque de agentes muestra a Codex «sin configurar», ni el perfil de workflows dice que les falta algo a Codex o a `.github`, ni ofrece «Actualizar» por eso
+
 #### Scenario: Carpeta propia con instrucciones viejas
 - **WHEN** además `.codex/skills` todavía tiene copias viejas de las instrucciones de OpenSpec
 - **THEN** esas copias se informan como viejas y retirables, no como una herramienta sin configurar

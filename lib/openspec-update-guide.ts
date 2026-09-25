@@ -121,9 +121,7 @@ export function deriveUpdateMatrixAction(
 ): OpenSpecUpdatePlan['requiredAction'] {
   if (!inputs) return 'blocked';
 
-  const versionClass = ('cli' in inputs && inputs.cli)
-    ? (inputs.cli.versionClass ?? (inputs.cli.runtimeVersion ? 'supported' : undefined))
-    : (inputs as UpdateMatrixInputs).versionClass;
+  const versionClass = ('cli' in inputs && inputs.cli) ? inputs.cli.versionClass : (inputs as UpdateMatrixInputs).versionClass;
   const integrationState = inputs.integrationState;
   const repoState = inputs.repoState;
   const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
@@ -167,9 +165,7 @@ export function deriveUpdateBlockReason(
     return repoState === 'not-initialized' ? null : 'cli-not-installed';
   }
 
-  const versionClass = ('cli' in inputs && inputs.cli)
-    ? (inputs.cli.versionClass ?? (inputs.cli.runtimeVersion ? 'supported' : undefined))
-    : (inputs as UpdateMatrixInputs).versionClass;
+  const versionClass = ('cli' in inputs && inputs.cli) ? inputs.cli.versionClass : (inputs as UpdateMatrixInputs).versionClass;
 
   if (!versionClass || versionClass === 'unknown') {
     return 'version-unknown';

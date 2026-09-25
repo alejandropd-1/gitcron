@@ -706,6 +706,24 @@ export interface OpenSpecRunUpdateResult {
   message?: string;
 }
 
+export interface OpenSpecLegacySkillPlanItem {
+  name: string;
+  path: string;
+  origin: 'legacy-codex' | 'legacy-agent';
+  removable: boolean;
+  reason?: 'untracked' | 'modified';
+}
+
+export interface OpenSpecLegacySkillsPlan {
+  items: OpenSpecLegacySkillPlanItem[];
+}
+
+export interface OpenSpecRemoveLegacySkillsResult {
+  removed: string[];
+  skipped: Array<{ path: string; reason: 'untracked' | 'modified' }>;
+  engineStatus: OpenSpecEngineStatus;
+}
+
 export interface OpenSpecInstructionsPayload {
   changeName?: string;
   artifactId?: string;

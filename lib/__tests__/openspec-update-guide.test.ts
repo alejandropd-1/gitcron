@@ -193,6 +193,81 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       expect(reason).toBe('version-unknown');
     });
 
+    it('devuelve legacy-coexistence cuando conviven skills legacy y nuevos (caso OdontoPau)', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'conflicted',
+        repoState: 'initialized',
+        installedIntegration: {
+          skills: [
+            { name: 'openspec-explore', path: '.codex/skills/openspec-explore', origin: 'legacy-codex', isOfficial: true },
+            { name: 'openspec-apply-change', path: '.agents/skills/openspec-apply-change', origin: 'new-agents', isOfficial: true },
+          ],
+          generatedBy: '1.5.0',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents', 'codex'],
+          targets: ['agents', 'codex'],
+          configuredTools: ['agents', 'codex'],
+          presentToolDirectories: ['agents', 'codex'],
+          configuredAgentsCount: 2,
+          totalPresentAgentsCount: 2,
+          conflicts: ['Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).'],
+          installedWorkflowsByTarget: {},
+          missing: [],
+          legacy: ['codex'],
+          customized: [],
+        },
+      });
+      expect(reason).toBe('legacy-coexistence');
+    });
+
+    it('devuelve customized cuando la integración está en estado custom', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'custom',
+        repoState: 'initialized',
+      });
+      expect(reason).toBe('customized');
+    });
+
+    it('devuelve evidence-unknown cuando la integración o evidencia está en estado unknown', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'unknown',
+        repoState: 'initialized',
+      });
+      expect(reason).toBe('evidence-unknown');
+    });
+
+    it('devuelve unclassified cuando la causa del bloqueo no corresponde a las categorías anteriores', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'conflicted',
+        repoState: 'initialized',
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.14.0',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: [],
+          targets: [],
+          configuredTools: [],
+          presentToolDirectories: [],
+          configuredAgentsCount: 0,
+          totalPresentAgentsCount: 0,
+          conflicts: ['Error desconocido de validación'],
+          installedWorkflowsByTarget: {},
+          missing: [],
+          legacy: [],
+          customized: [],
+        },
+      });
+      expect(reason).toBe('unclassified');
+    });
+
     it('devuelve null cuando la operación no está bloqueada por estas causas', () => {
       expect(
         deriveUpdateBlockReason({
@@ -204,7 +279,7 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       expect(
         deriveUpdateBlockReason({
           versionClass: 'supported',
-          integrationState: 'outdated',
+          integrationState: 'up-to-date',
           repoState: 'initialized',
         }),
       ).toBeNull();

@@ -418,8 +418,32 @@ export function inspectInstalledEvidence(
     markersFound.push('openspec/');
   }
 
-  // Conflictos entre legacy y nuevos si ambos están presentes
-  const hasLegacy = configuredTools.includes('antigravity') || configuredTools.includes('codex');
+  // 4. Leer marca de carpeta compartida .agents/skills/.openspec-target (Decisión 9)
+  const sharedTargetMarkerPath = path.join(repoPath, '.agents', 'skills', '.openspec-target');
+  let isTargetMarkerContained = true;
+  if (canonicalRepoRoot) {
+    const realMarkerPath = realpathFn(sharedTargetMarkerPath) ?? sharedTargetMarkerPath;
+    if (!isContainedWithin(canonicalRepoRoot, realMarkerPath)) {
+      isTargetMarkerContained = false;
+      conflictsList.push(`Symlink o junction en .agents/skills/.openspec-target apunta fuera del repositorio: ${realMarkerPath}`);
+    }
+  }
+
+  if (isTargetMarkerContained) {
+    const markerStat = safeLstat(sharedTargetMarkerPath);
+    if (markerStat.stat?.isFile()) {
+      const targetToolName = safeReadFile(sharedTargetMarkerPath).trim();
+      if (targetToolName && getToolDef(targetToolName)) {
+        if (!configuredTools.includes(targetToolName)) {
+          configuredTools.push(targetToolName);
+        }
+        targetsFound.add(targetToolName);
+      }
+    }
+  }
+
+  // Conflictos entre legacy y nuevos si ambos están presentes (mirando origen de skills para legacy)
+  const hasLegacy = skills.some((s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent');
   const hasNew = configuredTools.includes('agents');
   if (hasLegacy && hasNew) {
     conflictsList.push('Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).');

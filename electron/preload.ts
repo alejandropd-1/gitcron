@@ -484,6 +484,10 @@ contextBridge.exposeInMainWorld('api', {
       ipcRenderer.invoke('pipeline:openspec:set-workflow', options),
     setProfile: (payload: { profile: string }) =>
       ipcRenderer.invoke('pipeline:openspec:set-profile', payload),
+    getLegacySkillsPlan: (repoPath: string) =>
+      ipcRenderer.invoke('pipeline:openspec:legacy-skills-plan', { repoPath }),
+    removeLegacySkills: (repoPath: string) =>
+      ipcRenderer.invoke('pipeline:openspec:remove-legacy-skills', { repoPath }),
     versionAnalysis: (
       repoPath: string,
       optionsOrForceRefresh?: boolean | { forceRefresh?: boolean; model?: string },

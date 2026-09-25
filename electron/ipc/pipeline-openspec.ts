@@ -20,7 +20,13 @@ import type {
   SetOpenSpecWorkflowResult,
   SetOpenSpecProfileResult,
   OpenSpecArtifactGraphResult,
+  OpenSpecLegacySkillsPlan,
+  OpenSpecRemoveLegacySkillsResult,
 } from '../../types/pipeline';
+import {
+  getLegacySkillsPlan,
+  removeLegacySkills,
+} from '../pipeline/openspec-legacy-skills';
 import {
   discoverOpenSpecCli,
   resolveOpenSpecExecutable,
@@ -108,6 +114,8 @@ export interface OpenSpecIpcDeps {
   resolvePackageManager?: typeof resolvePackageManager;
   setWorkflow?: typeof setOpenSpecWorkflow;
   setProfile?: typeof setOpenSpecProfile;
+  getLegacySkillsPlan?: typeof getLegacySkillsPlan;
+  removeLegacySkills?: typeof removeLegacySkills;
 }
 
 /**
@@ -1114,6 +1122,44 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const setProfileFn = deps.setProfile ?? setOpenSpecProfile;
       return setProfileFn({ profile: rawProfile, runtime: authorizedRuntime });
+    },
+  );
+
+  // 17. Legacy Skills Plan (Decisión 8 / Tarea 6.3: Sólo lectura)
+  ipc.handle(
+    'pipeline:openspec:legacy-skills-plan',
+    async (_event, payload?: unknown): Promise<OpenSpecLegacySkillsPlan> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const getPlan = deps.getLegacySkillsPlan ?? getLegacySkillsPlan;
+      return getPlan(validRepoPath, {
+        pauseWatcher: deps.pauseWatcher,
+        statusDeps: deps,
+      });
+    },
+  );
+
+  // 18. Remove Legacy Skills (Decisión 8 / Tarea 6.3: Proceso principal borra sólo retirables)
+  ipc.handle(
+    'pipeline:openspec:remove-legacy-skills',
+    async (_event, payload?: unknown): Promise<OpenSpecRemoveLegacySkillsResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const removeFn = deps.removeLegacySkills ?? removeLegacySkills;
+      return removeFn(validRepoPath, {
+        pauseWatcher: deps.pauseWatcher,
+        statusDeps: deps,
+      });
     },
   );
 }

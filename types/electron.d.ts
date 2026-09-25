@@ -669,6 +669,8 @@ interface ElectronAPI {
     setWorkflow?: (options: { workflow: string; enabled: boolean }) => Promise<import('./pipeline').SetOpenSpecWorkflowResult>;
     /** Canal de escritura: cambia el perfil global a 'core' o 'custom'. */
     setProfile?: (payload: { profile: string }) => Promise<import('./pipeline').SetOpenSpecProfileResult>;
+    getLegacySkillsPlan: (repoPath: string) => Promise<import('./pipeline').OpenSpecLegacySkillsPlan>;
+    removeLegacySkills: (repoPath: string) => Promise<import('./pipeline').OpenSpecRemoveLegacySkillsResult>;
     versionAnalysis?: (
       repoPath: string,
       optionsOrForceRefresh?: boolean | { forceRefresh?: boolean; model?: string },

@@ -90,7 +90,16 @@ export interface UpdateMatrixInputs {
   freshnessState?: OpenSpecEngineStatus['freshnessState'];
   integrationState?: OpenSpecEngineStatus['integrationState'];
   repoState?: OpenSpecEngineStatus['repoState'];
+  installedIntegration?: OpenSpecEngineStatus['installedIntegration'];
 }
+
+export type UpdateBlockReason =
+  | 'cli-not-installed'
+  | 'version-unknown'
+  | 'legacy-coexistence'
+  | 'customized'
+  | 'evidence-unknown'
+  | 'unclassified';
 
 /**
  * Deriva la acción requerida de actualización evaluando de forma independiente
@@ -140,11 +149,11 @@ export function deriveUpdateMatrixAction(
 
 /**
  * Deriva el motivo del bloqueo cuando la acción de actualización es 'blocked'.
- * Devuelve 'cli-not-installed', 'version-unknown' o null cuando no corresponde a estas causas.
+ * Devuelve un código tipado o null cuando la operación no está bloqueada.
  */
 export function deriveUpdateBlockReason(
   inputs: UpdateMatrixInputs | OpenSpecEngineStatus | null | undefined,
-): 'cli-not-installed' | 'version-unknown' | null {
+): UpdateBlockReason | null {
   if (!inputs) return 'cli-not-installed';
 
   const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
@@ -160,7 +169,37 @@ export function deriveUpdateBlockReason(
     return 'version-unknown';
   }
 
-  return null;
+  const action = deriveUpdateMatrixAction(inputs);
+  if (action !== 'blocked') {
+    return null;
+  }
+
+  const installed = ('installedIntegration' in inputs && inputs.installedIntegration)
+    ? inputs.installedIntegration
+    : (inputs as UpdateMatrixInputs).installedIntegration;
+
+  const hasLegacySkills = installed?.skills?.some(
+    (s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent',
+  );
+  const hasCoexistenceConflict = (installed?.conflicts ?? []).some(
+    (c) => c.toLowerCase().includes('legacy') || c.toLowerCase().includes('coexistencia'),
+  );
+
+  if (hasLegacySkills || hasCoexistenceConflict) {
+    return 'legacy-coexistence';
+  }
+
+  const integrationState = inputs.integrationState;
+
+  if (integrationState === 'custom') {
+    return 'customized';
+  }
+
+  if (integrationState === 'unknown' || installed?.evidenceStatus === 'unknown' || repoState === 'unknown') {
+    return 'evidence-unknown';
+  }
+
+  return 'unclassified';
 }
 
 /**

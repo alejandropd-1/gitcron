@@ -7,7 +7,7 @@ import type {
   OpenSpecPreviewResult,
   OpenSpecUpdatePlan,
 } from '../../types/pipeline';
-import { deriveUpdateMatrixAction } from '../../lib/openspec-update-guide';
+import { deriveUpdateMatrixAction, deriveUpdateBlockReason } from '../../lib/openspec-update-guide';
 
 /** Tope de lectura de `openspec/config.yaml`: archivo de configuración, no evidencia arbitraria. */
 const MAX_SCHEMA_CONFIG_BYTES = 64 * 1024;
@@ -156,13 +156,14 @@ export function generateDiagnosticPreview(
 export function generateUpdatePlan(options: GeneratePreviewOptions): OpenSpecUpdatePlan {
   const preview = generateDiagnosticPreview(options);
   const requiredAction = deriveUpdateMatrixAction(options.engineStatus);
+  const blockReason = deriveUpdateBlockReason(options.engineStatus);
 
   return {
     repoPath: options.repoPath,
     requiredAction,
     preview,
     canExecute: false,
-    reason: 'Se requiere completar la POC y la activación del runtime administrado (Fase 3/4) antes de ejecutar la actualización real.',
+    reason: blockReason ?? '',
   };
 }
 

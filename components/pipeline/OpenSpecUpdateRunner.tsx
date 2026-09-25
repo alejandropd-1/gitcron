@@ -51,7 +51,6 @@ export interface OpenSpecUpdateRunnerProps {
   repoState?: OpenSpecEngineStatus['repoState'] | null;
   updatePlan?: OpenSpecUpdatePlan | null;
   openRepoPaths?: string[];
-  force?: boolean;
   warnings?: { mainBranch?: string | null; dirtyCount?: number | null };
   disabledReason?: string | null;
   onEngineInstalled?: (result: OpenSpecInstallResult) => void;
@@ -84,7 +83,6 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   repoState,
   updatePlan,
   openRepoPaths,
-  force,
   warnings,
   disabledReason,
   onEngineInstalled,
@@ -347,7 +345,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
         const updateResult = await window.api.pipelineOpenSpec.runUpdate(
           repoPath,
           undefined,
-          force ?? false
+          false
         );
         if (updateResult.success) {
           integrationRanAndDone = true;

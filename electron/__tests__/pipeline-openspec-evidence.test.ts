@@ -1030,4 +1030,83 @@ describe('computeDirContentHash — recorrido acotado (invariante 19)', () => {
     });
     expect(profile.profileClass).toBe('custom');
   });
+
+  describe('6.2: marca de carpeta compartida (.openspec-target) y convivencia legacy', () => {
+    it('(a) .agents/skills con marca codex + .codex/config.toml sin skills -> Codex configurada, sin conflicto y sin targets desconfigurados', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-evidence-62a-'));
+      try {
+        const agentsSkillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(agentsSkillsDir, { recursive: true });
+        fs.writeFileSync(path.join(agentsSkillsDir, '.openspec-target'), 'codex\n', 'utf-8');
+
+        const agentSkill = path.join(agentsSkillsDir, 'openspec-explore');
+        fs.mkdirSync(agentSkill, { recursive: true });
+        fs.writeFileSync(path.join(agentSkill, 'SKILL.md'), '---\ngeneratedBy: "1.13.2"\n---\n', 'utf-8');
+
+        const codexDir = path.join(tmpDir, '.codex');
+        fs.mkdirSync(codexDir, { recursive: true });
+        fs.writeFileSync(path.join(codexDir, 'config.toml'), '# config propia\n', 'utf-8');
+
+        const evidence = inspectInstalledEvidence(tmpDir);
+
+        // Codex figura en configuredTools gracias a .openspec-target
+        expect(evidence.configuredTools).toContain('codex');
+        expect(evidence.configuredTools).toContain('agents');
+        // No hay conflicto de convivencia
+        expect(evidence.conflicts).toBeNull();
+        // .codex está en presentToolDirectories pero al estar configurada no deja targets sin configurar
+        expect(evidence.presentToolDirectories).toContain('codex');
+        const presentDirs = evidence.presentToolDirectories ?? [];
+        const confTools = evidence.configuredTools ?? [];
+        const hasUnconfiguredTarget = presentDirs.some((t) => !confTools.includes(t));
+        expect(hasUnconfiguredTarget).toBe(false);
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(b) lo mismo + .codex/skills/openspec-explore/SKILL.md -> conflicto de convivencia y copia informada como legacy-codex', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-evidence-62b-'));
+      try {
+        const agentsSkillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(agentsSkillsDir, { recursive: true });
+        fs.writeFileSync(path.join(agentsSkillsDir, '.openspec-target'), 'codex\n', 'utf-8');
+
+        const agentSkill = path.join(agentsSkillsDir, 'openspec-explore');
+        fs.mkdirSync(agentSkill, { recursive: true });
+        fs.writeFileSync(path.join(agentSkill, 'SKILL.md'), '---\ngeneratedBy: "1.13.2"\n---\n', 'utf-8');
+
+        const codexSkillDir = path.join(tmpDir, '.codex', 'skills', 'openspec-explore');
+        fs.mkdirSync(codexSkillDir, { recursive: true });
+        fs.writeFileSync(path.join(codexSkillDir, 'SKILL.md'), '---\ngeneratedBy: "1.5.0"\n---\n', 'utf-8');
+
+        const evidence = inspectInstalledEvidence(tmpDir);
+
+        // Conflicto de convivencia detectado
+        expect(evidence.conflicts).toContain('Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).');
+        // La copia en .codex se clasifica con origin legacy-codex
+        const legacySkill = evidence.skills.find((s) => s.path.includes('.codex'));
+        expect(legacySkill?.origin).toBe('legacy-codex');
+        expect(legacySkill?.name).toBe('openspec-explore');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(c) marca con un valor que no está en el registro -> se ignora', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'openspec-evidence-62c-'));
+      try {
+        const agentsSkillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(agentsSkillsDir, { recursive: true });
+        fs.writeFileSync(path.join(agentsSkillsDir, '.openspec-target'), 'herramienta-inventada-desconocida\n', 'utf-8');
+
+        const evidence = inspectInstalledEvidence(tmpDir);
+
+        expect(evidence.configuredTools).not.toContain('herramienta-inventada-desconocida');
+        expect(evidence.targets).not.toContain('herramienta-inventada-desconocida');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+  });
 });

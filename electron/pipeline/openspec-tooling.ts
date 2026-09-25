@@ -101,6 +101,18 @@ export function getToolDef(toolId: string): OpenSpecToolDef | undefined {
   return OPENSPEC_TOOL_DIRECTORIES.find((t) => t.toolId === toolId);
 }
 
+/**
+ * Determina si una entrada de herramienta corresponde a una herramienta configurable por OpenSpec.
+ * Las entradas de categoría 'ci' (como .github) están en el registro por fines informativos
+ * para el inventario de outputs del repositorio, pero OpenSpec 1.13.2 no tiene herramienta para
+ * flujos de GitHub (no se incluye en los valores aceptados por `openspec init --tools`).
+ */
+export function isOpenSpecConfigurableTool(toolId: string | null | undefined): boolean {
+  if (!toolId) return false;
+  const def = getToolDef(toolId);
+  return def?.category !== 'ci';
+}
+
 /** Comprueba si una entrada corresponde a una skill oficial o declarada de OpenSpec. */
 export function isOpenSpecSkillEntry(entry: string): boolean {
   return OFFICIAL_OPENSPEC_SKILL_SLUGS.has(entry);

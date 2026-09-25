@@ -834,6 +834,10 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
           'b.md',
         ],
         errors: [],
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.9.0', provenance: 'global', versionClass: 'supported' },
+          integrationState: 'up-to-date',
+        },
       });
     });
 

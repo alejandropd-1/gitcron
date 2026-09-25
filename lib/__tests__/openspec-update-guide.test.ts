@@ -4,6 +4,7 @@ import {
   deriveOfficialCommand,
   deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
+  getUpdateBlockReasonKey,
 } from '../openspec-update-guide';
 import type { OpenSpecEngineStatus, OpenSpecInstalledEvidence } from '@/types/pipeline';
 
@@ -297,6 +298,57 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       expect(reason).toBe('unclassified');
     });
 
+    it('devuelve unconfigured-tools cuando hay herramientas configurables presentes no configuradas', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'outdated',
+        repoState: 'initialized',
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.13.2',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents', 'claude'],
+          installedWorkflowsByTarget: {},
+          missing: [],
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+      });
+      expect(reason).toBe('unconfigured-tools');
+    });
+
+    it('no devuelve unconfigured-tools si la única herramienta presente no configurada es CI (.github)', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'outdated',
+        repoState: 'initialized',
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.13.2',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents', 'github'],
+          installedWorkflowsByTarget: {},
+          missing: [],
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+      });
+      // Como no está bloqueado (integrationState outdated es actualizable), es null
+      expect(reason).toBeNull();
+    });
+
     it('devuelve null cuando la operación no está bloqueada por estas causas', () => {
       expect(
         deriveUpdateBlockReason({
@@ -312,6 +364,57 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
           repoState: 'initialized',
         }),
       ).toBeNull();
+    });
+  });
+
+  describe('getUpdateBlockReasonKey (6.7)', () => {
+    it('mapea correctamente todos los códigos tipados de motivo a sus claves i18n', () => {
+      expect(getUpdateBlockReasonKey('cli-not-installed')).toBe('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
+      expect(getUpdateBlockReasonKey('version-unknown')).toBe('pipeline.openspec.engine.matrix.blockedVersionUnknown');
+      expect(getUpdateBlockReasonKey('legacy-coexistence')).toBe('pipeline.openspec.engine.matrix.blockedLegacyCoexistence');
+      expect(getUpdateBlockReasonKey('unconfigured-tools')).toBe('pipeline.openspec.engine.summary.reasonUnconfiguredTools');
+      expect(getUpdateBlockReasonKey('customized')).toBe('pipeline.openspec.engine.matrix.blockedCustomized');
+      expect(getUpdateBlockReasonKey('evidence-unknown')).toBe('pipeline.openspec.engine.matrix.blockedEvidenceUnknown');
+      expect(getUpdateBlockReasonKey('unclassified')).toBe('pipeline.openspec.engine.matrix.blockedUnclassified');
+    });
+
+    it('acepta directamente un objeto de estado y deriva la clave correspondiente', () => {
+      const statusWithUnconfigured: OpenSpecEngineStatus = {
+        cli: {
+          installed: true,
+          runtimeVersion: '1.13.2',
+          provenance: 'global',
+          displayPath: 'C:\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.13.2' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        },
+        latestAvailable: null,
+        globalConfig: null,
+        installedIntegration: {
+          skills: [],
+          generatedBy: '1.13.2',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents', 'codex'],
+          installedWorkflowsByTarget: {},
+          missing: null,
+          legacy: [],
+          customized: [],
+          conflicts: null,
+        },
+        repoState: 'initialized',
+        integrationState: 'outdated',
+      };
+
+      expect(getUpdateBlockReasonKey(statusWithUnconfigured)).toBe(
+        'pipeline.openspec.engine.summary.reasonUnconfiguredTools'
+      );
     });
   });
 

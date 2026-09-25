@@ -98,7 +98,7 @@ import {
   isInstalledBehindCycle,
 } from '@/lib/openspec-version';
 import { readEngineStatus } from '@/lib/engine-status-reader';
-import { getToolDef } from '@/electron/pipeline/openspec-tooling';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 import styles from './OpenSpecDashboard.module.css';
 
 const INTEGRATION_STATE_KEY_MAP: Record<string, string> = {
@@ -632,7 +632,7 @@ export function OpenSpecDashboard({
   const specifications = openSpec?.specifications ?? [];
   const openSpecPresent = openSpec?.openSpecPresent;
   const openSpecTools = openSpec?.openSpecTools;
-  const pendingToolCount = (openSpecTools ?? []).filter((tool) => !tool.configured && getToolDef(tool.toolId)?.category !== 'ci').length;
+  const pendingToolCount = (openSpecTools ?? []).filter((tool) => !tool.configured && isOpenSpecConfigurableTool(tool.toolId)).length;
   const selectableIds = new Set([
     ...activeChanges.map((change) => change.changeId),
     ...archivedChanges.map((change) => change.changeId),

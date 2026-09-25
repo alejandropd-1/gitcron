@@ -56,6 +56,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const runUpdateMock = vi.fn().mockResolvedValue({
       success: true,
       filesUpdated: ['package.json', '.openspec/config.yaml'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global', versionClass: 'supported' },
+        integrationState: 'up-to-date',
+      },
     });
     const getInstallPlanMock = vi.fn().mockResolvedValue({
       detectedManager: 'npm',
@@ -366,6 +370,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const runUpdateMock = vi.fn().mockResolvedValue({
       success: true,
       filesUpdated: ['package.json'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global', versionClass: 'supported' },
+        integrationState: 'up-to-date',
+      },
     });
     (window as any).api = {
       pipelineOpenSpec: {
@@ -433,6 +441,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const runUpdateMock = vi.fn().mockResolvedValue({
       success: true,
       filesUpdated: ['spec.md'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global', versionClass: 'supported' },
+        integrationState: 'up-to-date',
+      },
     });
     (window as any).api = {
       pipelineOpenSpec: {
@@ -470,6 +482,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const runUpdateMock = vi.fn().mockResolvedValue({
       success: true,
       filesUpdated: ['package.json'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.1', provenance: 'global', versionClass: 'supported' },
+        integrationState: 'up-to-date',
+      },
     });
     (window as any).api = {
       pipelineOpenSpec: {
@@ -896,6 +912,10 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const runUpdateMock = vi.fn().mockResolvedValue({
       success: true,
       filesUpdated: ['package.json'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global', versionClass: 'supported' },
+        integrationState: 'up-to-date',
+      },
     });
     const getInstallPlanMock = vi.fn().mockImplementation((payload) => {
       const ver = (typeof payload === 'object' && payload?.targetVersion) ? payload.targetVersion : 'latest';
@@ -1101,7 +1121,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       success: true,
       filesUpdated: ['file1.md', 'file2.md'],
       engineStatus: {
-        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local' },
+        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local', versionClass: 'supported' },
         integrationState: 'outdated',
         installedIntegration: {
           configuredTools: ['agents'],
@@ -1141,7 +1161,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       success: true,
       filesUpdated: ['file1.md', 'file2.md'],
       engineStatus: {
-        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local' },
+        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local', versionClass: 'supported' },
         integrationState: 'up-to-date',
         installedIntegration: {
           configuredTools: ['agents'],
@@ -1171,5 +1191,55 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     // Con up-to-date debe mostrar «Listo: integración al día»
     await screen.findByText('Listo: integración al día');
     expect(screen.getByText(/2 archivos actualizados/i)).toBeTruthy();
+  });
+
+  it('27) 6.7: runUpdate exitoso sin engineStatus (snapshot posterior falló) → banner omite la integración y detalle avisa que no se pudo verificar', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global', versionClass: 'supported' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['file1.md', 'file2.md'],
+      engineStatus: null,
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+        getInstallPlan: vi.fn().mockResolvedValue({
+          detectedManager: 'npm',
+          packageManagerPath: '/usr/local/bin/npm',
+          nodePath: '/usr/local/bin/node',
+          globalCommand: 'npm install -g @fission-ai/openspec@1.13.0',
+          hasManifest: false,
+        }),
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={true}
+        updatePlan={{ files: [] } as any}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+    const confirmBtn = await screen.findByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
+
+    // Banner exitoso SÓLO para el motor, sin "integración al día"
+    await screen.findByText('Listo: motor v1.13.0');
+    expect(screen.queryByText(/integración al día/i)).toBeNull();
+
+    // El renglón de integración avisa que no se pudo verificar
+    expect(screen.getByText(/no se pudo verificar si la integración quedó al día/i)).toBeTruthy();
   });
 });

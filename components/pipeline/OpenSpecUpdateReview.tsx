@@ -23,6 +23,7 @@ import {
   deriveOfficialCommand,
   deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
+  getUpdateBlockReasonKey,
 } from '@/lib/openspec-update-guide';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecAgentsBlock } from './OpenSpecAgentsBlock';
@@ -31,7 +32,7 @@ import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
-import { getToolDef } from '@/electron/pipeline/openspec-tooling';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
 import { useOpenSpecVersionAnalysis } from '@/hooks/use-openspec-version-analysis';
@@ -187,7 +188,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     : [];
 
   // Contadores de agentes para el bloque AGENTES (excluye categoría ci como .github)
-  const agentTools = openSpecTools.filter((t) => getToolDef(t.toolId)?.category !== 'ci');
+  const agentTools = openSpecTools.filter((t) => isOpenSpecConfigurableTool(t.toolId));
   const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (
     agentTools.length > 0 ? agentTools.filter((t) => t.configured).length : (installed?.tools?.length ?? 0)
   );
@@ -225,24 +226,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     }
   };
 
-  const resolveBlockReasonText = (): string => {
-    const blockReason = deriveUpdateBlockReason(effectiveStatus);
-    switch (blockReason) {
-      case 'cli-not-installed':
-        return t('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
-      case 'version-unknown':
-        return t('pipeline.openspec.engine.matrix.blockedVersionUnknown');
-      case 'legacy-coexistence':
-        return t('pipeline.openspec.engine.matrix.blockedLegacyCoexistence');
-      case 'customized':
-        return t('pipeline.openspec.engine.matrix.blockedCustomized');
-      case 'evidence-unknown':
-        return t('pipeline.openspec.engine.matrix.blockedEvidenceUnknown');
-      case 'unclassified':
-      default:
-        return t('pipeline.openspec.engine.matrix.blockedUnclassified');
-    }
-  };
+  const resolveBlockReasonText = (): string => t(getUpdateBlockReasonKey(effectiveStatus));
 
   const isRepoInitialized = status?.repoState === 'initialized';
   const engineStep = upgrade

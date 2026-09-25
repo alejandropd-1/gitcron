@@ -404,6 +404,7 @@ const PIPELINE_KEYS = [
   'pipeline.openspec.engine.review.removalSuccess',
   'pipeline.openspec.readiness.ciInfo',
   'pipeline.openspec.engine.summary.integrationNotUpToDate',
+  'pipeline.openspec.engine.summary.integrationUnverified',
   'pipeline.openspec.engine.summary.reasonUnconfiguredTools',
   'pipeline.openspec.engine.review.removalSummaryLine',
   'pipeline.openspec.engine.review.viewRemovalList',

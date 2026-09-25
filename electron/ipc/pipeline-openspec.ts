@@ -66,7 +66,7 @@ import {
 import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
-import { getToolDef } from '../pipeline/openspec-tooling';
+import { getToolDef, isOpenSpecConfigurableTool } from '../pipeline/openspec-tooling';
 import {
   analyzeOpenSpecVersion,
   readInstalledContext,
@@ -91,6 +91,7 @@ export interface OpenSpecIpcDeps {
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
   getArtifactGraph?: (repoPath: string, changeId: string, options?: CliExecutionOptions) => Promise<OpenSpecArtifactGraphResult>;
+  recalculateStatus?: (repoPath?: string) => Promise<OpenSpecEngineStatus>;
   runVersionAnalysis?: (
     repoPath: string,
     options?: {
@@ -274,8 +275,8 @@ export async function buildEngineStatusSnapshot(
       const configuredCount =
         installedIntegration.configuredAgentsCount ??
         installedIntegration.configuredCount ??
-        installedIntegration.configuredTools?.filter((t) => getToolDef(t)?.category !== 'ci').length ??
-        installedIntegration.tools?.filter((t) => getToolDef(t)?.category !== 'ci').length ??
+        installedIntegration.configuredTools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
+        installedIntegration.tools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
         0;
       const totalCount =
         installedIntegration.totalPresentAgentsCount ??
@@ -287,7 +288,7 @@ export async function buildEngineStatusSnapshot(
           installedIntegration.presentToolDirectories &&
             installedIntegration.configuredTools &&
             installedIntegration.presentToolDirectories.some(
-              (tool) => getToolDef(tool)?.category !== 'ci' && !installedIntegration.configuredTools?.includes(tool),
+              (tool) => isOpenSpecConfigurableTool(tool) && !installedIntegration.configuredTools?.includes(tool),
             ),
         );
 
@@ -687,7 +688,8 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         force,
         runtime: authorizedRuntime,
       });
-      const engineStatus = await buildEngineStatusSnapshot(validRepoPath, deps);
+      const recalculateStatus = deps.recalculateStatus ?? ((rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps));
+      const engineStatus = await recalculateStatus(validRepoPath);
       return {
         ...updateResult,
         engineStatus,

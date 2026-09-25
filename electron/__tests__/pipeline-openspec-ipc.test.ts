@@ -321,17 +321,10 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
         getUserDataDir: () => 'C:\\userData',
         getGitInfo: async () => ({ branch: 'main', headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
         runUpdate: runUpdateMock,
-        discoverCli: async () => ({
-          installed: true,
-          runtimeVersion: '1.8.0',
-          provenance: 'global',
-          displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.8.0' },
-          versionClass: 'supported',
-          evidenceStatus: 'confirmed',
-          diagnostics: [],
-        }),
-        readGlobalConfig: async () => null,
+        recalculateStatus: async () => ({
+          cli: { installed: true, runtimeVersion: '1.8.0' },
+          integrationState: 'up-to-date',
+        } as any),
       });
 
       const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
@@ -406,17 +399,10 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
         getUserDataDir: () => 'C:\\userData',
         getGitInfo: async () => ({ branch: 'change/mi-tarea', headCommit: 'abc1234', isClean: false, workingTreeFingerprint: 'dirty:1:abc' }),
         runUpdate: runUpdateMock,
-        discoverCli: async () => ({
-          installed: true,
-          runtimeVersion: '1.8.0',
-          provenance: 'global',
-          displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.8.0' },
-          versionClass: 'supported',
-          evidenceStatus: 'confirmed',
-          diagnostics: [],
-        }),
-        readGlobalConfig: async () => null,
+        recalculateStatus: async () => ({
+          cli: { installed: true, runtimeVersion: '1.8.0' },
+          integrationState: 'up-to-date',
+        } as any),
       });
 
       const runUpdateHandler = map.get('pipeline:openspec:run-update')!;
@@ -444,17 +430,10 @@ describe('IPC Channels Handlers (Rechazo explícito, autoridad real e invalidaci
         getUserDataDir: () => 'C:\\userData',
         getGitInfo: async () => ({ branch: 'change/actualizar-openspec', headCommit: 'abc1234', isClean: true, workingTreeFingerprint: 'clean:0:abc' }),
         runUpdate: runUpdateMock,
-        discoverCli: async () => ({
-          installed: true,
-          runtimeVersion: '1.8.0',
-          provenance: 'global',
-          displayPath: 'C:\\global\\openspec.cmd',
-          supportedRange: { min: '1.5.0', max: '1.8.0' },
-          versionClass: 'supported',
-          evidenceStatus: 'confirmed',
-          diagnostics: [],
-        }),
-        readGlobalConfig: async () => null,
+        recalculateStatus: async () => ({
+          cli: { installed: true, runtimeVersion: '1.8.0' },
+          integrationState: 'up-to-date',
+        } as any),
       });
 
       const runUpdateHandler = map.get('pipeline:openspec:run-update')!;

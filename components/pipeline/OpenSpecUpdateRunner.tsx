@@ -20,54 +20,8 @@ import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { assessOpenSpecEngineTargetVersion } from './pipeline-domain';
 import { OpenSpecGlobalInstallPrompt } from './OpenSpecGlobalInstallConfirm';
-import { getToolDef } from '@/electron/pipeline/openspec-tooling';
-import { deriveUpdateBlockReason } from '@/lib/openspec-update-guide';
+import { getUpdateBlockReasonKey } from '@/lib/openspec-update-guide';
 import styles from './OpenSpecDashboard.module.css';
-
-function resolveIntegrationIncompleteReason(
-  status: OpenSpecEngineStatus | undefined,
-  t: (key: string, params?: Record<string, string | number>) => string
-): string {
-  if (!status) return t('pipeline.openspec.engine.matrix.blockedUnclassified');
-  const installed = status.installedIntegration;
-  if (installed?.conflicts && installed.conflicts.length > 0) {
-    return t('pipeline.openspec.engine.matrix.blockedLegacyCoexistence');
-  }
-  const hasLegacySkills = installed?.skills?.some(
-    (s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent',
-  );
-  if (hasLegacySkills) {
-    return t('pipeline.openspec.engine.matrix.blockedLegacyCoexistence');
-  }
-  const hasUnconfigured = installed?.presentToolDirectories?.some(
-    (tool) => getToolDef(tool)?.category !== 'ci' && !installed.configuredTools?.includes(tool),
-  );
-  if (hasUnconfigured) {
-    return t('pipeline.openspec.engine.summary.reasonUnconfiguredTools');
-  }
-  if (status.integrationState === 'custom' || installed?.skills?.some((s) => s.isOfficial && s.origin === 'custom-agents')) {
-    return t('pipeline.openspec.engine.matrix.blockedCustomized');
-  }
-  const blockReason = deriveUpdateBlockReason(status);
-  if (blockReason) {
-    switch (blockReason) {
-      case 'cli-not-installed':
-        return t('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
-      case 'version-unknown':
-        return t('pipeline.openspec.engine.matrix.blockedVersionUnknown');
-      case 'legacy-coexistence':
-        return t('pipeline.openspec.engine.matrix.blockedLegacyCoexistence');
-      case 'customized':
-        return t('pipeline.openspec.engine.matrix.blockedCustomized');
-      case 'evidence-unknown':
-        return t('pipeline.openspec.engine.matrix.blockedEvidenceUnknown');
-      case 'unclassified':
-      default:
-        return t('pipeline.openspec.engine.matrix.blockedUnclassified');
-    }
-  }
-  return t('pipeline.openspec.engine.matrix.blockedUnclassified');
-}
 
 function formatMismatchMessage(
   assessment: ReturnType<typeof assessOpenSpecEngineTargetVersion>,
@@ -122,6 +76,7 @@ interface IntegrationStepState {
   stoppedReason?: 'mismatch' | 'broken' | null;
   incomplete?: boolean;
   incompleteReason?: string | null;
+  unverified?: boolean;
 }
 
 export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
@@ -397,9 +352,8 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
           false
         );
         if (updateResult.success) {
-          const isUpToDate = updateResult.engineStatus
-            ? updateResult.engineStatus.integrationState === 'up-to-date'
-            : true;
+          const hasEngineStatus = Boolean(updateResult.engineStatus);
+          const isUpToDate = hasEngineStatus && updateResult.engineStatus!.integrationState === 'up-to-date';
           onIntegrationUpdated?.(updateResult);
           if (isUpToDate) {
             integrationRanAndDone = true;
@@ -409,10 +363,13 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             });
           } else {
             integrationRanAndDone = false;
-            const incompleteReason = resolveIntegrationIncompleteReason(updateResult.engineStatus, t);
+            const incompleteReason = hasEngineStatus
+              ? t(getUpdateBlockReasonKey(updateResult.engineStatus))
+              : null;
             setIntegrationStep({
               status: 'failed',
               incomplete: true,
+              unverified: !hasEngineStatus,
               filesCount: updateResult.filesUpdated?.length ?? 0,
               incompleteReason,
             });
@@ -861,10 +818,14 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
                 >
                   <AlertTriangle size={14} aria-hidden="true" />
                   <span>
-                    {t('pipeline.openspec.engine.summary.integrationNotUpToDate', {
-                      count: integrationStep.filesCount ?? 0,
-                      reason: integrationStep.incompleteReason ?? t('pipeline.openspec.engine.matrix.blockedUnclassified'),
-                    })}
+                    {integrationStep.unverified
+                      ? t('pipeline.openspec.engine.summary.integrationUnverified', {
+                          count: integrationStep.filesCount ?? 0,
+                        })
+                      : t('pipeline.openspec.engine.summary.integrationNotUpToDate', {
+                          count: integrationStep.filesCount ?? 0,
+                          reason: integrationStep.incompleteReason ?? t('pipeline.openspec.engine.matrix.blockedUnclassified'),
+                        })}
                   </span>
                 </div>
               )}

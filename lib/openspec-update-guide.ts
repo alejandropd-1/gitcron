@@ -12,6 +12,7 @@ import type {
   OpenSpecInstalledSkill,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 
 export interface CoexistenceDiagnostic {
   legacySkills: OpenSpecInstalledSkill[];
@@ -97,6 +98,7 @@ export type UpdateBlockReason =
   | 'cli-not-installed'
   | 'version-unknown'
   | 'legacy-coexistence'
+  | 'unconfigured-tools'
   | 'customized'
   | 'evidence-unknown'
   | 'unclassified';
@@ -119,7 +121,9 @@ export function deriveUpdateMatrixAction(
 ): OpenSpecUpdatePlan['requiredAction'] {
   if (!inputs) return 'blocked';
 
-  const versionClass = ('cli' in inputs && inputs.cli) ? inputs.cli.versionClass : (inputs as UpdateMatrixInputs).versionClass;
+  const versionClass = ('cli' in inputs && inputs.cli)
+    ? (inputs.cli.versionClass ?? (inputs.cli.runtimeVersion ? 'supported' : undefined))
+    : (inputs as UpdateMatrixInputs).versionClass;
   const integrationState = inputs.integrationState;
   const repoState = inputs.repoState;
   const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
@@ -163,15 +167,12 @@ export function deriveUpdateBlockReason(
     return repoState === 'not-initialized' ? null : 'cli-not-installed';
   }
 
-  const versionClass = ('cli' in inputs && inputs.cli) ? inputs.cli.versionClass : (inputs as UpdateMatrixInputs).versionClass;
+  const versionClass = ('cli' in inputs && inputs.cli)
+    ? (inputs.cli.versionClass ?? (inputs.cli.runtimeVersion ? 'supported' : undefined))
+    : (inputs as UpdateMatrixInputs).versionClass;
 
   if (!versionClass || versionClass === 'unknown') {
     return 'version-unknown';
-  }
-
-  const action = deriveUpdateMatrixAction(inputs);
-  if (action !== 'blocked') {
-    return null;
   }
 
   const installed = ('installedIntegration' in inputs && inputs.installedIntegration)
@@ -186,6 +187,20 @@ export function deriveUpdateBlockReason(
     return 'legacy-coexistence';
   }
 
+  const configured = installed?.configuredTools ?? installed?.tools ?? [];
+  const hasUnconfiguredTools = installed?.presentToolDirectories?.some(
+    (tool) => isOpenSpecConfigurableTool(tool) && !configured.includes(tool),
+  );
+
+  if (hasUnconfiguredTools) {
+    return 'unconfigured-tools';
+  }
+
+  const action = deriveUpdateMatrixAction(inputs);
+  if (action !== 'blocked') {
+    return null;
+  }
+
   const integrationState = inputs.integrationState;
 
   if (integrationState === 'custom') {
@@ -197,6 +212,33 @@ export function deriveUpdateBlockReason(
   }
 
   return 'unclassified';
+}
+
+/**
+ * Devuelve la clave de i18n para el motivo por el cual la actualización está detenida
+ * o la integración no quedó al día.
+ */
+export function getUpdateBlockReasonKey(
+  input: UpdateBlockReason | UpdateMatrixInputs | OpenSpecEngineStatus | null | undefined,
+): string {
+  const reason = typeof input === 'string' ? input : deriveUpdateBlockReason(input);
+  switch (reason) {
+    case 'cli-not-installed':
+      return 'pipeline.openspec.engine.matrix.blockedCliNotInstalled';
+    case 'version-unknown':
+      return 'pipeline.openspec.engine.matrix.blockedVersionUnknown';
+    case 'legacy-coexistence':
+      return 'pipeline.openspec.engine.matrix.blockedLegacyCoexistence';
+    case 'unconfigured-tools':
+      return 'pipeline.openspec.engine.summary.reasonUnconfiguredTools';
+    case 'customized':
+      return 'pipeline.openspec.engine.matrix.blockedCustomized';
+    case 'evidence-unknown':
+      return 'pipeline.openspec.engine.matrix.blockedEvidenceUnknown';
+    case 'unclassified':
+    default:
+      return 'pipeline.openspec.engine.matrix.blockedUnclassified';
+  }
 }
 
 /**

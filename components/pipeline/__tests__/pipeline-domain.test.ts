@@ -4,6 +4,7 @@ import {
   getOpenSpecEngineUpgrade,
   isOpenSpecEngineStatusIncomplete,
   assessOpenSpecEngineAfterInstall,
+  assessOpenSpecEngineTargetVersion,
   sortDecisionsByHumanNeed,
   type DecisionRequest,
 } from '../pipeline-domain';
@@ -256,6 +257,102 @@ describe('assessOpenSpecEngineAfterInstall', () => {
         'pipeline.openspec.engine.afterInstall.versionUnreadable',
         'pipeline.openspec.engine.afterInstall.doctorUnparsable',
       ],
+    });
+  });
+});
+
+describe('Tarea 2.1: assessOpenSpecEngineTargetVersion', () => {
+  it('status null o undefined → verdict: unverified sin motivos', () => {
+    expect(assessOpenSpecEngineTargetVersion(null, '1.13.2')).toEqual({
+      verdict: 'unverified',
+      reasonKeys: [],
+    });
+    expect(assessOpenSpecEngineTargetVersion(undefined, '1.13.2')).toEqual({
+      verdict: 'unverified',
+      reasonKeys: [],
+    });
+  });
+
+  it('motor roto (notInstalledStatus) → verdict: broken con motivos existentes', () => {
+    const notInstalledStatus = {
+      cli: { installed: false, runtimeVersion: null },
+    } as unknown as OpenSpecEngineStatus;
+
+    expect(assessOpenSpecEngineTargetVersion(notInstalledStatus, '1.13.2')).toEqual({
+      verdict: 'broken',
+      reasonKeys: ['pipeline.openspec.engine.afterInstall.notFound'],
+    });
+  });
+
+  it('motor roto (doctor fallido) → verdict: broken con motivos existentes', () => {
+    const doctorUnparsableStatus = {
+      cli: { installed: true, runtimeVersion: '1.13.2' },
+      doctor: { ok: false, data: null },
+      globalConfig: { profileState: 'read' },
+    } as unknown as OpenSpecEngineStatus;
+
+    expect(assessOpenSpecEngineTargetVersion(doctorUnparsableStatus, '1.13.2')).toEqual({
+      verdict: 'broken',
+      reasonKeys: ['pipeline.openspec.engine.afterInstall.doctorUnparsable'],
+    });
+  });
+
+  it('motor sano y versión coincide → verdict: ok', () => {
+    const healthyStatus = {
+      cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'global' },
+      doctor: { ok: true, data: { version: '1.13.2' } },
+      globalConfig: { profileState: 'read' },
+    } as unknown as OpenSpecEngineStatus;
+
+    expect(assessOpenSpecEngineTargetVersion(healthyStatus, '1.13.2')).toEqual({
+      verdict: 'ok',
+      reasonKeys: [],
+    });
+
+    // Tolera prefijo v en la versión pedida
+    expect(assessOpenSpecEngineTargetVersion(healthyStatus, 'v1.13.2')).toEqual({
+      verdict: 'ok',
+      reasonKeys: [],
+    });
+  });
+
+  it('caso real OdontoPau: pedida 1.13.2, responde 1.5.0 con procedencia local → version-mismatch', () => {
+    const odontoPauStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.5.0',
+        provenance: 'local',
+      },
+      doctor: { ok: true, data: { version: '1.5.0' } },
+      globalConfig: { profileState: 'read' },
+    } as unknown as OpenSpecEngineStatus;
+
+    expect(assessOpenSpecEngineTargetVersion(odontoPauStatus, '1.13.2')).toEqual({
+      verdict: 'version-mismatch',
+      reasonKeys: [],
+      requested: '1.13.2',
+      responded: '1.5.0',
+      provenance: 'local',
+    });
+  });
+
+  it('mismatch con procedencia global → version-mismatch con procedencia global', () => {
+    const globalMismatchStatus = {
+      cli: {
+        installed: true,
+        runtimeVersion: '1.12.0',
+        provenance: 'global',
+      },
+      doctor: { ok: true, data: { version: '1.12.0' } },
+      globalConfig: { profileState: 'read' },
+    } as unknown as OpenSpecEngineStatus;
+
+    expect(assessOpenSpecEngineTargetVersion(globalMismatchStatus, '1.13.2')).toEqual({
+      verdict: 'version-mismatch',
+      reasonKeys: [],
+      requested: '1.13.2',
+      responded: '1.12.0',
+      provenance: 'global',
     });
   });
 });

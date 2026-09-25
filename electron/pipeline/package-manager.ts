@@ -221,17 +221,18 @@ export function getPackageManagerInstallArgs(
   manager: PackageManagerType,
   mode: 'local' | 'global',
   targetPackage: string = '@fission-ai/openspec@latest',
+  exact: boolean = false,
 ): string[] {
   if (mode === 'local') {
     switch (manager) {
       case 'pnpm':
-        return ['add', '-D', targetPackage];
+        return exact ? ['add', '-D', '--save-exact', targetPackage] : ['add', '-D', targetPackage];
       case 'npm':
-        return ['install', '-D', targetPackage];
+        return exact ? ['install', '-D', '--save-exact', targetPackage] : ['install', '-D', targetPackage];
       case 'yarn':
-        return ['add', '-D', targetPackage];
+        return exact ? ['add', '-D', '--exact', targetPackage] : ['add', '-D', targetPackage];
       case 'bun':
-        return ['add', '-d', targetPackage];
+        return exact ? ['add', '-d', '--exact', targetPackage] : ['add', '-d', targetPackage];
     }
   } else {
     switch (manager) {

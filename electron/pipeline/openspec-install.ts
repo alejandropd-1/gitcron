@@ -1,6 +1,7 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
+import { parseSemver } from '../../lib/openspec-version';
 import type {
   OpenSpecEngineStatus,
   OpenSpecInstallResult,
@@ -163,7 +164,40 @@ export async function installOpenSpecLocal(
     };
   }
 
-  const args = getPackageManagerInstallArgs(pm.name, 'local', targetPackage);
+  // Lectura del package.json para determinar si se debe conservar la fijación exacta
+  let exact = false;
+  try {
+    const read = options?.readFile ?? ((p: string) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return null;
+      }
+    });
+    const content = read(manifestPath);
+    if (content) {
+      const parsed = JSON.parse(content) as {
+        dependencies?: Record<string, unknown>;
+        devDependencies?: Record<string, unknown>;
+      };
+      const versionSpec =
+        (typeof parsed.devDependencies?.['@fission-ai/openspec'] === 'string'
+          ? parsed.devDependencies['@fission-ai/openspec']
+          : null) ??
+        (typeof parsed.dependencies?.['@fission-ai/openspec'] === 'string'
+          ? parsed.dependencies['@fission-ai/openspec']
+          : null);
+
+      if (versionSpec && parseSemver(versionSpec) !== null) {
+        exact = true;
+      }
+    }
+  } catch {
+    // Si el package.json es ilegible o inválido, sin indicador y la instalación sigue
+    exact = false;
+  }
+
+  const args = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, exact);
   const commandExecuted = `${pm.name} ${args.join(' ')}`;
 
   // 5. Captura del estado del working tree de Git antes de ejecutar

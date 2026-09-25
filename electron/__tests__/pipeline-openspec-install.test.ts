@@ -4,8 +4,10 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectRepoPackageManager,
+  doesManifestPinOpenSpecExactly,
   getPackageManagerInstallArgs,
   resolvePackageManager,
+  resolvePackageManagerInstallPlan,
   resolveSystemExecutable,
   type ResolvedPackageManager,
 } from '../pipeline/package-manager';
@@ -802,6 +804,31 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
       expect(plan.globalCommand).toContain('@fission-ai/openspec@1.13.0');
       expect(plan.globalCommand).not.toContain('@latest');
     }, 30_000);
+
+    it('con package.json "^1.5.0" y targetVersion, localCommand no lleva --save-exact; con "1.5.0", sí', async () => {
+      // 1. Con rango ^1.5.0
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@fission-ai/openspec': '^1.5.0' } }),
+      );
+      expect(doesManifestPinOpenSpecExactly(tempDir)).toBe(false);
+      const planRange = resolvePackageManagerInstallPlan(tempDir, { targetVersion: '1.13.0' });
+      expect(planRange.localCommand).toBeTruthy();
+      expect(planRange.localCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(planRange.localCommand).not.toContain('--save-exact');
+      expect(planRange.localCommand).not.toContain('--exact');
+
+      // 2. Con versión exacta 1.5.0
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@fission-ai/openspec': '1.5.0' } }),
+      );
+      expect(doesManifestPinOpenSpecExactly(tempDir)).toBe(true);
+      const planExact = resolvePackageManagerInstallPlan(tempDir, { targetVersion: '1.13.0' });
+      expect(planExact.localCommand).toBeTruthy();
+      expect(planExact.localCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(planExact.localCommand).toMatch(/--save-exact|--exact/);
+    });
   });
 
   describe('pipeline:openspec:set-profile (IPC Channel)', () => {

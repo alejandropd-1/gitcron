@@ -19,10 +19,10 @@
 
 ## 4. Confirmación global dentro del recorrido
 
-- [ ] 4.1 Con procedencia `global`, tocar «Actualizar» no instala: muestra la confirmación global con comando, ruta del gestor y repositorios abiertos afectados (comando y gestor del canal `pipeline:openspec:install-plan`; repositorios de `openRepoPaths`, que `OpenSpecUpdateReview` ya recibe). Confirmar ejecuta **una sola** instalación y el recorrido sigue con la verificación de 3.4 y la integración; cancelar no invoca ningún gestor y deja el botón como estaba. Verificar con pruebas del runner: antes de confirmar, `installGlobal` no se llamó; después, se llamó una vez; al cancelar, cero veces. La advertencia de rama `main` / árbol sucio sigue apareciendo antes, como hoy.
+- [x] 4.1 Con procedencia `global`, tocar «Actualizar» no instala: muestra la confirmación global con comando, ruta del gestor y repositorios abiertos afectados (comando y gestor del canal `pipeline:openspec:install-plan`; repositorios de `openRepoPaths`, que `OpenSpecUpdateReview` ya recibe). Confirmar ejecuta **una sola** instalación y el recorrido sigue con la verificación de 3.4 y la integración; cancelar no invoca ningún gestor y deja el botón como estaba. Verificar con pruebas del runner: antes de confirmar, `installGlobal` no se llamó; después, se llamó una vez; al cancelar, cero veces. La advertencia de rama `main` / árbol sucio sigue apareciendo antes, como hoy.
 - [x] 4.2 Con procedencia `local` no aparece la confirmación global (la instalación local es reversible con Git). Verificar con prueba del runner.
 
 ## 5. Integración
 
-- [ ] 5.1 Correr `pnpm verificar` en la rama del cambio y dejar todo en verde (build, pruebas ×2, tipos, eslint sobre lo tocado, `openspec validate --strict`, `git diff --check`, trampas).
+- [x] 5.1 Correr `pnpm verificar` en la rama del cambio y dejar todo en verde (build, pruebas ×2, tipos, eslint sobre lo tocado, `openspec validate --strict`, `git diff --check`, trampas).
 - [ ] 5.2 Revisión en pantalla (la marca Alejandro): en OdontoPau, sin confirmar lo que quede, el plan dice «actualizar el motor de este repositorio a v1.13.2»; al correr, el `package.json` queda con `"@fission-ai/openspec": "1.13.2"` exacto y el lockfile modificados sin confirmar, el motor responde 1.13.2 y la integración escribe archivos. En gitCronos (motor del sistema) aparece la confirmación global antes de instalar. Descartar después en OdontoPau los cambios de prueba si Alejandro no quiere quedarse con la actualización.

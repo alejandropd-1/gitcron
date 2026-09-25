@@ -915,21 +915,11 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       },
     };
 
-    const initialStalePlan = {
-      detectedManager: 'npm' as const,
-      packageManagerPath: '/usr/local/bin/npm',
-      nodePath: '/usr/local/bin/node',
-      localCommand: null,
-      globalCommand: 'npm install -g @fission-ai/openspec@latest',
-      hasManifest: false,
-    };
-
     const { rerender } = render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
         engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
-        installPlan={initialStalePlan}
         openRepoPaths={['/mock/repo1', '/mock/repo2']}
       />
     );
@@ -1040,5 +1030,69 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       repoPath: '/mock/repo',
       targetVersion: '1.13.0',
     });
+  });
+
+  it('23) 4.1: si el pedido de getInstallPlan está pendiente, la confirmación no contiene @latest y muestra resolución pendiente', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({ success: true });
+    const getInstallPlanMock = vi.fn().mockReturnValue(new Promise(() => {}));
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        getInstallPlan: getInstallPlanMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={true}
+        openRepoPaths={['/mock/repo1']}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // Debe mostrar la confirmación global sin comando resuelto
+    expect(screen.getByRole('button', { name: 'Confirmar instalación global' })).toBeTruthy();
+    expect(screen.queryByText(/@latest/)).toBeNull();
+    expect(
+      screen.getByText('El comando se resolverá automáticamente según el gestor detectado (pnpm, npm, yarn o bun).')
+    ).toBeTruthy();
+  });
+
+  it('24) 4.1: si el pedido de getInstallPlan falla, la confirmación no contiene @latest y muestra resolución pendiente', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({ success: true });
+    const getInstallPlanMock = vi.fn().mockRejectedValue(new Error('Plan resolution error'));
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        getInstallPlan: getInstallPlanMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={true}
+        openRepoPaths={['/mock/repo1']}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getInstallPlanMock).toHaveBeenCalled();
+    });
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // Debe mostrar la confirmación global sin comando resuelto
+    expect(screen.getByRole('button', { name: 'Confirmar instalación global' })).toBeTruthy();
+    expect(screen.queryByText(/@latest/)).toBeNull();
+    expect(
+      screen.getByText('El comando se resolverá automáticamente según el gestor detectado (pnpm, npm, yarn o bun).')
+    ).toBeTruthy();
   });
 });

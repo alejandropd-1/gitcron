@@ -225,7 +225,6 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               repoInitialized={isRepoInitialized}
               repoState={status?.repoState}
               updatePlan={updatePlan}
-              installPlan={installPlan}
               openRepoPaths={openRepoPaths}
               force={forceConfirmed}
               warnings={{

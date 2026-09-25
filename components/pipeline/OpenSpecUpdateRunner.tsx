@@ -31,7 +31,7 @@ function formatMismatchMessage(
       ? t('pipeline.openspec.engine.summary.provenanceLocal')
       : assessment.provenance === 'global'
       ? t('pipeline.openspec.engine.summary.provenanceGlobal')
-      : assessment.provenance ?? '';
+      : t('pipeline.openspec.engine.summary.provenanceUnknown');
   return t('pipeline.openspec.engine.summary.versionMismatch', {
     requested: assessment.requested ?? '',
     responded: assessment.responded ?? '',
@@ -50,7 +50,6 @@ export interface OpenSpecUpdateRunnerProps {
   repoInitialized?: boolean;
   repoState?: OpenSpecEngineStatus['repoState'] | null;
   updatePlan?: OpenSpecUpdatePlan | null;
-  installPlan?: OpenSpecInstallPlan | null;
   openRepoPaths?: string[];
   force?: boolean;
   warnings?: { mainBranch?: string | null; dirtyCount?: number | null };
@@ -84,7 +83,6 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   repoInitialized,
   repoState,
   updatePlan,
-  installPlan,
   openRepoPaths,
   force,
   warnings,
@@ -106,9 +104,10 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   } | null>(null);
   const [ranIntegration, setRanIntegration] = useState(false);
 
-  const effectiveInstallPlan = fetchedInstallPlan ?? installPlan;
+  const effectiveInstallPlan = fetchedInstallPlan;
 
   useEffect(() => {
+    let cancelled = false;
     if (
       engine?.provenance === 'global' &&
       typeof window !== 'undefined' &&
@@ -117,10 +116,21 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
       window.api.pipelineOpenSpec
         .getInstallPlan({ repoPath, targetVersion: engine.latest })
         .then((plan) => {
-          if (plan) setFetchedInstallPlan(plan);
+          if (!cancelled) {
+            setFetchedInstallPlan(plan ?? null);
+          }
         })
-        .catch(() => {});
+        .catch(() => {
+          if (!cancelled) {
+            setFetchedInstallPlan(null);
+          }
+        });
+    } else {
+      setFetchedInstallPlan(null);
     }
+    return () => {
+      cancelled = true;
+    };
   }, [engine?.provenance, engine?.latest, repoPath]);
 
   const isRepoInitialized = typeof repoInitialized === 'boolean'

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { PackageManagerType } from '../../types/pipeline';
+import { parseSemver } from '../../lib/openspec-version';
 import { quoteWindowsCmdArg, type PathStateResult } from './openspec-engine';
 
 const execFileAsync = promisify(execFile);
@@ -258,13 +259,55 @@ export interface PackageManagerInstallPlan {
 }
 
 /**
+ * Determina si el package.json del repositorio fija @fission-ai/openspec con
+ * una versión exacta (sin prefijos de rango como ^ o ~).
+ */
+export function doesManifestPinOpenSpecExactly(
+  repoPath?: string | null,
+  options?: { readFile?: (p: string) => string | null },
+): boolean {
+  if (!repoPath) return false;
+  const manifestPath = path.join(repoPath, 'package.json');
+  try {
+    const read = options?.readFile ?? ((p: string) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return null;
+      }
+    });
+    const content = read(manifestPath);
+    if (!content) return false;
+    const parsed = JSON.parse(content) as {
+      dependencies?: Record<string, unknown>;
+      devDependencies?: Record<string, unknown>;
+    };
+    const versionSpec =
+      (typeof parsed.devDependencies?.['@fission-ai/openspec'] === 'string'
+        ? parsed.devDependencies['@fission-ai/openspec']
+        : null) ??
+      (typeof parsed.dependencies?.['@fission-ai/openspec'] === 'string'
+        ? parsed.dependencies['@fission-ai/openspec']
+        : null);
+
+    return Boolean(versionSpec && parseSemver(versionSpec) !== null);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resuelve el plan de instalación SIN ejecutar ninguna operación.
  * Devuelve el gestor detectado, su ruta, la ruta de Node y los comandos
  * previstos para cada modo (local / global). Es un canal de solo lectura.
  */
 export function resolvePackageManagerInstallPlan(
   repoPath?: string | null,
-  options?: { exists?: (p: string) => boolean; targetVersion?: string },
+  options?: {
+    exists?: (p: string) => boolean;
+    readFile?: (p: string) => string | null;
+    targetVersion?: string;
+  },
 ): PackageManagerInstallPlan {
   const exists = options?.exists ?? existsSync;
   const hasManifest = repoPath ? exists(path.join(repoPath, 'package.json')) : false;
@@ -282,12 +325,12 @@ export function resolvePackageManagerInstallPlan(
     };
   }
 
-  const isPinningSpecificVersion = Boolean(options?.targetVersion);
+  const isExactPinned = doesManifestPinOpenSpecExactly(repoPath, options);
   const targetPackage = options?.targetVersion
     ? `@fission-ai/openspec@${options.targetVersion}`
     : '@fission-ai/openspec@latest';
 
-  const localArgs = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, isPinningSpecificVersion);
+  const localArgs = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, isExactPinned);
   const globalArgs = getPackageManagerInstallArgs(pm.name, 'global', targetPackage);
 
   const localCmd = `${pm.name} ${localArgs.join(' ')}`;

@@ -704,6 +704,7 @@ export interface OpenSpecRunUpdateResult {
   filesUpdated: string[];
   errors: string[];
   message?: string;
+  engineStatus?: OpenSpecEngineStatus;
 }
 
 export interface OpenSpecLegacySkillPlanItem {

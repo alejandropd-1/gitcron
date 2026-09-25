@@ -451,6 +451,78 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
     }
   });
 
+  it('6.6: el estado medido de OdontoPau sin copias viejas (configuredTools: agents+codex, presentToolDirectories: agents+codex+github) da up-to-date', async () => {
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-odontopau-up-to-date-'));
+    try {
+      const gitDir = path.join(tempDir, '.git');
+      fs.mkdirSync(gitDir, { recursive: true });
+      fs.writeFileSync(path.join(gitDir, 'HEAD'), 'ref: refs/heads/main\n');
+
+      const openspecDir = path.join(tempDir, 'openspec');
+      fs.mkdirSync(openspecDir, { recursive: true });
+      fs.writeFileSync(path.join(openspecDir, 'config.yaml'), 'schema: spec-driven\n');
+
+      // .agents con workflows oficiales y marca .openspec-target con 'codex'
+      const agentSkillsDir = path.join(tempDir, '.agents', 'skills');
+      fs.mkdirSync(agentSkillsDir, { recursive: true });
+      fs.writeFileSync(path.join(agentSkillsDir, '.openspec-target'), 'codex\n');
+
+      const workflows = ['apply', 'archive', 'explore', 'propose', 'sync', 'update'];
+      for (const wf of workflows) {
+        const wfDir = path.join(agentSkillsDir, `openspec-${wf}`);
+        fs.mkdirSync(wfDir, { recursive: true });
+        fs.writeFileSync(path.join(wfDir, 'SKILL.md'), `---\ngeneratedBy: "1.13.2"\n---\nOfficial agent skill\n`);
+      }
+
+      // .codex/config.toml (sin skills en .codex)
+      const codexDir = path.join(tempDir, '.codex');
+      fs.mkdirSync(codexDir, { recursive: true });
+      fs.writeFileSync(path.join(codexDir, 'config.toml'), '# codex config\n');
+
+      // .github/workflows/ci.yml (directorio CI, no configurado por openspec)
+      const githubDir = path.join(tempDir, '.github', 'workflows');
+      fs.mkdirSync(githubDir, { recursive: true });
+      fs.writeFileSync(path.join(githubDir, 'ci.yml'), 'name: CI\n');
+
+      authorizedRepoStore.clear();
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      const snapshot = await buildEngineStatusSnapshot(tempDir, {
+        discoverCli: async () => ({
+          installed: true,
+          runtimeVersion: '1.13.2',
+          provenance: 'local',
+          displayPath: 'node_modules\\.bin\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.13.2' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        }),
+        readGlobalConfig: async () => ({
+          rawProfile: 'core',
+          configuredWorkflows: workflows,
+          origin: 'cli',
+          readAt: new Date().toISOString(),
+        }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+      });
+
+      // Verificamos estado exacto medido de OdontoPau
+      expect(snapshot.installedIntegration?.configuredTools).toEqual(expect.arrayContaining(['agents', 'codex']));
+      expect(snapshot.installedIntegration?.presentToolDirectories).toEqual(expect.arrayContaining(['agents', 'codex', 'github']));
+      expect(snapshot.installedIntegration?.conflicts).toBeNull();
+      // .github no debe provocar 'outdated'
+      expect(snapshot.integrationState).toBe('up-to-date');
+    } finally {
+      try {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+      } catch {
+        // ignore
+      }
+    }
+  });
+
   describe('convergencia por target y perfiles (2.9 / Invariantes 8 & 19)', () => {
     it('target presente con cero workflows oficiales (.agents con custom skills) participa del cálculo e impide convergencia', async () => {
       const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), 'gitcron-target-conv-neg-'));

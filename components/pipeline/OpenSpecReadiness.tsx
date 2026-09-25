@@ -8,7 +8,7 @@ import { useT } from '@/hooks/use-translation';
 // copiarse: dos listas que envejecen por separado dirían cosas distintas del
 // mismo repositorio. El módulo es puro —tablas y funciones, sin APIs de Node—,
 // así que vale en el renderer igual que en el proceso principal.
-import { OPENSPEC_TOOL_DIRECTORIES } from '@/electron/pipeline/openspec-tooling';
+import { getToolDef, OPENSPEC_TOOL_DIRECTORIES } from '@/electron/pipeline/openspec-tooling';
 import styles from './OpenSpecDashboard.module.css';
 
 /**
@@ -66,7 +66,7 @@ export function OpenSpecToolList({
   if (present === undefined) return null;
 
   const list = tools ?? [];
-  const pending = list.filter((tool) => !tool.configured);
+  const pending = list.filter((tool) => !tool.configured && getToolDef(tool.toolId)?.category !== 'ci');
   // Se ofrece inicializar cuando hay algo que resolver: sin OpenSpec, o con
   // alguna herramienta sin configurar. Con todo en orden el botón no aparece.
   const canInitialize = Boolean(onInitialize) && (!present || pending.length > 0);
@@ -85,24 +85,32 @@ export function OpenSpecToolList({
           lo que falta, y sin ellas el rail estaría vacío casi siempre. */}
       {list.length > 0 && (
         <ul className={styles.readinessList}>
-          {list.map((tool) => (
-            <li key={tool.toolId} data-configured={tool.configured}>
-              {tool.configured
-                ? <CheckCircle2 size={13} aria-hidden="true" />
-                : <AlertCircle size={13} aria-hidden="true" />}
-              <strong>{tool.label}</strong>
-              <code>{tool.directory}</code>
-              <em>
-                {tool.configured
-                  ? t('pipeline.openspec.readiness.configured')
-                  : t('pipeline.openspec.readiness.notConfigured')}
-              </em>
-            </li>
-          ))}
+          {list.map((tool) => {
+            const def = getToolDef(tool.toolId);
+            const isCi = def?.category === 'ci';
+            return (
+              <li key={tool.toolId} data-configured={tool.configured}>
+                {tool.configured ? (
+                  <CheckCircle2 size={13} aria-hidden="true" />
+                ) : isCi ? null : (
+                  <AlertCircle size={13} aria-hidden="true" />
+                )}
+                <strong>{tool.label}</strong>
+                <code>{tool.directory}</code>
+                <em>
+                  {tool.configured
+                    ? t('pipeline.openspec.readiness.configured')
+                    : isCi
+                    ? t('pipeline.openspec.readiness.ciInfo')
+                    : t('pipeline.openspec.readiness.notConfigured')}
+                </em>
+              </li>
+            );
+          })}
         </ul>
       )}
 
-      <p className={styles.railScope}>{t('pipeline.openspec.rail.toolsHelp')}</p>
+      {pending.length > 0 && <p className={styles.railScope}>{t('pipeline.openspec.rail.toolsHelp')}</p>}
 
       {/* Mientras hay que elegir, el botón que detecta no se ofrece: ya se sabe
           que no encuentra nada, así que volvería a fallar igual. Dejarlo sería
@@ -137,7 +145,7 @@ export function OpenSpecToolList({
               dos, y pedirlas de a una dejaría la segunda al olvido, que es
               exactamente el estado que este panel existe para evitar. */}
           <ul className={styles.railChooseList}>
-            {OPENSPEC_TOOL_DIRECTORIES.map((tool) => (
+            {OPENSPEC_TOOL_DIRECTORIES.filter((tool) => tool.category !== 'ci').map((tool) => (
               <li key={tool.toolId}>
                 <label>
                   <input

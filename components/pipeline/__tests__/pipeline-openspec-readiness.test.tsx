@@ -119,4 +119,13 @@ describe('detalle de herramientas en el rail', () => {
     render(<OpenSpecToolList present tools={[tool('antigravity', false)]} busy onInitialize={() => undefined} />);
     expect((screen.getByRole('button', { name: /rail\.initBusy/ }) as HTMLButtonElement).disabled).toBe(true);
   });
+
+  it('una herramienta de categoría ci (github) se muestra como informativa y no como pendiente ni ofrece inicializar (6.6)', () => {
+    render(<OpenSpecToolList present tools={[tool('github', false)]} onInitialize={() => undefined} />);
+    expect(screen.getByText('github')).toBeTruthy();
+    expect(screen.queryByText(/readiness\.notConfigured/)).toBeNull();
+    expect(screen.getByText('pipeline.openspec.readiness.ciInfo')).toBeTruthy();
+    expect(screen.queryByText(/rail\.toolsHelp/)).toBeNull();
+    expect(screen.queryByRole('button', { name: /rail\.init/ })).toBeNull();
+  });
 });

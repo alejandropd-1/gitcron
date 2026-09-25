@@ -510,9 +510,26 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(removeLegacySkillsMock).toHaveBeenCalledTimes(1);
     expect(removeLegacySkillsMock).toHaveBeenCalledWith(repoPath);
 
-    // 5. Muestra lo borrado y el estado recalculado
-    expect(screen.getByText(/Se retiraron 1 copias viejas\./i)).toBeTruthy();
-    expect(screen.getByText('Al día')).toBeTruthy();
+    // 5. Muestra la línea reducida y no la lista de archivos inicialmente (6.8)
+    expect(screen.getByText(/Se retiraron 1 copias viejas; quedan como borradas sin confirmar en Git/i)).toBeTruthy();
+    expect(screen.queryByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeNull();
+
+    // 6. Al tocar «Ver lista» se muestra la lista de archivos borrados
+    const viewListBtn = screen.getByRole('button', { name: 'Ver lista' });
+    fireEvent.click(viewListBtn);
+    expect(screen.getByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ocultar lista' })).toBeTruthy();
+
+    // 7. Al tocar «Ocultar lista» se vuelve a ocultar
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar lista' }));
+    expect(screen.queryByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver lista' })).toBeTruthy();
+
+    // 8. Al tocar «Cerrar» se quita la sección completamente
+    const legacySection = screen.getByRole('region', { name: 'Copias viejas de las instrucciones' });
+    const closeBtn = within(legacySection).getByRole('button', { name: 'Cerrar' });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('region', { name: 'Copias viejas de las instrucciones' })).toBeNull();
   });
 
   it('el retiro que falla muestra el error y deja el botón disponible para reintentar', async () => {

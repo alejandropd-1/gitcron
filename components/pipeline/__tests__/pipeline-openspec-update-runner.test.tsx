@@ -1095,4 +1095,81 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       screen.getByText('El comando se resolverá automáticamente según el gestor detectado (pnpm, npm, yarn o bun).')
     ).toBeTruthy();
   });
+
+  it('25) 6.7: runUpdate exitoso con engineStatus.integrationState === "outdated" → no muestra «integración al día», muestra archivos regenerados pero no al día con motivo', async () => {
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['file1.md', 'file2.md'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local' },
+        integrationState: 'outdated',
+        installedIntegration: {
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents', 'claude'],
+          conflicts: [],
+        },
+      },
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={null}
+        integration={true}
+        updatePlan={{ files: [] } as any}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // Debe mostrar que se regeneraron 2 archivos pero la integración no quedó al día
+    await screen.findByText(/Se regeneraron 2 archivos, pero la integración todavía no quedó al día: quedan herramientas sin configurar/i);
+
+    // El cartel final NO debe decir «integración al día» ni «Listo: integración al día»
+    expect(screen.queryByText(/Listo: integración al día/i)).toBeNull();
+    expect(screen.queryByText(/integración al día/i)).toBeNull();
+  });
+
+  it('26) 6.7: runUpdate exitoso con engineStatus.integrationState === "up-to-date" → muestra «Listo: integración al día»', async () => {
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['file1.md', 'file2.md'],
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.2', provenance: 'local' },
+        integrationState: 'up-to-date',
+        installedIntegration: {
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents'],
+          conflicts: [],
+        },
+      },
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={null}
+        integration={true}
+        updatePlan={{ files: [] } as any}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // Con up-to-date debe mostrar «Listo: integración al día»
+    await screen.findByText('Listo: integración al día');
+    expect(screen.getByText(/2 archivos actualizados/i)).toBeTruthy();
+  });
 });

@@ -9,6 +9,7 @@ import {
   parseSemver,
   compareSemver,
 } from '@/lib/openspec-version';
+import { getToolDef } from '@/electron/pipeline/openspec-tooling';
 
 
 export type DecisionOption = {
@@ -428,10 +429,13 @@ export function assessOpenSpecEngineTargetVersion(
  * o integración ausente).
  */
 export function hasOpenSpecToolsAttention(
-  tools: { configured?: boolean }[] | null | undefined,
+  tools: { toolId?: string; configured?: boolean }[] | null | undefined,
   openSpecPresent: boolean | undefined,
 ): boolean {
-  const pending = (tools ?? []).filter((tool) => !tool.configured);
+  const pending = (tools ?? []).filter((tool) => {
+    if (tool.toolId && getToolDef(tool.toolId)?.category === 'ci') return false;
+    return !tool.configured;
+  });
   return Boolean(openSpecPresent !== undefined && (!openSpecPresent || pending.length > 0));
 }
 

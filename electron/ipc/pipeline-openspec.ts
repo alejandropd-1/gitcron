@@ -274,8 +274,8 @@ export async function buildEngineStatusSnapshot(
       const configuredCount =
         installedIntegration.configuredAgentsCount ??
         installedIntegration.configuredCount ??
-        installedIntegration.configuredTools?.length ??
-        installedIntegration.tools?.length ??
+        installedIntegration.configuredTools?.filter((t) => getToolDef(t)?.category !== 'ci').length ??
+        installedIntegration.tools?.filter((t) => getToolDef(t)?.category !== 'ci').length ??
         0;
       const totalCount =
         installedIntegration.totalPresentAgentsCount ??
@@ -287,7 +287,7 @@ export async function buildEngineStatusSnapshot(
           installedIntegration.presentToolDirectories &&
             installedIntegration.configuredTools &&
             installedIntegration.presentToolDirectories.some(
-              (tool) => !installedIntegration.configuredTools?.includes(tool),
+              (tool) => getToolDef(tool)?.category !== 'ci' && !installedIntegration.configuredTools?.includes(tool),
             ),
         );
 
@@ -683,10 +683,15 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const runUpdate = deps.runUpdate ?? runOpenSpecUpdate;
       const force = Boolean((payload as any)?.force);
-      return runUpdate(validRepoPath, {
+      const updateResult = await runUpdate(validRepoPath, {
         force,
         runtime: authorizedRuntime,
       });
+      const engineStatus = await buildEngineStatusSnapshot(validRepoPath, deps);
+      return {
+        ...updateResult,
+        engineStatus,
+      };
     },
   );
 

@@ -711,7 +711,7 @@ export interface OpenSpecLegacySkillPlanItem {
   path: string;
   origin: 'legacy-codex' | 'legacy-agent';
   removable: boolean;
-  reason?: 'untracked' | 'modified';
+  reason?: 'untracked' | 'modified' | 'remove-failed';
 }
 
 export interface OpenSpecLegacySkillsPlan {
@@ -720,7 +720,7 @@ export interface OpenSpecLegacySkillsPlan {
 
 export interface OpenSpecRemoveLegacySkillsResult {
   removed: string[];
-  skipped: Array<{ path: string; reason: 'untracked' | 'modified' }>;
+  skipped: Array<{ path: string; reason: 'untracked' | 'modified' | 'remove-failed' }>;
   engineStatus: OpenSpecEngineStatus;
 }
 

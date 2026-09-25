@@ -77,9 +77,10 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [lastIntegration, setLastIntegration] = useState<OpenSpecRunUpdateResult | null>(null);
 
-  const [legacySkillsPlan, setLegacySkillsPlan] = useState<{ repoPath: string; plan: OpenSpecLegacySkillsPlan } | null>(null);
+  const [legacyPlanState, setLegacyPlanState] = useState<{ repoPath: string; status: 'loaded' | 'error'; plan?: OpenSpecLegacySkillsPlan } | null>(null);
   const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
   const [removingSkills, setRemovingSkills] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
   const [removalResult, setRemovalResult] = useState<{ repoPath: string; result: OpenSpecRemoveLegacySkillsResult } | null>(null);
 
   const effectiveRemovalResult = removalResult?.repoPath === repoPath ? removalResult.result : null;
@@ -103,8 +104,10 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     upgrade !== null,
   );
 
-  // Derivar operación oficial y comando literal
-  const action = updatePlan?.requiredAction ?? deriveUpdateMatrixAction(effectiveStatus);
+  // Derivar operación oficial y comando literal (Punto 1: si hay resultado de retiro, deriva del engineStatus recalculado)
+  const action = effectiveRemovalResult
+    ? deriveUpdateMatrixAction(effectiveRemovalResult.engineStatus)
+    : (updatePlan?.requiredAction ?? deriveUpdateMatrixAction(effectiveStatus));
 
   const officialCommand = deriveOfficialCommand(action, effectiveStatus);
 
@@ -131,12 +134,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     apiCall
       .then((plan) => {
         if (active) {
-          setLegacySkillsPlan({ repoPath, plan });
+          setLegacyPlanState({ repoPath, status: 'loaded', plan });
         }
       })
       .catch(() => {
         if (active) {
-          setLegacySkillsPlan(null);
+          setLegacyPlanState({ repoPath, status: 'error' });
         }
       });
     return () => {
@@ -149,29 +152,31 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     const apiCall = window.api?.pipelineOpenSpec?.removeLegacySkills;
     if (!apiCall) return;
     setRemovingSkills(true);
+    setRemoveError(null);
     try {
       const result = await apiCall(repoPath);
       setRemovalResult({ repoPath, result });
       setShowRemoveConfirm(false);
-    } catch {
-      // noop
+      usePipelineStore.getState().notifyEngineChanged();
+    } catch (err: any) {
+      setRemoveError(err?.message || t('pipeline.openspec.engine.review.removeError'));
+      setShowRemoveConfirm(false);
     } finally {
       setRemovingSkills(false);
     }
   };
 
-  const effectiveLegacyPlan = (hasLegacyResidue && legacySkillsPlan?.repoPath === repoPath)
-    ? legacySkillsPlan.plan
-    : null;
+  const legacyPlanStatus: 'none' | 'loading' | 'loaded' | 'error' = !hasLegacyResidue || !repoPath
+    ? 'none'
+    : legacyPlanState?.repoPath === repoPath
+    ? legacyPlanState.status
+    : 'loading';
+
+  const effectiveLegacyPlan = legacyPlanStatus === 'loaded' ? (legacyPlanState?.plan ?? null) : null;
 
   const removableItems = effectiveLegacyPlan !== null
     ? effectiveLegacyPlan.items.filter((item) => item.removable)
-    : coexistence.legacySkills.map((s) => ({
-        name: s.name,
-        path: s.path,
-        origin: s.origin,
-        removable: true,
-      }));
+    : [];
 
   const nonRemovableItems = effectiveLegacyPlan !== null
     ? effectiveLegacyPlan.items.filter((item) => !item.removable)
@@ -216,7 +221,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   };
 
   const resolveBlockReasonText = (): string => {
-    const blockReason = deriveUpdateBlockReason(status);
+    const blockReason = deriveUpdateBlockReason(effectiveStatus);
     switch (blockReason) {
       case 'cli-not-installed':
         return t('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
@@ -378,13 +383,33 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     <ul style={{ margin: 0, paddingLeft: 'var(--space-4)', color: 'var(--color-text-secondary)' }}>
                       {effectiveRemovalResult.skipped.map((item) => (
                         <li key={item.path}>
-                          <code>{item.path}</code> — {item.reason === 'modified'
+                          <code>{item.path}</code> — {item.reason === 'remove-failed'
+                            ? t('pipeline.openspec.engine.review.reasonRemoveFailed')
+                            : item.reason === 'modified'
                             ? t('pipeline.openspec.engine.review.reasonModified')
                             : t('pipeline.openspec.engine.review.reasonUntracked')}
                         </li>
                       ))}
                     </ul>
                   </div>
+                )}
+              </div>
+            ) : effectiveLegacyPlan === null ? (
+              /* Sin plan medido: listá las copias sin botón de retirar (Punto 3) */
+              <div style={{ margin: 'var(--space-2) 0', fontSize: 'var(--font-size-xs)' }}>
+                <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', color: 'var(--color-git-mod)' }}>
+                  {coexistence.legacySkills.map((s) => (
+                    <li key={s.path}><code>{s.path}</code></li>
+                  ))}
+                </ul>
+                {legacyPlanStatus === 'error' ? (
+                  <p style={{ margin: 'var(--space-1) 0', color: 'var(--color-warning)' }}>
+                    {t('pipeline.openspec.engine.review.legacyPlanCheckFailed')}
+                  </p>
+                ) : (
+                  <p style={{ margin: 'var(--space-1) 0', color: 'var(--color-text-secondary)' }}>
+                    {t('pipeline.openspec.engine.review.legacyPlanChecking')}
+                  </p>
                 )}
               </div>
             ) : showRemoveConfirm ? (
@@ -444,6 +469,11 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     </button>
                   </>
                 )}
+                {removeError && (
+                  <p style={{ margin: 'var(--space-1) 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-error)' }}>
+                    {removeError}
+                  </p>
+                )}
                 {nonRemovableItems.length > 0 && (
                   <div style={{ marginTop: 'var(--space-2)' }}>
                     <h4 style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)', margin: 'var(--space-2) 0 var(--space-1)' }}>
@@ -452,7 +482,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                     <ul style={{ margin: 0, paddingLeft: 'var(--space-4)', color: 'var(--color-text-secondary)' }}>
                       {nonRemovableItems.map((item) => (
                         <li key={item.path}>
-                          <code>{item.path}</code> — {item.reason === 'modified'
+                          <code>{item.path}</code> — {item.reason === 'remove-failed'
+                            ? t('pipeline.openspec.engine.review.reasonRemoveFailed')
+                            : item.reason === 'modified'
                             ? t('pipeline.openspec.engine.review.reasonModified')
                             : t('pipeline.openspec.engine.review.reasonUntracked')}
                         </li>

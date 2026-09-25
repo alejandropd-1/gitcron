@@ -5,6 +5,7 @@ import { simpleGit } from 'simple-git';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { registerOpenSpecIpcHandlers } from '../ipc/pipeline-openspec';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
+import { removeLegacySkills } from '../pipeline/openspec-legacy-skills';
 
 describe('6.3: Canales para retirar copias viejas (legacy-skills-plan y remove-legacy-skills)', () => {
   let tempDir: string;
@@ -188,5 +189,28 @@ describe('6.3: Canales para retirar copias viejas (legacy-skills-plan y remove-l
     await expect(removeHandler!({}, { repoPath: tempDir, extraKeys: true })).rejects.toThrow(
       'IPC Security Error: Unknown payload property "extraKeys"',
     );
+  });
+
+  it('removeLegacySkills con rm inyectado que rechaza empuja skipped con remove-failed', async () => {
+    const cleanDir = path.join(tempDir, '.codex', 'skills', 'openspec-explore');
+    fs.mkdirSync(cleanDir, { recursive: true });
+    fs.writeFileSync(path.join(cleanDir, 'SKILL.md'), '---\ngeneratedBy: "1.5.0"\n---\nClean skill\n', 'utf-8');
+
+    const git = simpleGit(tempDir);
+    await git.add([path.join('.codex', 'skills', 'openspec-explore', 'SKILL.md')]);
+    await git.commit('commit clean skill');
+
+    const failingRm = vi.fn().mockRejectedValue(new Error('EBUSY: resource locked'));
+    const mockBuildStatus = vi.fn().mockResolvedValue({ repoState: 'initialized', integrationState: 'outdated' } as any);
+
+    const result = await removeLegacySkills(tempDir, {
+      rm: failingRm,
+      buildStatusSnapshot: mockBuildStatus,
+    });
+
+    expect(failingRm).toHaveBeenCalled();
+    expect(result.removed).toHaveLength(0);
+    const failedItem = result.skipped.find((s) => path.normalize(s.path) === path.normalize(cleanDir));
+    expect(failedItem).toEqual({ path: cleanDir, reason: 'remove-failed' });
   });
 });

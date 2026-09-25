@@ -181,11 +181,8 @@ export function deriveUpdateBlockReason(
   const hasLegacySkills = installed?.skills?.some(
     (s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent',
   );
-  const hasCoexistenceConflict = (installed?.conflicts ?? []).some(
-    (c) => c.toLowerCase().includes('legacy') || c.toLowerCase().includes('coexistencia'),
-  );
 
-  if (hasLegacySkills || hasCoexistenceConflict) {
+  if (hasLegacySkills) {
     return 'legacy-coexistence';
   }
 

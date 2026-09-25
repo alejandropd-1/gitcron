@@ -223,6 +223,35 @@ describe('openspec-update-guide (Fase 6: Matriz declarada y Convivencia)', () =>
       expect(reason).toBe('legacy-coexistence');
     });
 
+    it('no clasifica como legacy-coexistence si solo hay texto de conflicto pero ningún skill de origen legacy', () => {
+      const reason = deriveUpdateBlockReason({
+        versionClass: 'supported',
+        integrationState: 'conflicted',
+        repoState: 'initialized',
+        installedIntegration: {
+          skills: [
+            { name: 'openspec-apply-change', path: '.agents/skills/openspec-apply-change', origin: 'new-agents', isOfficial: true },
+          ],
+          generatedBy: '1.5.0',
+          markersFound: [],
+          outputInventory: [],
+          evidenceStatus: 'confirmed',
+          tools: ['agents'],
+          targets: ['agents'],
+          configuredTools: ['agents'],
+          presentToolDirectories: ['agents'],
+          configuredAgentsCount: 1,
+          totalPresentAgentsCount: 1,
+          conflicts: ['Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).'],
+          installedWorkflowsByTarget: {},
+          missing: [],
+          legacy: [],
+          customized: [],
+        },
+      });
+      expect(reason).toBe('unclassified');
+    });
+
     it('devuelve customized cuando la integración está en estado custom', () => {
       const reason = deriveUpdateBlockReason({
         versionClass: 'supported',

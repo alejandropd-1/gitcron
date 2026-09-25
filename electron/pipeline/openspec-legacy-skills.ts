@@ -9,13 +9,12 @@ import type {
 } from '../../types/pipeline';
 import { inspectInstalledEvidence } from './openspec-evidence';
 import { withRepoWatcherPaused } from '../ipc/watchers';
-import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 
 export interface LegacySkillsDeps {
   inspectEvidence?: typeof inspectInstalledEvidence;
   simpleGitInstance?: typeof simpleGit;
   pauseWatcher?: typeof withRepoWatcherPaused;
-  buildStatusSnapshot?: typeof buildEngineStatusSnapshot;
+  buildStatusSnapshot?: (repoPath: string, deps?: any) => Promise<OpenSpecEngineStatus>;
   rm?: (p: string, options?: fs.RmOptions) => Promise<void>;
   statusDeps?: any;
 }
@@ -118,7 +117,7 @@ export async function removeLegacySkills(
 ): Promise<OpenSpecRemoveLegacySkillsResult> {
   const plan = await getLegacySkillsPlan(repoPath, deps);
   const removed: string[] = [];
-  const skipped: Array<{ path: string; reason: 'untracked' | 'modified' }> = [];
+  const skipped: Array<{ path: string; reason: 'untracked' | 'modified' | 'remove-failed' }> = [];
   const pauseWatcher = deps.pauseWatcher ?? withRepoWatcherPaused;
   const rmFn = deps.rm ?? fs.promises.rm;
 
@@ -133,12 +132,16 @@ export async function removeLegacySkills(
         await rmFn(item.path, { recursive: true, force: true });
         removed.push(item.path);
       } catch {
-        skipped.push({ path: item.path, reason: 'modified' });
+        skipped.push({ path: item.path, reason: 'remove-failed' });
       }
     }
   });
 
-  const buildStatus = deps.buildStatusSnapshot ?? buildEngineStatusSnapshot;
+  let buildStatus = deps.buildStatusSnapshot;
+  if (!buildStatus) {
+    const mod = await import('../ipc/pipeline-openspec');
+    buildStatus = mod.buildEngineStatusSnapshot;
+  }
   const engineStatus = await buildStatus(repoPath, deps.statusDeps);
 
   return {

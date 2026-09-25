@@ -4,6 +4,27 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.16.0] - 2026-09-24 - Tema claro nativo con tokens semánticos y contraste WCAG AA
+
+Esta versión reemplaza definitivamente la inversión global por filtro CSS por un sistema nativo de tema claro basado en tokens semánticos `light-dark()`, calibrando neutros, acentos con contraste WCAG AA, superficies gráficas en vistas Cronométrica y Clásica, y normalizando los campos interactivos de entrada en toda la aplicación.
+
+### 🎨 Diseño, Tokens y Accesibilidad
+
+#### Added
+- **Tema claro nativo por tokens semánticos.** Se retira el filtro global `html.light body { filter: ... }` y los atributos de escape `data-keep-color`. El modo claro resuelve sus colores directamente mediante `color-scheme` y la función estándar CSS `light-dark()` bajo `@theme`, preservando imágenes, videos y avatares sin distorsiones ni artefactos de re-inversión.
+- **Paleta de neutros Snow Storm / Slate suave.** El lienzo base adopta un tono slate suave `#d0d7e4` (luminancia 0.68) que elimina el encandilamiento de blancos plenos `#ffffff`. Las superficies y marcos adoptan `#c2ccdb`, con tipografía principal `#202632` (10.49:1) y secundaria `#434d5f` (5.89:1), superando WCAG AA en todas las vistas.
+- **Seis acentos semánticos calibrados para tema claro.** Ajuste preciso de `--color-primary` (`#065877`, 5.48:1), `--color-error` (`#a81c1c`, 6.30:1), `--color-warning` (`#6d4700`, 5.65:1), `--color-git-add` (`#1e5e22`, 4.81:1), `--color-git-mod` (`#8f3c00`, 5.79:1) y `--color-accent-purple` (`#5929a5`, 6.40:1). Todos cumplen >4.5:1 sobre fondo base y superficie.
+- **Carriles cromáticos de grafos de alta visibilidad.** Los doce carriles de ramas (`--color-graph-branch-1` a `12`) incorporan pares `light-dark()`, ofreciendo tonos saturados y contrastados (>5.1:1) sobre el lienzo claro.
+- **Normalización integral de inputs (`--color-bg-input`).** Introducción del token interactivo `--color-bg-input: light-dark(#e7edf7, #242933)` (>12:1 de contraste en texto). Se normalizaron inputs, selects y textareas en Ajustes de Temporal Agent, Preparar commit en SDD, modales de ramas, tags, stash, remotos, worktrees y resolución de conflictos, eliminando el aspecto desactivado por mimetización de fondo con las tarjetas.
+
+#### Fixed
+- **Puntero de mira TCAR en vista Cronométrica.** Eliminado el blanqueado causado por `mix-blend-mode: screen` en modo claro al transicionar entre nodos. Se establecieron animaciones y opacidad sólida dedicada (`.chrono-tcar-reticle`), junto con enriquecimiento cromático de contraste y saturación para garantizar nitidez y opacidad total tanto durante como después de los commits.
+- **Controles nativos y desplegables sin ilegibilidad.** Los elementos `<select>`, `<option>` y `<input>` heredan tokens de color y esquema nativo sin dependencia de transformaciones del documento.
+
+**Validación:** `build` en 0 · `tsc --noEmit` en 0 · 205 archivos y 2194 pruebas en verde · comprobaciones de contraste en 20 pares WCAG AA · `openspec validate --strict` válido.
+
+---
+
 ## [v1.15.1] - 2026-09-23 - Grafo de artefactos para cambios archivados
 
 Esta versión corrige la visualización del grafo de artefactos al consultar o completar el archivado de un cambio OpenSpec, evitando el error de búsqueda del CLI sobre cambios que ya no residen en la carpeta activa.

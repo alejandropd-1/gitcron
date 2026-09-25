@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle2,
@@ -9,23 +9,32 @@ import {
 } from 'lucide-react';
 import { useT } from '@/hooks/use-translation';
 import type {
+  OpenSpecCliProvenance,
   OpenSpecEngineStatus,
+  OpenSpecInstallPlan,
   OpenSpecInstallResult,
   OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
 import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
-import { assessOpenSpecEngineAfterInstall } from './pipeline-domain';
+import { assessOpenSpecEngineTargetVersion } from './pipeline-domain';
+import { OpenSpecGlobalInstallPrompt } from './OpenSpecGlobalInstallConfirm';
 import styles from './OpenSpecDashboard.module.css';
 
 export interface OpenSpecUpdateRunnerProps {
   repoPath: string;
-  engine: { installed: string | null; latest: string } | null;
+  engine: {
+    installed: string | null;
+    latest: string;
+    provenance?: OpenSpecCliProvenance;
+  } | null;
   integration: boolean;
   repoInitialized?: boolean;
   repoState?: OpenSpecEngineStatus['repoState'] | null;
   updatePlan?: OpenSpecUpdatePlan | null;
+  installPlan?: OpenSpecInstallPlan | null;
+  openRepoPaths?: string[];
   force?: boolean;
   warnings?: { mainBranch?: string | null; dirtyCount?: number | null };
   disabledReason?: string | null;
@@ -57,6 +66,8 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   repoInitialized,
   repoState,
   updatePlan,
+  installPlan,
+  openRepoPaths,
   force,
   warnings,
   disabledReason,
@@ -67,9 +78,33 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const [isRunning, setIsRunning] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [showWarningConfirm, setShowWarningConfirm] = useState(false);
+  const [showGlobalConfirm, setShowGlobalConfirm] = useState(false);
+  const [fetchedInstallPlan, setFetchedInstallPlan] = useState<OpenSpecInstallPlan | null>(null);
   const [hasRun, setHasRun] = useState(false);
-  const [ranEngine, setRanEngine] = useState<{ installed: string | null; latest: string } | null>(null);
+  const [ranEngine, setRanEngine] = useState<{
+    installed: string | null;
+    latest: string;
+    provenance?: OpenSpecCliProvenance;
+  } | null>(null);
   const [ranIntegration, setRanIntegration] = useState(false);
+
+  const effectiveInstallPlan = installPlan ?? fetchedInstallPlan;
+
+  useEffect(() => {
+    if (
+      engine?.provenance === 'global' &&
+      !installPlan &&
+      typeof window !== 'undefined' &&
+      window.api?.pipelineOpenSpec?.getInstallPlan
+    ) {
+      window.api.pipelineOpenSpec
+        .getInstallPlan(repoPath)
+        .then((plan) => {
+          if (plan) setFetchedInstallPlan(plan);
+        })
+        .catch(() => {});
+    }
+  }, [engine?.provenance, installPlan, repoPath]);
 
   const isRepoInitialized = typeof repoInitialized === 'boolean'
     ? repoInitialized
@@ -97,8 +132,19 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   const hasDirtyWarning = typeof warnings?.dirtyCount === 'number' && warnings.dirtyCount > 0;
   const hasWarnings = plannedIntegration && (hasMainWarning || hasDirtyWarning);
 
-  // a) Si !hasRun && !engine && !plannedIntegration && !disabledReason
-  if (!hasRun && !engine && !plannedIntegration && !disabledReason) {
+  const isEngineUnavailable = Boolean(
+    engine && (engine.provenance === 'managed' || engine.provenance === 'unknown')
+  );
+  const effectiveDisabledReason = disabledReason || (
+    isEngineUnavailable
+      ? t('pipeline.openspec.engine.summary.stepEngineUnavailable', {
+          provenance: engine?.provenance ?? 'unknown',
+        })
+      : null
+  );
+
+  // a) Si !hasRun && !engine && !plannedIntegration && !effectiveDisabledReason
+  if (!hasRun && !engine && !plannedIntegration && !effectiveDisabledReason) {
     return (
       <div className={styles.reviewActionWithReason}>
         <button
@@ -114,12 +160,14 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
 
   // Plan line text
   const stepDescriptions: string[] = [];
-  if (engine) {
+  if (engine && !isEngineUnavailable) {
     stepDescriptions.push(
-      t('pipeline.openspec.engine.summary.stepEngine', { latest: engine.latest })
+      engine.provenance === 'local'
+        ? t('pipeline.openspec.engine.summary.stepEngineLocal', { latest: engine.latest })
+        : t('pipeline.openspec.engine.summary.stepEngine', { latest: engine.latest })
     );
   }
-  if (plannedIntegration) {
+  if (plannedIntegration && !isEngineUnavailable) {
     stepDescriptions.push(
       t('pipeline.openspec.engine.summary.stepIntegration')
     );
@@ -129,7 +177,7 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
     : null;
 
   const executeSequentialUpdate = async () => {
-    if (disabledReason) return;
+    if (effectiveDisabledReason) return;
     setIsRunning(true);
     setHasRun(true);
     setRanEngine(engine);
@@ -147,7 +195,18 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
       }
 
       try {
-        const installResult = await window.api.pipelineOpenSpec.installGlobal({ repoPath });
+        const installFn = engine.provenance === 'local'
+          ? window.api?.pipelineOpenSpec?.installLocal
+          : window.api?.pipelineOpenSpec?.installGlobal;
+        if (!installFn) {
+          throw new Error(t('pipeline.openspec.engine.install.error.installFailed'));
+        }
+
+        const installResult = await installFn({
+          repoPath,
+          targetVersion: engine.latest,
+        });
+
         if (!installResult.success) {
           setEngineStep({
             status: 'failed',
@@ -166,7 +225,10 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
         }
 
         onEngineInstalled?.(installResult);
-        const assessment = assessOpenSpecEngineAfterInstall(installResult.engineStatus);
+        const assessment = assessOpenSpecEngineTargetVersion(
+          installResult.engineStatus,
+          engine.latest
+        );
         const runtimeVer = installResult.engineStatus?.cli?.runtimeVersion ?? null;
         engineResVersion = runtimeVer ?? engine.latest;
 
@@ -176,6 +238,34 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             status: 'done',
             installedVersion: engineResVersion,
           });
+        } else if (assessment.verdict === 'version-mismatch') {
+          engineSuccess = false;
+          const provenanceText =
+            assessment.provenance === 'local'
+              ? t('pipeline.openspec.engine.summary.provenanceLocal')
+              : assessment.provenance === 'global'
+              ? t('pipeline.openspec.engine.summary.provenanceGlobal')
+              : assessment.provenance ?? '';
+          const mismatchMsg = t('pipeline.openspec.engine.summary.versionMismatch', {
+            requested: assessment.requested ?? '',
+            responded: assessment.responded ?? '',
+            provenance: provenanceText,
+          });
+          setEngineStep({
+            status: 'failed',
+            error: mismatchMsg,
+            installedVersion: engineResVersion,
+            canRollback: engine.installed !== null,
+          });
+          if (plannedIntegration) {
+            setIntegrationStep({
+              status: 'failed',
+              stoppedAfterEngine: true,
+            });
+          }
+          setIsRunning(false);
+          usePipelineStore.getState().notifyEngineChanged();
+          return;
         } else if (assessment.verdict === 'broken') {
           engineSuccess = false;
           const reasons = assessment.reasonKeys.map((k) => t(k));
@@ -294,9 +384,13 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   };
 
   const handleStart = () => {
-    if (disabledReason || isRunning || isRollingBack) return;
+    if (effectiveDisabledReason || isRunning || isRollingBack) return;
     if (hasWarnings && !showWarningConfirm) {
       setShowWarningConfirm(true);
+      return;
+    }
+    if (effectiveEngine?.provenance === 'global' && !showGlobalConfirm) {
+      setShowGlobalConfirm(true);
       return;
     }
     void executeSequentialUpdate();
@@ -304,29 +398,89 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
 
   const handleConfirmWarningsAndRun = () => {
     setShowWarningConfirm(false);
+    if (effectiveEngine?.provenance === 'global') {
+      setShowGlobalConfirm(true);
+      return;
+    }
     void executeSequentialUpdate();
+  };
+
+  const handleConfirmGlobalAndRun = () => {
+    setShowGlobalConfirm(false);
+    void executeSequentialUpdate();
+  };
+
+  const handleCancelGlobal = () => {
+    setShowGlobalConfirm(false);
   };
 
   const handleRollback = async () => {
     if (!effectiveEngine?.installed || isRollingBack) return;
     setIsRollingBack(true);
     try {
-      const rollbackResult = await window.api.pipelineOpenSpec.installGlobal({
+      const rollbackFn = effectiveEngine.provenance === 'local'
+        ? window.api?.pipelineOpenSpec?.installLocal
+        : window.api?.pipelineOpenSpec?.installGlobal;
+      if (!rollbackFn) {
+        throw new Error(t('pipeline.openspec.engine.install.error.installFailed'));
+      }
+      const rollbackResult = await rollbackFn({
         repoPath,
         targetVersion: effectiveEngine.installed,
       });
-      if (rollbackResult.success) {
-        const rollbackVer = rollbackResult.engineStatus?.cli?.runtimeVersion ?? effectiveEngine.installed;
+
+      if (!rollbackResult.success) {
+        setEngineStep((prev) => ({
+          ...prev,
+          error: rollbackResult.error || t('pipeline.openspec.engine.install.error.installFailed'),
+        }));
+        return;
+      }
+
+      const assessment = assessOpenSpecEngineTargetVersion(
+        rollbackResult.engineStatus,
+        effectiveEngine.installed
+      );
+
+      if (assessment.verdict === 'ok') {
+        const rollbackVer =
+          rollbackResult.engineStatus?.cli?.runtimeVersion ?? effectiveEngine.installed;
         setEngineStep({
           status: 'done',
           installedVersion: rollbackVer,
           canRollback: false,
         });
         usePipelineStore.getState().notifyEngineChanged();
+      } else if (assessment.verdict === 'version-mismatch') {
+        const provenanceText =
+          assessment.provenance === 'local'
+            ? t('pipeline.openspec.engine.summary.provenanceLocal')
+            : assessment.provenance === 'global'
+            ? t('pipeline.openspec.engine.summary.provenanceGlobal')
+            : assessment.provenance ?? '';
+        const mismatchMsg = t('pipeline.openspec.engine.summary.versionMismatch', {
+          requested: assessment.requested ?? '',
+          responded: assessment.responded ?? '',
+          provenance: provenanceText,
+        });
+        setEngineStep((prev) => ({
+          ...prev,
+          error: mismatchMsg,
+        }));
+      } else if (assessment.verdict === 'broken') {
+        const reasons = assessment.reasonKeys.map((k) => t(k));
+        setEngineStep((prev) => ({
+          ...prev,
+          reasons,
+          error:
+            reasons.length > 0
+              ? reasons.join(' · ')
+              : t('pipeline.openspec.engine.install.error.installFailed'),
+        }));
       } else {
         setEngineStep((prev) => ({
           ...prev,
-          error: rollbackResult.error || t('pipeline.openspec.engine.install.error.installFailed'),
+          error: t('pipeline.openspec.engine.afterInstall.unverified'),
         }));
       }
     } catch (err: unknown) {
@@ -441,12 +595,24 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
             </button>
           </div>
         </div>
+      ) : showGlobalConfirm ? (
+        <OpenSpecGlobalInstallPrompt
+          command={effectiveInstallPlan?.globalCommand}
+          nodePath={effectiveInstallPlan?.nodePath}
+          packageManagerPath={effectiveInstallPlan?.packageManagerPath}
+          packageManagerName={effectiveInstallPlan?.detectedManager}
+          openRepoPaths={openRepoPaths}
+          disabled={isRunning}
+          isInstalling={isRunning}
+          onConfirm={handleConfirmGlobalAndRun}
+          onCancel={handleCancelGlobal}
+        />
       ) : (
         <div className={styles.reviewActionWithReason}>
           <button
             type="button"
             className={styles.primaryAction}
-            disabled={Boolean(disabledReason) || isRunning || isRollingBack}
+            disabled={Boolean(effectiveDisabledReason) || isRunning || isRollingBack}
             onClick={handleStart}
           >
             {isRunning ? (
@@ -458,15 +624,15 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
               t('pipeline.openspec.engine.summary.updateAll')
             )}
           </button>
-          {disabledReason && (
+          {effectiveDisabledReason && (
             <span className={styles.blockedReasonInline} role="alert">
-              {disabledReason}
+              {effectiveDisabledReason}
             </span>
           )}
         </div>
       )}
 
-      {planLineText && !hasRun && !showWarningConfirm && (
+      {planLineText && !hasRun && !showWarningConfirm && !showGlobalConfirm && (
         <p className={styles.reviewWarningConfirmText}>
           {planLineText}
         </p>

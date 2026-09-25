@@ -477,8 +477,12 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     fireEvent.click(updateBtn);
 
+    const confirmGlobalBtn = await screen.findByRole('button', { name: /Confirmar instalación global/i });
+    fireEvent.click(confirmGlobalBtn);
+
     await screen.findByText(/Motor v1\.9\.0 instalado y respondiendo\./i);
     expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: 'C:\\\\repo', targetVersion: '1.9.0' });
   });
 
   it('con CLI no instalado, el motivo de bloqueo explica la causa real y no contiene POC', () => {

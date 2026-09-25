@@ -423,8 +423,6 @@ export function assessOpenSpecEngineTargetVersion(
   };
 }
 
-export const assessOpenSpecEngineWithTargetVersion = assessOpenSpecEngineTargetVersion;
-
 /**
  * Evalúa si las herramientas de OpenSpec requieren atención (herramientas sin configurar
  * o integración ausente).

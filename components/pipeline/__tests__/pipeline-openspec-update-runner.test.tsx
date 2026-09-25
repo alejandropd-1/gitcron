@@ -44,7 +44,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     expect(alert.textContent).toContain('Bloqueado por rama protegida');
   });
 
-  it('3) engine + integration sin warnings → clic ejecuta installGlobal UNA vez con { repoPath } y después runUpdate UNA vez con (repoPath, plan, false), en ese orden (comprobá el orden con mock.invocationCallOrder), ambas filas terminan "listo", se ve «Listo: motor v1.13.0 · integración al día», onEngineInstalled y onIntegrationUpdated una vez cada uno', async () => {
+  it('3) engine + integration sin warnings → clic ejecuta installGlobal UNA vez con { repoPath, targetVersion } y después runUpdate UNA vez con (repoPath, plan, false), en ese orden (comprobá el orden con mock.invocationCallOrder), ambas filas terminan "listo", se ve «Listo: motor v1.13.0 · integración al día», onEngineInstalled y onIntegrationUpdated una vez cada uno', async () => {
     const installGlobalMock = vi.fn().mockResolvedValue({
       success: true,
       engineStatus: {
@@ -57,10 +57,18 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
       success: true,
       filesUpdated: ['package.json', '.openspec/config.yaml'],
     });
+    const getInstallPlanMock = vi.fn().mockResolvedValue({
+      detectedManager: 'npm',
+      packageManagerPath: '/usr/local/bin/npm',
+      nodePath: '/usr/local/bin/node',
+      globalCommand: 'npm install -g @fission-ai/openspec@1.13.0',
+      hasManifest: false,
+    });
     (window as any).api = {
       pipelineOpenSpec: {
         installGlobal: installGlobalMock,
         runUpdate: runUpdateMock,
+        getInstallPlan: getInstallPlanMock,
       },
     };
 
@@ -71,7 +79,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     render(
       <OpenSpecUpdateRunner
         repoPath="/mock/repo"
-        engine={{ installed: '1.12.0', latest: '1.13.0' }}
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
         integration={true}
         updatePlan={mockPlan}
         onEngineInstalled={onEngineInstalled}
@@ -82,10 +90,13 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
     fireEvent.click(updateBtn);
 
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
+
     await screen.findByText('Listo: motor v1.13.0 · integración al día');
 
     expect(installGlobalMock).toHaveBeenCalledTimes(1);
-    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo' });
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo', targetVersion: '1.13.0' });
     expect(runUpdateMock).toHaveBeenCalledTimes(1);
     expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
     expect(useGitStore.getState().success).toContain('OpenSpec actualizado');
@@ -176,7 +187,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     await waitFor(() => {
       expect(installGlobalMock).toHaveBeenCalledTimes(1);
     });
-    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo' });
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo', targetVersion: '1.13.0' });
   });
 
   it('6) engine cuyo resultado trae engineStatus con runtimeVersion null → fila motor "falló" con «la versión no se puede leer», runUpdate NO se llama, se ve «No se actualizó la integración…» y el botón «Volver a v1.12.0»; el clic llama a installGlobal por segunda vez con targetVersion "1.12.0"', async () => {
@@ -477,7 +488,7 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     await screen.findByText('Listo: motor v1.13.1 · integración al día');
 
     expect(installGlobalMock).toHaveBeenCalledTimes(1);
-    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo' });
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: '/mock/repo', targetVersion: '1.13.1' });
     expect(runUpdateMock).toHaveBeenCalledTimes(1);
     expect(runUpdateMock).toHaveBeenCalledWith('/mock/repo', undefined, false);
 
@@ -566,5 +577,352 @@ describe('OpenSpecUpdateRunner (Tarea 8.22 b2 primera mitad)', () => {
     fireEvent.click(updateBtn);
     expect(installGlobalMock).not.toHaveBeenCalled();
     expect(runUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('16) 3.1: el texto del plan cambia según la procedencia: local vs global', () => {
+    const { rerender } = render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'local' }}
+        integration={false}
+      />
+    );
+    expect(
+      screen.getByText('Va a: actualizar el motor de este repositorio a v1.13.0')
+    ).toBeTruthy();
+    expect(screen.queryByText(/actualizar el motor en toda la máquina/i)).toBeNull();
+
+    rerender(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={false}
+      />
+    );
+    expect(
+      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.0')
+    ).toBeTruthy();
+    expect(screen.queryByText(/actualizar el motor de este repositorio/i)).toBeNull();
+  });
+
+  it('17) 3.2: con procedencia local, clic en Actualizar llama a installLocal con { repoPath, targetVersion } y NUNCA a installGlobal', async () => {
+    const installLocalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'local' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const installGlobalMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+        installGlobal: installGlobalMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'local' }}
+        integration={false}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText(/Motor v1\.13\.0 instalado y respondiendo\./i);
+    expect(installLocalMock).toHaveBeenCalledTimes(1);
+    expect(installLocalMock).toHaveBeenCalledWith({
+      repoPath: '/mock/repo',
+      targetVersion: '1.13.0',
+    });
+    expect(installGlobalMock).not.toHaveBeenCalled();
+  });
+
+  it('18) 3.3: con procedencia managed o unknown, el motor se declara no disponible, el botón queda deshabilitado y no ejecuta nada', () => {
+    const installLocalMock = vi.fn();
+    const installGlobalMock = vi.fn();
+    const runUpdateMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    const { rerender } = render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'managed' }}
+        integration={true}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    expect(updateBtn.hasAttribute('disabled')).toBe(true);
+
+    const alert = screen.getByRole('alert');
+    expect(alert.textContent).toContain(
+      'Actualización del motor no disponible (procedencia: managed)'
+    );
+
+    fireEvent.click(updateBtn);
+    expect(installLocalMock).not.toHaveBeenCalled();
+    expect(installGlobalMock).not.toHaveBeenCalled();
+    expect(runUpdateMock).not.toHaveBeenCalled();
+
+    // Rerender with 'unknown' provenance
+    rerender(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'unknown' }}
+        integration={true}
+      />
+    );
+
+    const updateBtnUnknown = screen.getByRole('button', { name: 'Actualizar' });
+    expect(updateBtnUnknown.hasAttribute('disabled')).toBe(true);
+    expect(screen.getByRole('alert').textContent).toContain(
+      'Actualización del motor no disponible (procedencia: unknown)'
+    );
+    fireEvent.click(updateBtnUnknown);
+    expect(installLocalMock).not.toHaveBeenCalled();
+    expect(installGlobalMock).not.toHaveBeenCalled();
+    expect(runUpdateMock).not.toHaveBeenCalled();
+  });
+
+  it('19) 3.4: caso OdontoPau: instalación local exitosa pero responde 1.5.0 local con pedida 1.13.2 → falla con version-mismatch, runUpdate NO se llama, no hay cartel Listo', async () => {
+    const installLocalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.5.0', provenance: 'local' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+        runUpdate: runUpdateMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.5.0', latest: '1.13.2', provenance: 'local' }}
+        integration={true}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText(/El motor responde v1\.5\.0 pero se pidió v1\.13\.2 \(local del repositorio\)/i);
+
+    expect(runUpdateMock).not.toHaveBeenCalled();
+    expect(
+      screen.getByText('No se actualizó la integración porque el motor no responde')
+    ).toBeTruthy();
+    expect(screen.queryByText(/Listo: motor/i)).toBeNull();
+    expect(useGitStore.getState().success).toBeNull();
+  });
+
+  it('20) 3.5: volver a la versión anterior vuelve por el mismo canal: local tras fallo llama a installLocal y no a installGlobal', async () => {
+    const installLocalMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.5.0', provenance: 'local' },
+          doctor: { data: {} },
+          globalConfig: { profileState: 'ready' },
+        },
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.5.0', provenance: 'local' },
+          doctor: { data: {} },
+          globalConfig: { profileState: 'ready' },
+        },
+      });
+
+    const installGlobalMock = vi.fn();
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+        installGlobal: installGlobalMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.5.0', latest: '1.13.2', provenance: 'local' }}
+        integration={false}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    await screen.findByText(/El motor responde v1\.5\.0 pero se pidió v1\.13\.2 \(local del repositorio\)/i);
+
+    const rollbackBtn = screen.getByRole('button', { name: 'Volver a v1.5.0' });
+    fireEvent.click(rollbackBtn);
+
+    await waitFor(() => {
+      expect(installLocalMock).toHaveBeenCalledTimes(2);
+    });
+    expect(installLocalMock.mock.calls[1][0]).toEqual({
+      repoPath: '/mock/repo',
+      targetVersion: '1.5.0',
+    });
+    expect(installGlobalMock).not.toHaveBeenCalled();
+
+    await screen.findByText(/Motor v1\.5\.0 instalado y respondiendo\./i);
+  });
+
+  it('21) 4.1: con procedencia global: confirmación previa con datos del canal, cancelar con 0 llamadas, confirmar con 1 llamada; warnings aparecen antes', async () => {
+    const installGlobalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'global' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    const runUpdateMock = vi.fn().mockResolvedValue({
+      success: true,
+      filesUpdated: ['package.json'],
+    });
+    const getInstallPlanMock = vi.fn().mockResolvedValue({
+      detectedManager: 'npm',
+      packageManagerPath: '/usr/local/bin/npm',
+      nodePath: '/usr/local/bin/node',
+      globalCommand: 'npm install -g @fission-ai/openspec@1.13.0',
+      hasManifest: false,
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installGlobal: installGlobalMock,
+        runUpdate: runUpdateMock,
+        getInstallPlan: getInstallPlanMock,
+      },
+    };
+
+    const { rerender } = render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={true}
+        openRepoPaths={['/mock/repo1', '/mock/repo2']}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // No debe haber llamado todavía a installGlobal
+    expect(installGlobalMock).not.toHaveBeenCalled();
+
+    // Muestra la confirmación global con comando y repositorios
+    await screen.findByText(/npm install -g @fission-ai\/openspec@1\.13\.0/);
+    expect(screen.getByText(/\/mock\/repo1, \/mock\/repo2/)).toBeTruthy();
+
+    // Cancelar no ejecuta y restaura el botón
+    const cancelBtn = screen.getByRole('button', { name: 'Cancelar' });
+    fireEvent.click(cancelBtn);
+
+    expect(installGlobalMock).not.toHaveBeenCalled();
+    expect(screen.queryByText(/npm install -g/)).toBeNull();
+    const restoredUpdateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    expect(restoredUpdateBtn).toBeTruthy();
+
+    // Volver a abrir y confirmar
+    fireEvent.click(restoredUpdateBtn);
+    const confirmBtn = await screen.findByRole('button', { name: 'Confirmar instalación global' });
+    fireEvent.click(confirmBtn);
+
+    await screen.findByText('Listo: motor v1.13.0 · integración al día');
+    expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalMock).toHaveBeenCalledWith({
+      repoPath: '/mock/repo',
+      targetVersion: '1.13.0',
+    });
+    expect(runUpdateMock).toHaveBeenCalledTimes(1);
+
+    // Caso con warnings: la advertencia de main/dirty aparece antes
+    installGlobalMock.mockClear();
+    rerender(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'global' }}
+        integration={true}
+        warnings={{ mainBranch: 'main', dirtyCount: 2 }}
+      />
+    );
+
+    const updateBtnWithWarnings = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtnWithWarnings);
+
+    // Primero advertencias
+    expect(screen.getByText(/Estás en «main»/i)).toBeTruthy();
+    expect(installGlobalMock).not.toHaveBeenCalled();
+
+    // Confirmar advertencias lleva a confirmación global
+    const updateAnywayBtn = screen.getByRole('button', { name: 'Actualizar igual' });
+    fireEvent.click(updateAnywayBtn);
+
+    const confirmGlobalBtn = await screen.findByRole('button', { name: 'Confirmar instalación global' });
+    expect(installGlobalMock).not.toHaveBeenCalled();
+
+    fireEvent.click(confirmGlobalBtn);
+    await waitFor(() => {
+      expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  it('22) 4.2: con procedencia local: no aparece confirmación global y ejecuta installLocal directo', async () => {
+    const installLocalMock = vi.fn().mockResolvedValue({
+      success: true,
+      engineStatus: {
+        cli: { installed: true, runtimeVersion: '1.13.0', provenance: 'local' },
+        doctor: { data: {} },
+        globalConfig: { profileState: 'ready' },
+      },
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        installLocal: installLocalMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateRunner
+        repoPath="/mock/repo"
+        engine={{ installed: '1.12.0', latest: '1.13.0', provenance: 'local' }}
+        integration={false}
+      />
+    );
+
+    const updateBtn = screen.getByRole('button', { name: 'Actualizar' });
+    fireEvent.click(updateBtn);
+
+    // No aparece la confirmación global
+    expect(screen.queryByRole('button', { name: 'Confirmar instalación global' })).toBeNull();
+    await waitFor(() => {
+      expect(installLocalMock).toHaveBeenCalledTimes(1);
+    });
+    expect(installLocalMock).toHaveBeenCalledWith({
+      repoPath: '/mock/repo',
+      targetVersion: '1.13.0',
+    });
   });
 });

@@ -163,7 +163,13 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   };
 
   const isRepoInitialized = status?.repoState === 'initialized';
-  const engineStep = upgrade ? { installed: cli?.runtimeVersion ?? null, latest: upgrade.latest } : null;
+  const engineStep = upgrade
+    ? {
+        installed: cli?.runtimeVersion ?? null,
+        latest: upgrade.latest,
+        provenance: cli?.provenance ?? 'unknown',
+      }
+    : null;
   const integrationStep = action !== 'blocked' && (
     action !== 'none' || (Boolean(upgrade) && isRepoInitialized)
   );
@@ -219,6 +225,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               repoInitialized={isRepoInitialized}
               repoState={status?.repoState}
               updatePlan={updatePlan}
+              installPlan={installPlan}
+              openRepoPaths={openRepoPaths}
               force={forceConfirmed}
               warnings={{
                 mainBranch: isMainOrMaster ? (currentBranch ?? 'main') : null,

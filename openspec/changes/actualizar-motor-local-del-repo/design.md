@@ -164,3 +164,28 @@ Dos consecuencias a cuidar:
   permanente. La regla pasa a mirar si hay skills de origen `legacy-codex`/`legacy-agent`.
 - `.codex/` presente sólo con `config.toml` sigue en `presentToolDirectories`, pero ya no deja a
   Codex «sin configurar».
+
+### 10. `.github` no es una herramienta de OpenSpec
+
+Medido en la revisión en pantalla (2026-09-25, tarde): tras retirar las copias viejas y actualizar
+(12 archivos), la cabecera siguió en «Actualización de flujos instalados». `inspectInstalledEvidence`
+sobre OdontoPau: sin conflictos, `configuredTools: ['agents','codex']`,
+`presentToolDirectories: ['agents','codex','github']`, 2 de 2 agentes interactivos. La segunda
+cláusula de `hasUnconfiguredTarget` (`electron/ipc/pipeline-openspec.ts:285-292`) encuentra `github`
+presente y no configurada → `outdated` → «Actualizar», que no la puede arreglar. `github` es una
+entrada del registro de GitCron (`openspec-tooling.ts:82`, categoría `ci`,
+`.github/workflows/openspec-*.yml`) que no existe en OpenSpec 1.13.2: sus herramientas (`AI_TOOLS`)
+son `github-copilot` (en `.github`), `codex` y `antigravity` (en `.agents`), etc. Las entradas `ci`
+quedan fuera de la regla de «sin configurar».
+
+Fuera de este cambio, anotado para uno propio: el registro de herramientas de GitCron quedó atrás
+de OpenSpec 1.13 (Codex y Antigravity viven en `.agents`, no en `.codex`/`.agent`; `github-copilot`
+en `.github`, no en `.github-copilot`), y una herramienta real sin configurar hoy manda a
+«Actualizar», que no la configura (hace falta `init`). La salida de fondo es leer el registro del
+motor en lugar de mantenerlo a mano.
+
+### 11. El canal de actualización devuelve el estado medido
+
+`pipeline:openspec:run-update` suma `engineStatus` recalculado a su resultado (el mismo
+`buildEngineStatusSnapshot` que usan los canales de instalación). El runner lo usa para decidir si
+dice «integración al día»; la fila de integración sigue marcando que el comando corrió.

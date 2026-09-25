@@ -58,3 +58,34 @@ siempre, sin que ninguna actualización pueda arreglarla.
 #### Scenario: Carpeta propia con instrucciones viejas
 - **WHEN** además `.codex/skills` todavía tiene copias viejas de las instrucciones de OpenSpec
 - **THEN** esas copias se informan como viejas y retirables, no como una herramienta sin configurar
+
+### Requirement: Una carpeta que OpenSpec no configura SHALL NOT contarse como herramienta sin configurar
+
+GitCron SHALL contar como «sin configurar» sólo las herramientas que el motor de OpenSpec puede
+configurar. Una carpeta que el repositorio usa para otra cosa —por ejemplo `.github` con su
+integración continua— y que OpenSpec no reconoce como herramienta SHALL NOT volver la integración
+«no al día» ni mostrarse como pendiente de configurar. Medido con OpenSpec 1.13.2: sus herramientas
+configurables no incluyen una de flujos de GitHub; contarla deja la integración desactualizada para
+siempre, y ni actualizar ni inicializar la pueden arreglar.
+
+#### Scenario: Repositorio con integración continua propia
+- **WHEN** el repositorio tiene `.github` con sus propios flujos y las herramientas de OpenSpec presentes están configuradas
+- **THEN** la integración se declara al día y `.github` no aparece como pendiente de configurar
+
+#### Scenario: Herramienta real sin configurar
+- **WHEN** hay una carpeta de una herramienta que OpenSpec sí configura y no tiene sus instrucciones
+- **THEN** la integración no se declara al día, como hasta ahora
+
+### Requirement: El cierre de una actualización de la integración SHALL verificarse con el estado medido otra vez
+
+Después de regenerar la integración, GitCron SHALL volver a medir su estado y SHALL decir
+«integración al día» sólo si la medición lo confirma. Que el comando termine bien prueba que escribió
+archivos, no que la integración haya quedado al día.
+
+#### Scenario: Regenera pero no queda al día
+- **WHEN** la actualización de la integración termina sin error y la nueva medición no la da al día
+- **THEN** GitCron informa cuántos archivos regeneró y que todavía no quedó al día, con el motivo, y no muestra «integración al día»
+
+#### Scenario: Queda al día
+- **WHEN** la nueva medición la da al día
+- **THEN** GitCron muestra «integración al día»

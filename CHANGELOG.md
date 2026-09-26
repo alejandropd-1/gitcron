@@ -4,6 +4,27 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.17.0] - 2026-09-25 - Actualizar OpenSpec donde vive y decir la verdad después
+
+Esta versión corrige el botón «Actualizar» de la Configuración de OpenSpec, que en un repositorio con su propia copia del motor actualizaba la del sistema y terminaba en «Listo» sin haber cambiado nada, y hace que la revisión diga lo que realmente pasa después de actualizar.
+
+### 🤖 Pipeline & Workspace OpenSpec
+
+#### Added
+- **Retirar copias viejas de las instrucciones.** OpenSpec 1.13 pasa las instrucciones de Codex de `.codex/skills` a `.agents/skills` y deja las viejas (ni `openspec update --force` ni `openspec init --force` las borran si difieren). La revisión las lista y ofrece «Retirar copias viejas» sólo para las que Git puede devolver (seguidas y sin cambios pendientes); los borrados quedan sin confirmar. Reemplaza a la «Limpieza de configuración legacy (--force)», que no limpiaba nada.
+- **Confirmación antes de tocar el motor del sistema** también desde el botón «Actualizar»: comando exacto, gestor de paquetes y repositorios abiertos afectados.
+
+#### Fixed
+- **El motor se actualiza donde vive.** Si el repositorio tiene su propia copia, se actualiza esa (queda en `package.json` y el lockfile, sin confirmar); si no, la del sistema. El plan lo dice antes de correr, instala la versión anunciada y da el paso por hecho sólo si después responde esa versión. «Volver a la versión anterior» vuelve en el mismo lugar.
+- **La fijación exacta se conserva.** Un `package.json` con la versión exacta sigue exacto (`--save-exact` / `--exact`); un rango sigue siendo rango.
+- **El motivo de «Actualización detenida» es el real.** Se retiró el texto fijo sobre la POC y la Fase 3/4; ahora dice si conviven copias viejas y nuevas, si hay instrucciones modificadas, si no se pudo leer el repositorio o si la causa no se pudo determinar.
+- **«Integración al día» sólo si lo está.** Después de regenerar, se vuelve a medir; si no quedó al día, se dice cuántos archivos se regeneraron y qué falta.
+- **Codex servida desde `.agents` cuenta como configurada** en la cabecera, el bloque AGENTES y el perfil de workflows (se lee `.agents/skills/.openspec-target`). **`.github` ya no aparece como herramienta de OpenSpec sin configurar**: OpenSpec no tiene esa herramienta y ninguna acción podía resolverlo.
+
+**Validación:** `build` en 0 · `tsc --noEmit` en 0 · 206 archivos y 2258 pruebas en verde (dos pasadas) · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido · revisión en pantalla sobre OdontoPau.
+
+---
+
 ## [v1.16.0] - 2026-09-24 - Tema claro nativo con tokens semánticos y contraste WCAG AA
 
 Esta versión reemplaza definitivamente la inversión global por filtro CSS por un sistema nativo de tema claro basado en tokens semánticos `light-dark()`, calibrando neutros, acentos con contraste WCAG AA, superficies gráficas en vistas Cronométrica y Clásica, y normalizando los campos interactivos de entrada en toda la aplicación.

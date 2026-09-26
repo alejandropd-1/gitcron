@@ -1,4 +1,5 @@
 import type {
+  EngineToolFallbackReason,
   OpenSpecCliProvenance,
   OpenSpecEngineStatus,
   OpenSpecToolEvidence,
@@ -9,7 +10,6 @@ import {
   parseSemver,
   compareSemver,
 } from '@/lib/openspec-version';
-import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 
 
 export type DecisionOption = {
@@ -432,10 +432,7 @@ export function hasOpenSpecToolsAttention(
   tools: { toolId?: string; configured?: boolean }[] | null | undefined,
   openSpecPresent: boolean | undefined,
 ): boolean {
-  const pending = (tools ?? []).filter((tool) => {
-    if (tool.toolId && !isOpenSpecConfigurableTool(tool.toolId)) return false;
-    return !tool.configured;
-  });
+  const pending = (tools ?? []).filter((tool) => !tool.configured);
   return Boolean(openSpecPresent !== undefined && (!openSpecPresent || pending.length > 0));
 }
 
@@ -458,4 +455,26 @@ export function hasOpenSpecAttention({
     hasOpenSpecEngineAttention(engineStatus) ||
     hasOpenSpecToolsAttention(openSpecTools, openSpecPresent)
   );
+}
+
+/**
+ * Traduce el motivo del respaldo a texto legible en criollo (es/en/zh).
+ */
+export function resolveFallbackReasonText(
+  reason: EngineToolFallbackReason | string | null | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  switch (reason) {
+    case 'package-not-found':
+      return t('pipeline.openspec.engine.fallbackReason.packageNotFound');
+    case 'version-mismatch':
+      return t('pipeline.openspec.engine.fallbackReason.versionMismatch');
+    case 'engine-api-changed':
+      return t('pipeline.openspec.engine.fallbackReason.engineApiChanged');
+    case 'timeout':
+      return t('pipeline.openspec.engine.fallbackReason.timeout');
+    case 'failed':
+    default:
+      return t('pipeline.openspec.engine.fallbackReason.failed');
+  }
 }

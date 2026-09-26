@@ -4,6 +4,7 @@ import { ipcMain } from 'electron';
 import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 import { PipelineService } from '../pipeline/pipeline-service';
 import { initOpenSpecWithCli, instructionsOpenSpecWithCli } from '../pipeline/openspec-cli';
+import { invalidateEngineToolReportCache } from '../pipeline/openspec-engine-tools';
 import { safeReadRepoFile } from '../pipeline/repo-paths';
 import {
   appendTaskLogEntry,
@@ -293,8 +294,16 @@ export function registerPipelineSpecHandlers(
   getInstructions: InstructionsRunner = instructionsOpenSpecWithCli,
   now: () => string = () => new Date().toISOString(),
 ): void {
-  ipcMain.handle('pipeline:init-openspec', async (_event, repoPath: unknown, tools: unknown) =>
-    initOpenSpec(repoPath, tools, (path) => service.resolveBinding(path)));
+  ipcMain.handle('pipeline:init-openspec', async (_event, repoPath: unknown, tools: unknown) => {
+    if (typeof repoPath === 'string') {
+      invalidateEngineToolReportCache(repoPath);
+    }
+    const result = await initOpenSpec(repoPath, tools, (path) => service.resolveBinding(path));
+    if (typeof repoPath === 'string') {
+      invalidateEngineToolReportCache(repoPath);
+    }
+    return result;
+  });
 
   ipcMain.handle('pipeline:read-specification', async (_event, repoPath: unknown, specificationId: unknown) => {
     if (!validRepoPath(repoPath)) return { success: false, error: 'invalid_repo_path' };

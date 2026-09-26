@@ -2,6 +2,7 @@ import type { BrowserWindow } from 'electron';
 import { ipcMain } from 'electron';
 import type { PipelineState } from '../../types/pipeline';
 import { PipelineService } from '../pipeline/pipeline-service';
+import { invalidateEngineToolReportCache } from '../pipeline/openspec-engine-tools';
 import { errMsg, validRepoPath } from './shared';
 
 type RefreshResult =
@@ -132,6 +133,7 @@ export function registerPipelineHandlers(
   });
 
   const refreshAndPush = (repoPath: string): void => {
+    invalidateEngineToolReportCache(repoPath);
     const subscription = subscriptions.get(repoPath);
     if (!subscription || subscription.senders.size === 0) return;
     const key = readKey(repoPath, subscription.selectedChangeId);

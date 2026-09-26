@@ -8,7 +8,6 @@ import {
   readOpenSpecTooling,
   RepoEvidenceReader,
 } from '../pipeline/repo-evidence-reader';
-import { isOpenSpecConfigurableTool } from '../pipeline/openspec-tooling';
 
 describe('RepoEvidenceReader', () => {
   let root: string;
@@ -158,8 +157,8 @@ describe('RepoEvidenceReader', () => {
       await fs.mkdir(path.join(root, '.agent', 'workflows'), { recursive: true });
       const snapshot = await readerFor(root);
       expect(snapshot.evidence.openSpecTools).toEqual([
-        { toolId: 'codex', label: 'Codex', directory: '.codex', configured: true },
-        { toolId: 'antigravity', label: 'Antigravity', directory: '.agent', configured: false },
+        { toolId: 'antigravity', label: 'Antigravity', directory: '.agents', configured: false },
+        { toolId: 'codex', label: 'Codex', directory: '.agents', configured: true },
       ]);
     });
 
@@ -168,8 +167,8 @@ describe('RepoEvidenceReader', () => {
 
       // .agents con skills y marca codex
       const agentsSkillsDir = path.join(root, '.agents', 'skills');
-      await fs.mkdir(path.join(agentsSkillsDir, 'openspec-apply'), { recursive: true });
-      await fs.writeFile(path.join(agentsSkillsDir, 'openspec-apply', 'SKILL.md'), '---\ngeneratedBy: "1.13.2"\n---\n');
+      await fs.mkdir(path.join(agentsSkillsDir, 'openspec-apply-change'), { recursive: true });
+      await fs.writeFile(path.join(agentsSkillsDir, 'openspec-apply-change', 'SKILL.md'), '---\ngeneratedBy: "1.13.2"\n---\n');
       await fs.writeFile(path.join(agentsSkillsDir, '.openspec-target'), 'codex\n');
 
       // .codex con config.toml y carpeta skills vacía
@@ -188,12 +187,11 @@ describe('RepoEvidenceReader', () => {
       const githubTool = tooling.tools.find((t) => t.toolId === 'github');
 
       // Codex está configurada gracias a la marca en .agents/skills/.openspec-target
-      expect(codexTool).toEqual({ toolId: 'codex', label: 'Codex', directory: '.codex', configured: true });
-      expect(agentsTool).toEqual({ toolId: 'agents', label: 'Agents Multi-Agent', directory: '.agents', configured: false });
+      expect(codexTool).toEqual({ toolId: 'codex', label: 'Codex', directory: '.agents', configured: true });
+      // En OdontoPau, AGENTES muestra sólo Codex configurada
+      expect(agentsTool).toBeUndefined();
       // GitHub ya no pertenece al registro de herramientas de OpenSpec (1.3)
       expect(githubTool).toBeUndefined();
-      expect(isOpenSpecConfigurableTool('github')).toBe(false);
-      expect(isOpenSpecConfigurableTool(codexTool?.toolId)).toBe(true);
 
       const snapshot = await readerFor(root);
       expect(snapshot.evidence.openSpecTools).toEqual(tooling.tools);

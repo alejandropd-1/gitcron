@@ -19,7 +19,7 @@ import styles from './OpenSpecDashboard.module.css';
 import { useGitStore } from '@/lib/git-store';
 import { usePipelineStore } from '@/lib/pipeline-store';
 import { OpenSpecGlobalInstallConfirm, formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
-import { isOpenSpecEngineStatusIncomplete } from './pipeline-domain';
+import { isOpenSpecEngineStatusIncomplete, resolveFallbackReasonText } from './pipeline-domain';
 
 const VERSION_CLASS_KEY_MAP: Record<OpenSpecVersionClass, string> = {
   supported: 'pipeline.openspec.engine.versionClass.supported',
@@ -254,9 +254,30 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [pendingWorkflow, setPendingWorkflow] = useState<string | null>(null);
   const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
   const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
+  const [configuringTool, setConfiguringTool] = useState<string | null>(null);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
+
+  const handleConfigurePendingTool = async (toolId: string) => {
+    if (!effectiveRepoPath || configuringTool) return;
+    const api = typeof window !== 'undefined' ? (window as unknown as { api?: typeof window.api }).api : null;
+    if (!api?.pipelineInitOpenSpec) return;
+    setConfiguringTool(toolId);
+    try {
+      const configured = status?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
+        ?? status?.installedIntegration?.configuredTools
+        ?? [];
+      const union = Array.from(new Set([...configured, toolId]));
+      const res = await api.pipelineInitOpenSpec(effectiveRepoPath, union);
+      if (res?.success) {
+        usePipelineStore.getState().notifyEngineChanged();
+        onChanged?.();
+      }
+    } finally {
+      setConfiguringTool(null);
+    }
+  };
 
   const engineInstalled = status ? status.cli.installed : false;
 
@@ -778,6 +799,46 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
             {t(INTEGRATION_STATE_KEY_MAP[status.integrationState] ?? 'pipeline.openspec.engine.integrationState.unknown')}
           </strong>
         </div>
+
+        {status.pendingTools && status.pendingTools.length > 0 && (
+          <div className={styles.pendingToolsContainer}>
+            {status.pendingTools.map((toolId) => {
+              const toolReportItem = status.toolReport?.tools.find((tool) => tool.id === toolId);
+              const toolLabel = toolReportItem?.label ?? toolId;
+              return (
+                <div key={toolId} className={styles.summaryFactRow}>
+                  <span style={{ color: 'var(--color-warning)' }}>
+                    {t('pipeline.openspec.engine.pendingTool', { tool: toolLabel })}
+                  </span>
+                  {effectiveRepoPath && (
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      disabled={configuringTool === toolId}
+                      onClick={() => void handleConfigurePendingTool(toolId)}
+                    >
+                      {configuringTool === toolId ? (
+                        <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                      ) : (
+                        t('pipeline.openspec.engine.configureAction')
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {status.toolReport?.source === 'gitcron-fallback' && (
+          <div className={styles.summaryFactRow} role="status">
+            <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+              {t('pipeline.openspec.engine.fallbackNotice', {
+                reason: resolveFallbackReasonText(status.toolReport.fallbackReason, t),
+              })}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Botón de Diagnóstico Avanzado */}

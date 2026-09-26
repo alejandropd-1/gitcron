@@ -1,6 +1,5 @@
 import { describe, expect, it } from 'vitest';
 import {
-  isOpenSpecConfigurableTool,
   isOpenSpecSkillEntry,
   OPENSPEC_TOOL_DIRECTORIES,
   resolveToolStates,
@@ -35,8 +34,8 @@ describe('herramientas con OpenSpec configurado', () => {
       antigravity: { present: true, configured: false },
     }));
     expect(result).toEqual([
-      { toolId: 'codex', label: 'Codex', directory: '.codex', configured: true },
-      { toolId: 'antigravity', label: 'Antigravity', directory: '.agent', configured: false },
+      { toolId: 'antigravity', label: 'Antigravity', directory: '.agents', configured: false },
+      { toolId: 'codex', label: 'Codex', directory: '.agents', configured: true },
     ]);
   });
 
@@ -65,25 +64,6 @@ describe('herramientas con OpenSpec configurado', () => {
     const ids = OPENSPEC_TOOL_DIRECTORIES.map((tool) => tool.toolId);
     expect(new Set(ids).size).toBe(ids.length);
     expect(ids).not.toContain('github');
-    expect(ids.length).toBe(20);
-  });
-
-  it('isOpenSpecConfigurableTool reconoce herramientas configurables y rechaza vacías o github', () => {
-    // Las herramientas de agentes son configurables
-    expect(isOpenSpecConfigurableTool('agents')).toBe(true);
-    expect(isOpenSpecConfigurableTool('codex')).toBe(true);
-    expect(isOpenSpecConfigurableTool('claude')).toBe(true);
-    expect(isOpenSpecConfigurableTool('antigravity')).toBe(true);
-
-    // .github no es una herramienta configurable de OpenSpec
-    expect(isOpenSpecConfigurableTool('github')).toBe(false);
-
-    // Inválidos
-    expect(isOpenSpecConfigurableTool(null)).toBe(false);
-    expect(isOpenSpecConfigurableTool(undefined)).toBe(false);
-    expect(isOpenSpecConfigurableTool('')).toBe(false);
-
-    // Herramientas personalizadas
-    expect(isOpenSpecConfigurableTool('custom-tool')).toBe(true);
+    expect(ids.length).toBe(40);
   });
 });

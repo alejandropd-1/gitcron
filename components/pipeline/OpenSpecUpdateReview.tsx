@@ -31,8 +31,7 @@ import { OpenSpecCoexistenceTable } from './OpenSpecCoexistenceTable';
 import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
-import { getOpenSpecEngineUpgrade } from './pipeline-domain';
-import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
+import { getOpenSpecEngineUpgrade, resolveFallbackReasonText } from './pipeline-domain';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
 import { useOpenSpecVersionAnalysis } from '@/hooks/use-openspec-version-analysis';
@@ -87,7 +86,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const [dismissedRemovalRepo, setDismissedRemovalRepo] = useState<string | null>(null);
   const [showRemovalDetails, setShowRemovalDetails] = useState(false);
 
-  const effectiveRemovalResult = removalResult?.repoPath === repoPath ? removalResult.result : null;
+  const effectiveRemovalResult = (removalResult && repoPath && removalResult.repoPath === repoPath) ? removalResult.result : null;
   const isRemovalDismissed = dismissedRemovalRepo === repoPath;
   const effectiveStatus = effectiveRemovalResult?.engineStatus ?? status;
 
@@ -187,8 +186,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     ? effectiveLegacyPlan.items.filter((item) => !item.removable)
     : [];
 
-  // Contadores de agentes para el bloque AGENTES (excluye categoría ci como .github)
-  const agentTools = openSpecTools.filter((t) => isOpenSpecConfigurableTool(t.toolId));
+  // Contadores de agentes para el bloque AGENTES
+  const agentTools = openSpecTools;
   const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (
     agentTools.length > 0 ? agentTools.filter((t) => t.configured).length : (installed?.tools?.length ?? 0)
   );
@@ -535,14 +534,35 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           totalCount={totalCount}
           outputInventory={installed?.outputInventory}
         >
+          {effectiveStatus?.toolReport?.source === 'gitcron-fallback' && (
+            <div className={styles.fallbackNoticeRow} role="status" style={{ margin: 'var(--space-1) 0 var(--space-2)' }}>
+              <span style={{ color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                {t('pipeline.openspec.engine.fallbackNotice', {
+                  reason: resolveFallbackReasonText(effectiveStatus.toolReport.fallbackReason, t),
+                })}
+              </span>
+            </div>
+          )}
           <OpenSpecToolList
             present={openSpecPresent}
             tools={openSpecTools}
+            toolReport={effectiveStatus?.toolReport}
             busy={initBusy}
             error={initError}
             needsTool={initNeedsTool}
-            onInitialize={() => runOpenSpecInit()}
-            onInitializeWith={(ids) => runOpenSpecInit(ids)}
+            onInitialize={() => {
+              const configured = effectiveStatus?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
+                ?? installed?.configuredTools
+                ?? [];
+              return runOpenSpecInit(configured.length > 0 ? configured : undefined);
+            }}
+            onInitializeWith={(ids) => {
+              const configured = effectiveStatus?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
+                ?? installed?.configuredTools
+                ?? [];
+              const union = Array.from(new Set([...configured, ...ids]));
+              return runOpenSpecInit(union);
+            }}
           />
         </OpenSpecAgentsBlock>
 

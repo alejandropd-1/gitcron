@@ -35,7 +35,7 @@ describe('detalle de herramientas en el rail', () => {
     expect(screen.getByText('codex')).toBeTruthy();
     expect(screen.getByText('antigravity')).toBeTruthy();
     expect(screen.getByText(/readiness\.configured/)).toBeTruthy();
-    expect(screen.getByText(/readiness\.notConfigured/)).toBeTruthy();
+    expect(screen.getByText(/engine\.pendingTool/)).toBeTruthy();
   });
 
   it('con todo en orden sigue mostrando la lista', () => {
@@ -120,12 +120,11 @@ describe('detalle de herramientas en el rail', () => {
     expect((screen.getByRole('button', { name: /rail\.initBusy/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('una herramienta de categoría ci (github) se muestra como informativa y no como pendiente ni ofrece inicializar (6.6)', () => {
-    render(<OpenSpecToolList present tools={[tool('github', false)]} onInitialize={() => undefined} />);
-    expect(screen.getByText('github')).toBeTruthy();
-    expect(screen.queryByText(/readiness\.notConfigured/)).toBeNull();
-    expect(screen.getByText('pipeline.openspec.readiness.ciInfo')).toBeTruthy();
-    expect(screen.queryByText(/rail\.toolsHelp/)).toBeNull();
-    expect(screen.queryByRole('button', { name: /rail\.init/ })).toBeNull();
+  it('las herramientas pendientes muestran «Falta configurar» y acción configurar, nunca actualizar', () => {
+    render(<OpenSpecToolList present tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
+    expect(screen.getByText('antigravity')).toBeTruthy();
+    expect(screen.getByText(/engine\.pendingTool/)).toBeTruthy();
+    expect(screen.getByRole('button', { name: /engine\.configureAction/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /update/i })).toBeNull();
   });
 });

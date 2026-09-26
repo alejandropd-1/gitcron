@@ -2216,6 +2216,16 @@ summary.centerBlock {
   gap: var(--space-2);
   color: var(--color-text-primary);
 }
+.pendingToolsContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.fallbackNoticeRow {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
 .toggleAdvancedBtn {
   display: flex;
   align-items: center;

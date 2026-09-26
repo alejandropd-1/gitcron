@@ -6,14 +6,15 @@ import type {
   OpenSpecInstalledEvidence,
   OpenSpecInstalledSkill,
   OpenSpecOutputItem,
+  OpenSpecToolReport,
 } from '../../types/pipeline';
 import {
   OFFICIAL_WORKFLOW_MAP,
   OPENSPEC_TOOL_DIRECTORIES,
   getToolDef,
-  isOpenSpecConfigurableTool,
   type OpenSpecToolDef,
 } from './openspec-tooling';
+import { buildFallbackToolReport } from './openspec-engine-tools';
 import { isContainedWithin } from '../ipc/authorized-repos';
 
 export interface InspectInstalledEvidenceDeps {
@@ -22,6 +23,7 @@ export interface InspectInstalledEvidenceDeps {
   readFile?: (p: string) => string;
   realpath?: (p: string) => string | null;
   getHomeDir?: () => string;
+  toolReport?: OpenSpecToolReport | null;
 }
 
 function defaultLstat(p: string): fs.Stats | null {
@@ -93,7 +95,7 @@ export function readSharedSkillTarget(
     const targetToolName = readFileFn(sharedTargetMarkerPath).trim();
     if (!targetToolName) return null;
     const toolDef = getToolDef(targetToolName);
-    if (!toolDef || !isOpenSpecConfigurableTool(toolDef.toolId)) return null;
+    if (!toolDef) return null;
     return toolDef.toolId;
   } catch {
     return null;
@@ -229,9 +231,6 @@ export function inspectInstalledEvidence(
   let hasReadError = false;
   let hasTraversalTruncation = false;
 
-  const presentToolDirectories: string[] = [];
-  const configuredTools: string[] = [];
-  const targetsFound = new Set<string>();
   const installedWorkflowsByTarget: Record<string, string[]> = {};
   const conflictsList: string[] = [];
 
@@ -284,6 +283,7 @@ export function inspectInstalledEvidence(
   };
 
   const outputInventory: OpenSpecOutputItem[] = [];
+  const scannedSkillDirs = new Set<string>();
 
   // 1. Inspeccionar cada target en la tabla oficial
   for (const toolDef of OPENSPEC_TOOL_DIRECTORIES) {
@@ -353,10 +353,6 @@ export function inspectInstalledEvidence(
       }
     }
 
-    if (!isGlobal) {
-      presentToolDirectories.push(toolDef.toolId);
-    }
-
     // Leer entradas de habilidades o workflows
     let detectedOfficialWorkflows: string[] = [];
     let detectedCustomSkillsCount = 0;
@@ -385,58 +381,57 @@ export function inspectInstalledEvidence(
       hashTruncated = hashResult.truncated;
       if (hashTruncated) hasTraversalTruncation = true;
 
-      const { entries } = safeReaddir(dirToInspect);
-      if (entries.length > 0) {
-        const sortedEntries = [...entries].sort();
+      if (!scannedSkillDirs.has(toolDef.directory)) {
+        scannedSkillDirs.add(toolDef.directory);
 
-        for (const entry of sortedEntries) {
-          const entryPath = path.join(dirToInspect, entry);
-          const wf = skillToWorkflowName(entry);
-          const isOfficial = wf !== null;
+        const { entries } = safeReaddir(dirToInspect);
+        if (entries.length > 0) {
+          const sortedEntries = [...entries].sort();
 
-          if (isOfficial && wf) {
-            detectedOfficialWorkflows.push(wf);
-          } else {
-            detectedCustomSkillsCount++;
-          }
+          for (const entry of sortedEntries) {
+            const entryPath = path.join(dirToInspect, entry);
+            const wf = skillToWorkflowName(entry);
+            const isOfficial = wf !== null;
 
-          let origin: OpenSpecInstalledSkill['origin'];
-          if (toolDef.toolId === 'codex') {
-            origin = isOfficial ? 'legacy-codex' : 'custom-other';
-          } else if (toolDef.toolId === 'antigravity') {
-            origin = isOfficial ? 'legacy-agent' : 'custom-other';
-          } else if (toolDef.toolId === 'agents') {
-            origin = isOfficial ? 'new-agents' : 'custom-agents';
-          } else if (isOfficial) {
-            origin = 'official-other';
-          } else if (getToolDef(toolDef.toolId)) {
-            origin = 'custom-other';
-          } else {
-            origin = 'unknown';
-          }
+            if (isOfficial && wf) {
+              detectedOfficialWorkflows.push(wf);
+            } else {
+              detectedCustomSkillsCount++;
+            }
 
-          skills.push({
-            name: entry,
-            path: entryPath,
-            origin,
-            isOfficial,
-          });
+            let origin: OpenSpecInstalledSkill['origin'];
+            if (toolDef.directory === '.agents') {
+              origin = isOfficial ? 'new-agents' : 'custom-agents';
+            } else if (isOfficial) {
+              origin = 'official-other';
+            } else if (getToolDef(toolDef.toolId)) {
+              origin = 'custom-other';
+            } else {
+              origin = 'unknown';
+            }
 
-          // Intentar leer generatedBy de SKILL.md
-          if (isOfficial && !generatedBy) {
-            const skillMdPath = path.join(entryPath, 'SKILL.md');
-            const content = safeReadFile(skillMdPath);
-            const gen = extractGeneratedByHeader(content);
-            if (gen) generatedBy = gen;
+            skills.push({
+              name: entry,
+              path: entryPath,
+              origin,
+              isOfficial,
+            });
+
+            // Intentar leer generatedBy de SKILL.md
+            if (isOfficial && !generatedBy) {
+              const skillMdPath = path.join(entryPath, 'SKILL.md');
+              const content = safeReadFile(skillMdPath);
+              const gen = extractGeneratedByHeader(content);
+              if (gen) generatedBy = gen;
+            }
           }
         }
       }
     }
 
     if (detectedOfficialWorkflows.length > 0) {
-      configuredTools.push(toolDef.toolId);
-      targetsFound.add(toolDef.toolId);
-      installedWorkflowsByTarget[toolDef.toolId] = Array.from(new Set(detectedOfficialWorkflows)).sort();
+      const targetKey = toolDef.directory === '.agents' ? 'agents' : toolDef.toolId;
+      installedWorkflowsByTarget[targetKey] = Array.from(new Set(detectedOfficialWorkflows)).sort();
     }
 
     outputInventory.push({
@@ -454,6 +449,58 @@ export function inspectInstalledEvidence(
       contentHash: folderHash || null,
       hashTruncated,
     });
+  }
+
+  // 1.5. Inspeccionar directorios legacy (.codex y .agent) si existen
+  const legacySpecs: Array<{ dir: string; toolId: string; origin: 'legacy-codex' | 'legacy-agent' }> = [
+    { dir: '.codex', toolId: 'codex', origin: 'legacy-codex' },
+    { dir: '.agent', toolId: 'antigravity', origin: 'legacy-agent' },
+  ];
+
+  for (const leg of legacySpecs) {
+    const legPath = path.join(repoPath, leg.dir);
+    const { stat: legStat, isAbsent } = safeLstat(legPath);
+    if (isAbsent || !legStat) continue;
+
+    const skillsSubDir = path.join(legPath, 'skills');
+    let dirToInspect = legPath;
+    if (safeLstat(skillsSubDir).stat?.isDirectory()) {
+      dirToInspect = skillsSubDir;
+    }
+
+    const { entries } = safeReaddir(dirToInspect);
+    if (entries.length > 0) {
+      const legWorkflows: string[] = [];
+      for (const entry of [...entries].sort()) {
+        const entryPath = path.join(dirToInspect, entry);
+        const wf = skillToWorkflowName(entry);
+        const isOfficial = wf !== null;
+
+        if (isOfficial && wf) {
+          legWorkflows.push(wf);
+        }
+
+        const origin: OpenSpecInstalledSkill['origin'] = isOfficial ? leg.origin : 'custom-other';
+
+        skills.push({
+          name: entry,
+          path: entryPath,
+          origin,
+          isOfficial,
+        });
+
+        if (isOfficial && !generatedBy) {
+          const skillMdPath = path.join(entryPath, 'SKILL.md');
+          const content = safeReadFile(skillMdPath);
+          const gen = extractGeneratedByHeader(content);
+          if (gen) generatedBy = gen;
+        }
+      }
+
+      if (legWorkflows.length > 0) {
+        installedWorkflowsByTarget[leg.toolId] = Array.from(new Set(legWorkflows)).sort();
+      }
+    }
   }
 
   // 2. Comprobar .openspec.yaml para markers y generatedBy
@@ -475,26 +522,34 @@ export function inspectInstalledEvidence(
     markersFound.push('openspec/');
   }
 
-  // 4. Leer marca de carpeta compartida .agents/skills/.openspec-target (Decisiones 9 y 12)
-  const sharedTarget = readSharedSkillTarget(repoPath, {
-    realpath: realpathFn,
-    lstat: (p) => safeLstat(p).stat,
-    readFile: safeReadFile,
-    onEscape: (realMarkerPath) => {
-      conflictsList.push(`Symlink o junction en .agents/skills/.openspec-target apunta fuera del repositorio: ${realMarkerPath}`);
-    },
-  });
+  // 4. Derivar herramientas configuradas y presentes desde el informe del motor o el respaldo (Decisiones 3 y 4)
+  const toolReport =
+    deps.toolReport ??
+    buildFallbackToolReport({
+      repoPath,
+      deps: {
+        realpath: (p) => realpathFn(p),
+        readFile: (p) => safeReadFile(p),
+        readdir: (p) => safeReaddir(p).entries,
+        existsSync: (p) => !safeLstat(p).isAbsent,
+      },
+    });
 
-  if (sharedTarget) {
-    if (!configuredTools.includes(sharedTarget)) {
-      configuredTools.push(sharedTarget);
+  const configuredTools = toolReport.tools.filter((t) => t.configured).map((t) => t.id);
+  const presentToolDirectories = toolReport.tools.filter((t) => t.available).map((t) => t.id);
+  const targetsFound = new Set(configuredTools);
+  if (installedWorkflowsByTarget['agents']) {
+    for (const toolId of configuredTools) {
+      const def = getToolDef(toolId);
+      if (def?.skillsDir === '.agents' && !installedWorkflowsByTarget[toolId]) {
+        installedWorkflowsByTarget[toolId] = installedWorkflowsByTarget['agents'];
+      }
     }
-    targetsFound.add(sharedTarget);
   }
 
   // Conflictos entre legacy y nuevos si ambos están presentes (mirando origen de skills para legacy)
   const hasLegacy = skills.some((s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent');
-  const hasNew = configuredTools.includes('agents');
+  const hasNew = skills.some((s) => s.origin === 'new-agents');
   if (hasLegacy && hasNew) {
     conflictsList.push('Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).');
   }
@@ -510,6 +565,12 @@ export function inspectInstalledEvidence(
   // Separar agentes interactivos de integraciones CI o globales
   const configuredAgentsCount = configuredTools.filter((t) => getToolDef(t)?.isInteractiveAgent).length;
   const totalPresentAgentsCount = presentToolDirectories.filter((t) => getToolDef(t)?.isInteractiveAgent).length;
+
+  const legacyTools = new Set<string>();
+  for (const s of skills) {
+    if (s.origin === 'legacy-codex') legacyTools.add('codex');
+    if (s.origin === 'legacy-agent') legacyTools.add('antigravity');
+  }
 
   return {
     skills,
@@ -527,7 +588,7 @@ export function inspectInstalledEvidence(
     totalPresentCount: totalPresentAgentsCount,
     installedWorkflowsByTarget,
     missing: configuredTools.length === 0 && markersFound.length > 0 ? ['openspec-tooling'] : null,
-    legacy: configuredTools.filter((t) => t === 'codex' || t === 'antigravity'),
+    legacy: Array.from(legacyTools).sort(),
     customized: skills.filter((s) => !s.isOfficial).map((s) => s.name),
     conflicts: conflictsList.length > 0 ? conflictsList : null,
   };

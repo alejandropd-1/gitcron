@@ -27,14 +27,8 @@ import { statusOpenSpecChangeWithCli, validateOpenSpecChangeWithCli } from './op
 import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 import { readOpenSpecChangeMetadata } from './openspec-engine';
 import { resolveContainedRepoPath, safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
-import {
-  isOpenSpecConfigurableTool,
-  isOpenSpecSkillEntry,
-  OPENSPEC_TOOL_DIRECTORIES,
-  resolveToolStates,
-  type ToolPresence,
-} from './openspec-tooling';
-import { readSharedSkillTarget } from './openspec-evidence';
+import { buildFallbackToolReport, readEngineToolReport } from './openspec-engine-tools';
+import type { OpenSpecToolReport } from '../../types/pipeline';
 
 const execFileAsync = promisify(execFile);
 
@@ -147,47 +141,38 @@ function archivedChange(entry: string): OpenSpecArchivedChangeEvidence | null {
  * init` lo sabe, pero lo aplica configurando, y correrlo para averiguar el
  * estado escribiría archivos.
  */
-export async function readOpenSpecTooling(repoPath: string): Promise<{
+export async function readOpenSpecTooling(
+  repoPath: string,
+  options?: {
+    toolReport?: OpenSpecToolReport | null;
+    readToolReport?: typeof readEngineToolReport;
+  },
+): Promise<{
   present: boolean;
   tools: OpenSpecToolEvidence[];
 }> {
   const present = (await safeListRepoDirectory(repoPath, 'openspec')).length > 0;
-  const presence = new Map<string, ToolPresence>();
-  const sharedTargetTool = readSharedSkillTarget(repoPath);
-  const agentsSkills = await safeListRepoDirectory(repoPath, '.agents/skills');
-  const hasAgentsSkills = agentsSkills.some(isOpenSpecSkillEntry);
-
-  for (const tool of OPENSPEC_TOOL_DIRECTORIES) {
-    const candidateDirs = [tool.directory, ...(tool.legacySkillsDirs ?? [])];
-    let hasPresence = false;
-    let hasOwnSkills = false;
-
-    for (const dir of candidateDirs) {
-      const entries = await safeListRepoDirectory(repoPath, dir);
-      if (entries.length > 0) {
-        hasPresence = true;
-        if (dir !== '.agents') {
-          const skills = await safeListRepoDirectory(repoPath, `${dir}/skills`);
-          if (skills.some(isOpenSpecSkillEntry)) {
-            hasOwnSkills = true;
-            break;
-          }
-        }
-      }
+  const reportFn = options?.readToolReport ?? readEngineToolReport;
+  let report = options?.toolReport;
+  if (!report) {
+    try {
+      report = await reportFn({ repoPath });
+    } catch {
+      report = buildFallbackToolReport({ repoPath });
     }
-
-    if (!hasPresence) continue;
-
-    const isSharedConfigured =
-      isOpenSpecConfigurableTool(tool.toolId) &&
-      (tool.toolId === sharedTargetTool || (!sharedTargetTool && tool.toolId === 'agents')) &&
-      hasAgentsSkills;
-    presence.set(tool.toolId, {
-      present: true,
-      configured: hasOwnSkills || isSharedConfigured,
-    });
   }
-  return { present, tools: resolveToolStates(presence) };
+
+  const safeReport = report ?? buildFallbackToolReport({ repoPath });
+  const tools: OpenSpecToolEvidence[] = safeReport.tools
+    .filter((t) => t.available)
+    .map((t) => ({
+      toolId: t.id,
+      label: t.label,
+      directory: t.skillsDir ?? `.${t.id}`,
+      configured: t.configured,
+    }));
+
+  return { present, tools };
 }
 
 /** Cuándo se creó y cuándo se archivó cada cambio, por identificador. */

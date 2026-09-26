@@ -12,7 +12,6 @@ import type {
   OpenSpecInstalledSkill,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
-import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 
 export interface CoexistenceDiagnostic {
   legacySkills: OpenSpecInstalledSkill[];
@@ -92,6 +91,8 @@ export interface UpdateMatrixInputs {
   integrationState?: OpenSpecEngineStatus['integrationState'];
   repoState?: OpenSpecEngineStatus['repoState'];
   installedIntegration?: OpenSpecEngineStatus['installedIntegration'];
+  pendingTools?: string[];
+  toolReport?: OpenSpecEngineStatus['toolReport'];
 }
 
 export type UpdateBlockReason =
@@ -184,9 +185,11 @@ export function deriveUpdateBlockReason(
   }
 
   const configured = installed?.configuredTools ?? installed?.tools ?? [];
-  const hasUnconfiguredTools = installed?.presentToolDirectories?.some(
-    (tool) => isOpenSpecConfigurableTool(tool) && !configured.includes(tool),
-  );
+  const hasUnconfiguredTools = ('pendingTools' in inputs && Array.isArray(inputs.pendingTools))
+    ? inputs.pendingTools.length > 0
+    : (installed?.presentToolDirectories ?? []).some(
+        (tool) => tool !== 'github' && !configured.includes(tool),
+      );
 
   if (hasUnconfiguredTools) {
     return 'unconfigured-tools';

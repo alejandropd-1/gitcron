@@ -3,33 +3,19 @@ import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'nod
 import path from 'node:path';
 import snapshot from './openspec-tools-snapshot.json';
 
-export type EngineToolReportSource = 'engine' | 'gitcron-fallback';
+import type {
+  EngineToolReportSource,
+  EngineToolFallbackReason,
+  OpenSpecToolReportItem,
+  OpenSpecToolReport,
+} from '../../types/pipeline';
 
-export type EngineToolFallbackReason =
-  | 'package-not-found'
-  | 'version-mismatch'
-  | 'engine-api-changed'
-  | 'timeout'
-  | 'failed';
-
-export interface OpenSpecToolReportItem {
-  id: string;
-  label: string;
-  skillsDir?: string;
-  legacySkillsDirs?: string[];
-  available: boolean;
-  configured: boolean;
-  needsUpdate: boolean;
-  generatedBy: string | null;
-}
-
-export interface OpenSpecToolReport {
-  source: EngineToolReportSource;
-  engineVersion: string | null;
-  fallbackReason?: EngineToolFallbackReason;
-  tools: OpenSpecToolReportItem[];
-  profileSyncNeeded: string[];
-}
+export type {
+  EngineToolReportSource,
+  EngineToolFallbackReason,
+  OpenSpecToolReportItem,
+  OpenSpecToolReport,
+};
 
 export interface LocatePackageDeps {
   realpath?: (p: string) => string | null;
@@ -286,8 +272,11 @@ export function validateEngineToolReport(
 
 export interface FallbackDeps {
   existsSync?: (p: string) => boolean;
-  readFileSync?: (p: string, encoding: string) => string;
+  readFileSync?: (p: string, encoding?: string) => string;
+  readFile?: (p: string, encoding?: string) => string;
   readdirSync?: (p: string) => string[];
+  readdir?: (p: string) => string[];
+  realpath?: (p: string) => string | null;
 }
 
 export const COMMAND_IDS = [
@@ -357,22 +346,26 @@ export function toolHasAnyConfiguredCommand(
  */
 export function buildFallbackToolReport(options: {
   repoPath: string;
-  reason: EngineToolFallbackReason;
+  reason?: EngineToolFallbackReason;
   engineVersion?: string | null;
   deps?: FallbackDeps;
 }): OpenSpecToolReport {
   const existsFn = options.deps?.existsSync ?? existsSync;
-  const readFileFn = options.deps?.readFileSync ?? readFileSync;
-  const readdirFn = options.deps?.readdirSync ?? ((p: string) => {
-    try {
-      const fs = require('node:fs');
-      return fs.readdirSync(p);
-    } catch {
-      return [];
-    }
-  });
+  const readFileFn = options.deps?.readFileSync ?? options.deps?.readFile ?? readFileSync;
+  const readdirFn =
+    options.deps?.readdirSync ??
+    options.deps?.readdir ??
+    ((p: string) => {
+      try {
+        const fs = require('node:fs');
+        return fs.readdirSync(p);
+      } catch {
+        return [];
+      }
+    });
 
-  const { repoPath, reason, engineVersion } = options;
+  const { repoPath, engineVersion } = options;
+  const reason: EngineToolFallbackReason = options.reason ?? 'package-not-found';
 
   // 1. Detectar si existe una marca de carpeta compartida en .agents/skills/.openspec-target
   let sharedTarget: string | null = null;
@@ -431,7 +424,7 @@ export function buildFallbackToolReport(options: {
       }
       activeAgentsOwner = inferred;
     } else {
-      activeAgentsOwner = 'codex';
+      activeAgentsOwner = 'agents';
     }
   }
 
@@ -445,14 +438,28 @@ export function buildFallbackToolReport(options: {
         return existsFn(path.join(repoPath, p));
       });
 
+    const hasAnyDetectionPath = Boolean(
+      tool.detectionPaths && tool.detectionPaths.length > 0 &&
+      tool.detectionPaths!.some((p: string) => existsFn(path.join(repoPath, p))),
+    );
+
+    const hasAnyLegacySkillsDir = Boolean(
+      tool.legacySkillsDirs && tool.legacySkillsDirs.length > 0 &&
+      tool.legacySkillsDirs!.some((p: string) => existsFn(path.join(repoPath, p))),
+    );
+
     // A) Presencia (available)
     let available = false;
     if (tool.skillsDir === '.agents') {
       const isAgentsRootPresent = existsFn(path.join(repoPath, '.agents'));
       const isOwner = activeAgentsOwner === tool.id;
-      available = hasIndependentDetectionPath || (isOwner && isAgentsRootPresent);
+      if (isOwner) {
+        available = isAgentsRootPresent || hasIndependentDetectionPath || hasAnyDetectionPath || hasAnyLegacySkillsDir;
+      } else {
+        available = hasIndependentDetectionPath || hasAnyLegacySkillsDir;
+      }
     } else if (tool.detectionPaths && tool.detectionPaths.length > 0) {
-      available = tool.detectionPaths.some((p: string) => existsFn(path.join(repoPath, p)));
+      available = hasAnyDetectionPath;
     } else if (tool.skillsDir) {
       available = existsFn(path.join(repoPath, tool.skillsDir));
     }
@@ -507,6 +514,9 @@ export function buildFallbackToolReport(options: {
     }
 
     configured = hasSkill || hasCommand;
+    if (configured) {
+      available = true;
+    }
 
     // C) Extraer generatedBy de SKILL.md de la primera skill que exista
     for (const dir of checkDirs) {

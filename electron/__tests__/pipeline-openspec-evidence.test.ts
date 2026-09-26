@@ -13,6 +13,7 @@ import {
 import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
 import { classifyOpenSpecProfile, deriveProfileWorkflowRows } from '../../lib/openspec-profile';
+import { invalidateEngineToolReportCache } from '../pipeline/openspec-engine-tools';
 
 /**
  * Doble de disco anclado a rutas EXACTAS (invariante 19): `readdir` sólo
@@ -467,8 +468,16 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       fs.writeFileSync(path.join(agentSkillsDir, '.openspec-target'), 'codex\n');
 
       const workflows = ['apply', 'archive', 'explore', 'propose', 'sync', 'update'];
-      for (const wf of workflows) {
-        const wfDir = path.join(agentSkillsDir, `openspec-${wf}`);
+      const officialSkills = [
+        'openspec-apply-change',
+        'openspec-archive-change',
+        'openspec-explore',
+        'openspec-propose',
+        'openspec-sync-specs',
+        'openspec-update-change',
+      ];
+      for (const sk of officialSkills) {
+        const wfDir = path.join(agentSkillsDir, sk);
         fs.mkdirSync(wfDir, { recursive: true });
         fs.writeFileSync(path.join(wfDir, 'SKILL.md'), `---\ngeneratedBy: "1.13.2"\n---\nOfficial agent skill\n`);
       }
@@ -507,9 +516,9 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
-      // Verificamos estado exacto medido de OdontoPau
-      expect(snapshot.installedIntegration?.configuredTools).toEqual(expect.arrayContaining(['agents', 'codex']));
-      expect(snapshot.installedIntegration?.presentToolDirectories).toEqual(expect.arrayContaining(['agents', 'codex']));
+      // Verificamos estado exacto medido de OdontoPau (sólo Codex configurada, decisión 3 y 4)
+      expect(snapshot.installedIntegration?.configuredTools).toEqual(['codex']);
+      expect(snapshot.installedIntegration?.presentToolDirectories).toContain('codex');
       expect(snapshot.installedIntegration?.conflicts).toBeNull();
       // .github no debe provocar 'outdated'
       expect(snapshot.integrationState).toBe('up-to-date');
@@ -518,7 +527,6 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       // Codex servida desde .agents/skills es convergente; github (CI) queda fuera de la divergencia
       expect(snapshot.divergence?.isDivergent).toBe(false);
       expect(snapshot.divergence?.overallStatus).toBe('convergent');
-      expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('convergent');
       expect(snapshot.divergence?.targetConvergences?.['codex']?.status).toBe('convergent');
       expect(snapshot.divergence?.targetConvergences?.['github']).toBeUndefined();
 
@@ -532,8 +540,12 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         expect(row.missingByIntegration).toEqual([]);
       }
 
-      // Si se retira .openspec-target, Codex queda con workflows vacíos y causa divergencia
+      // Con el nuevo diseño (registro-de-herramientas-desde-el-motor, Decisiones 3, 4 y 5):
+      // Si se retira .openspec-target, .agents/skills pasa a pertenecer a 'agents' (Universal).
+      // Codex queda disponible (por .codex) pero sin configurar (pendingTools), y no genera
+      // divergencia en el perfil ni vuelve la integración 'outdated'.
       fs.unlinkSync(path.join(agentSkillsDir, '.openspec-target'));
+      invalidateEngineToolReportCache(tempDir);
       const snapshotWithoutMarker = await buildEngineStatusSnapshot(tempDir, {
         discoverCli: async () => ({
           installed: true,
@@ -555,9 +567,13 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
       });
 
-      expect(snapshotWithoutMarker.divergence?.isDivergent).toBe(true);
-      expect(snapshotWithoutMarker.divergence?.overallStatus).toBe('divergent');
-      expect(snapshotWithoutMarker.divergence?.targetConvergences?.['codex']?.status).toBe('divergent');
+      expect(snapshotWithoutMarker.installedIntegration?.configuredTools).toEqual(['agents']);
+      expect(snapshotWithoutMarker.pendingTools).toEqual([]);
+      expect(snapshotWithoutMarker.integrationState).toBe('up-to-date');
+      expect(snapshotWithoutMarker.divergence?.isDivergent).toBe(false);
+      expect(snapshotWithoutMarker.divergence?.overallStatus).toBe('convergent');
+      expect(snapshotWithoutMarker.divergence?.targetConvergences?.['agents']?.status).toBe('convergent');
+      expect(snapshotWithoutMarker.divergence?.targetConvergences?.['codex']).toBeUndefined();
       expect(snapshotWithoutMarker.divergence?.targetConvergences?.['github']).toBeUndefined();
       const rowsWithoutMarker = deriveProfileWorkflowRows(
         workflows,
@@ -567,7 +583,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         ),
       );
       for (const row of rowsWithoutMarker) {
-        expect(row.missingByIntegration).toEqual(['codex']);
+        expect(row.missingByIntegration).toEqual([]);
       }
     } finally {
       try {
@@ -1176,9 +1192,9 @@ describe('computeDirContentHash — recorrido acotado (invariante 19)', () => {
 
         const evidence = inspectInstalledEvidence(tmpDir);
 
-        // Codex figura en configuredTools gracias a .openspec-target
+        // Codex figura en configuredTools gracias a .openspec-target (decisión 3 y 4)
         expect(evidence.configuredTools).toContain('codex');
-        expect(evidence.configuredTools).toContain('agents');
+        expect(evidence.configuredTools).not.toContain('agents');
         // No hay conflicto de convivencia
         expect(evidence.conflicts).toBeNull();
         // .codex está en presentToolDirectories pero al estar configurada no deja targets sin configurar

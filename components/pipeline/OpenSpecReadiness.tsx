@@ -2,13 +2,9 @@
 
 import { useState } from 'react';
 import { AlertCircle, CheckCircle2 } from 'lucide-react';
-import type { OpenSpecToolEvidence } from '@/types/pipeline';
+import type { OpenSpecToolEvidence, OpenSpecToolReport } from '@/types/pipeline';
 import { useT } from '@/hooks/use-translation';
-// El catálogo de herramientas conocidas se comparte con el lector en vez de
-// copiarse: dos listas que envejecen por separado dirían cosas distintas del
-// mismo repositorio. El módulo es puro —tablas y funciones, sin APIs de Node—,
-// así que vale en el renderer igual que en el proceso principal.
-import { isOpenSpecConfigurableTool, OPENSPEC_TOOL_DIRECTORIES } from '@/electron/pipeline/openspec-tooling';
+import snapshot from '@/electron/pipeline/openspec-tools-snapshot.json';
 import styles from './OpenSpecDashboard.module.css';
 
 /**
@@ -24,6 +20,7 @@ import styles from './OpenSpecDashboard.module.css';
 export type OpenSpecToolListProps = {
   present?: boolean;
   tools?: OpenSpecToolEvidence[];
+  toolReport?: OpenSpecToolReport | null;
   /** Ejecuta la inicialización. Sin esto, la lista es sólo lectura. */
   onInitialize?: () => void;
   busy?: boolean;
@@ -50,6 +47,7 @@ export type OpenSpecToolListProps = {
 export function OpenSpecToolList({
   present,
   tools,
+  toolReport,
   onInitialize,
   busy,
   error,
@@ -66,12 +64,13 @@ export function OpenSpecToolList({
   if (present === undefined) return null;
 
   const list = tools ?? [];
-  const pending = list.filter((tool) => !tool.configured && isOpenSpecConfigurableTool(tool.toolId));
+  const pending = list.filter((tool) => !tool.configured);
   // Se ofrece inicializar cuando hay algo que resolver: sin OpenSpec, o con
   // alguna herramienta sin configurar. Con todo en orden el botón no aparece.
   const canInitialize = Boolean(onInitialize) && (!present || pending.length > 0);
   /** El CLI no pudo detectar nada y la respuesta que falta es una elección. */
   const asking = Boolean(needsTool && onInitializeWith);
+  const selectableTools = toolReport?.tools ?? snapshot.tools;
 
   return (
     <>
@@ -86,12 +85,11 @@ export function OpenSpecToolList({
       {list.length > 0 && (
         <ul className={styles.readinessList}>
           {list.map((tool) => {
-            const isUnconfigurable = !isOpenSpecConfigurableTool(tool.toolId);
             return (
               <li key={tool.toolId} data-configured={tool.configured}>
                 {tool.configured ? (
                   <CheckCircle2 size={13} aria-hidden="true" />
-                ) : isUnconfigurable ? null : (
+                ) : (
                   <AlertCircle size={13} aria-hidden="true" />
                 )}
                 <strong>{tool.label}</strong>
@@ -99,10 +97,25 @@ export function OpenSpecToolList({
                 <em>
                   {tool.configured
                     ? t('pipeline.openspec.readiness.configured')
-                    : isUnconfigurable
-                    ? t('pipeline.openspec.readiness.ciInfo')
-                    : t('pipeline.openspec.readiness.notConfigured')}
+                    : t('pipeline.openspec.engine.pendingTool', { tool: tool.label })}
                 </em>
+                {!tool.configured && (onInitializeWith || onInitialize) && (
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    disabled={busy}
+                    onClick={() => {
+                      if (onInitializeWith) {
+                        onInitializeWith([tool.toolId]);
+                      } else if (onInitialize) {
+                        onInitialize();
+                      }
+                    }}
+                    style={{ marginLeft: 'auto' }}
+                  >
+                    {t('pipeline.openspec.engine.configureAction')}
+                  </button>
+                )}
               </li>
             );
           })}
@@ -144,20 +157,20 @@ export function OpenSpecToolList({
               dos, y pedirlas de a una dejaría la segunda al olvido, que es
               exactamente el estado que este panel existe para evitar. */}
           <ul className={styles.railChooseList}>
-            {OPENSPEC_TOOL_DIRECTORIES.filter((tool) => isOpenSpecConfigurableTool(tool.toolId)).map((tool) => (
-              <li key={tool.toolId}>
+            {selectableTools.map((tool) => (
+              <li key={tool.id}>
                 <label>
                   <input
                     type="checkbox"
-                    checked={chosenTools.includes(tool.toolId)}
+                    checked={chosenTools.includes(tool.id)}
                     onChange={() => setChosenTools((current) => (
-                      current.includes(tool.toolId)
-                        ? current.filter((id) => id !== tool.toolId)
-                        : [...current, tool.toolId]
+                      current.includes(tool.id)
+                        ? current.filter((id) => id !== tool.id)
+                        : [...current, tool.id]
                     ))}
                   />
                   <strong>{tool.label}</strong>
-                  <code>{tool.directory}</code>
+                  <code>{tool.skillsDir}</code>
                 </label>
               </li>
             ))}

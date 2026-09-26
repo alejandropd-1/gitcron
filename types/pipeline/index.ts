@@ -639,6 +639,34 @@ export interface OpenSpecContextBriefResult {
   data: OpenSpecContextBriefData | null;
 }
 
+export type EngineToolReportSource = 'engine' | 'gitcron-fallback';
+
+export type EngineToolFallbackReason =
+  | 'package-not-found'
+  | 'version-mismatch'
+  | 'engine-api-changed'
+  | 'timeout'
+  | 'failed';
+
+export interface OpenSpecToolReportItem {
+  id: string;
+  label: string;
+  skillsDir?: string;
+  legacySkillsDirs?: string[];
+  available: boolean;
+  configured: boolean;
+  needsUpdate: boolean;
+  generatedBy: string | null;
+}
+
+export interface OpenSpecToolReport {
+  source: EngineToolReportSource;
+  engineVersion: string | null;
+  fallbackReason?: EngineToolFallbackReason;
+  tools: OpenSpecToolReportItem[];
+  profileSyncNeeded: string[];
+}
+
 export interface OpenSpecEngineStatus {
   cli: OpenSpecCliDiscovery;
   latestAvailable: OpenSpecRegistryCheck | null;
@@ -650,6 +678,8 @@ export interface OpenSpecEngineStatus {
   divergence?: OpenSpecDivergenceInfo | null;
   doctor?: OpenSpecDoctorResult | null;
   contextBrief?: OpenSpecContextBriefResult | null;
+  toolReport?: OpenSpecToolReport | null;
+  pendingTools?: string[];
 }
 
 export interface OpenSpecPreviewResult {

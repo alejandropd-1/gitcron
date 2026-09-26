@@ -22,6 +22,7 @@ import type {
   OpenSpecArtifactGraphResult,
   OpenSpecLegacySkillsPlan,
   OpenSpecRemoveLegacySkillsResult,
+  OpenSpecToolReport,
 } from '../../types/pipeline';
 import {
   getLegacySkillsPlan,
@@ -55,7 +56,11 @@ import {
   setOpenSpecWorkflow,
   setOpenSpecProfile,
 } from '../pipeline/openspec-global-config';
-import { inspectInstalledEvidence, readSharedSkillTarget } from '../pipeline/openspec-evidence';
+import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
+import {
+  readEngineToolReport,
+  invalidateEngineToolReportCache,
+} from '../pipeline/openspec-engine-tools';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
 import {
   generateDiagnosticPreview,
@@ -66,7 +71,7 @@ import {
 import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
-import { getToolDef, isOpenSpecConfigurableTool } from '../pipeline/openspec-tooling';
+import { getToolDef } from '../pipeline/openspec-tooling';
 import {
   analyzeOpenSpecVersion,
   readInstalledContext,
@@ -83,6 +88,7 @@ export interface OpenSpecIpcDeps {
   discoverCli?: (options?: { runtime?: AuthorizedOpenSpecRuntime | null }) => Promise<any>;
   checkLatest?: () => Promise<OpenSpecRegistryCheck>;
   readGlobalConfig?: (options?: { runtime?: AuthorizedOpenSpecRuntime | null }) => Promise<any>;
+  readEngineToolReport?: typeof readEngineToolReport;
   ipcMain?: { handle: (channel: string, listener: any) => void };
   validateRepoPath?: (p: unknown) => string | null;
   getGitInfo?: (repoPath: string) => Promise<RealGitInfo>;
@@ -92,7 +98,6 @@ export interface OpenSpecIpcDeps {
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
   getArtifactGraph?: (repoPath: string, changeId: string, options?: CliExecutionOptions) => Promise<OpenSpecArtifactGraphResult>;
   recalculateStatus?: (repoPath?: string) => Promise<OpenSpecEngineStatus>;
-  readSharedSkillTarget?: (repoPath: string) => string | null;
   runVersionAnalysis?: (
     repoPath: string,
     options?: {
@@ -242,8 +247,34 @@ export async function buildEngineStatusSnapshot(
   // 3. Obtener caché local del registry sin await de red
   const cachedRegistry = getLocalCacheRegistryStatus(userDataDir, new Date());
 
+  // 3.5. Leer informe de herramientas del motor o respaldo (Decisiones 1 a 4)
+  const readToolReportFn = deps.readEngineToolReport ?? readEngineToolReport;
+  let toolReport: OpenSpecToolReport | null = null;
+  if (validRepoPath) {
+    try {
+      toolReport = await readToolReportFn({
+        repoPath: validRepoPath,
+        executablePath: authorizedRuntime?.executablePath ?? null,
+        runtimeVersion: cli.runtimeVersion ?? null,
+        workflows:
+          (globalConfig?.resolvedWorkflowsState === 'read' && Array.isArray(globalConfig?.resolvedWorkflows))
+            ? globalConfig.resolvedWorkflows
+            : (globalConfig?.configuredWorkflows ?? []),
+        delivery: globalConfig?.delivery,
+      });
+    } catch {
+      toolReport = null;
+    }
+  }
+
+  const pendingTools = toolReport
+    ? toolReport.tools.filter((t) => t.available && !t.configured).map((t) => t.id)
+    : [];
+
   // 4. Inspección de evidencia de integración instalada
-  const installedIntegration = validRepoPath ? inspectInstalledEvidence(validRepoPath) : null;
+  const installedIntegration = validRepoPath
+    ? inspectInstalledEvidence(validRepoPath, { ...deps, toolReport })
+    : null;
 
   // 5. Determinar estado de inicialización del repositorio
   let repoState: OpenSpecEngineStatus['repoState'] = 'unknown';
@@ -257,7 +288,7 @@ export async function buildEngineStatusSnapshot(
     }
   }
 
-  // 6. Determinar estado de la integración
+  // 6. Determinar estado de la integración (Decisión 5)
   let integrationState: OpenSpecEngineStatus['integrationState'] = 'unknown';
   if (installedIntegration) {
     if (installedIntegration.evidenceStatus === 'unknown') {
@@ -273,27 +304,20 @@ export async function buildEngineStatusSnapshot(
     } else if (installedIntegration.missing && installedIntegration.missing.length > 0) {
       integrationState = 'outdated';
     } else {
-      const configuredCount =
-        installedIntegration.configuredAgentsCount ??
-        installedIntegration.configuredCount ??
-        installedIntegration.configuredTools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
-        installedIntegration.tools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
-        0;
-      const totalCount =
-        installedIntegration.totalPresentAgentsCount ??
-        installedIntegration.totalPresentCount ??
-        configuredCount;
-      const hasUnconfiguredTarget =
-        (totalCount > 0 && configuredCount < totalCount) ||
-        Boolean(
-          installedIntegration.presentToolDirectories &&
-            installedIntegration.configuredTools &&
-            installedIntegration.presentToolDirectories.some(
-              (tool) => isOpenSpecConfigurableTool(tool) && !installedIntegration.configuredTools?.includes(tool),
-            ),
-        );
+      const hasSkillsOnlyInLegacy =
+        installedIntegration.skills.length > 0 &&
+        installedIntegration.skills.every((s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent') &&
+        (!installedIntegration.targets.includes('agents') ||
+          (installedIntegration.installedWorkflowsByTarget['agents']?.length ?? 0) === 0);
 
-      if (hasUnconfiguredTarget) {
+      const configuredNeedsUpdate = toolReport
+        ? toolReport.tools.some((t) => t.configured && t.needsUpdate)
+        : false;
+      const profileNeedsSync = toolReport
+        ? toolReport.profileSyncNeeded.length > 0
+        : false;
+
+      if (hasSkillsOnlyInLegacy || configuredNeedsUpdate || profileNeedsSync) {
         integrationState = 'outdated';
       } else if (
         installedIntegration.targets.includes('agents') &&
@@ -303,6 +327,8 @@ export async function buildEngineStatusSnapshot(
           (s) => s.isOfficial && s.origin === 'custom-agents',
         );
         integrationState = hasModifiedOfficialSkills ? 'custom' : 'up-to-date';
+      } else if (toolReport && toolReport.tools.some((t) => t.configured)) {
+        integrationState = 'up-to-date';
       } else {
         integrationState = 'outdated';
       }
@@ -358,30 +384,33 @@ export async function buildEngineStatusSnapshot(
   const globalWorkflowsStr = globalWorkflows ? globalWorkflows.join(',') : '';
 
   if (installedIntegration) {
-    // Un target presente sin workflows oficiales también participa del cálculo
-    // (2.9): queda fuera de `installedWorkflowsByTarget` y antes era invisible,
-    // lo que declaraba convergencia con `.agents` presente pero sin configurar.
-    // Nunca puede haber convergencia confirmada con un target presente sin
-    // comparar. Los outputs `external-global` y los no configurables por OpenSpec
-    // (como CI en .github) no entran: son sólo diagnóstico (contratos 2.10 y decisión 12).
-    // Una herramienta servida desde la carpeta compartida (.agents/skills) se
-    // compara con los workflows de esa carpeta (decisión 12).
-    const resolveSharedTarget = deps.readSharedSkillTarget ?? readSharedSkillTarget;
-    const sharedTargetTool = validRepoPath ? resolveSharedTarget(validRepoPath) : null;
-    const agentsWorkflows = installedIntegration.installedWorkflowsByTarget['agents'] ?? [];
-    const compared = new Set(Object.keys(installedIntegration.installedWorkflowsByTarget));
-
     const targetEntries: Array<[string, string[]]> = [];
-    for (const [toolId, targetWfs] of Object.entries(installedIntegration.installedWorkflowsByTarget)) {
-      if (!isOpenSpecConfigurableTool(toolId)) continue;
-      const wfs = (toolId === sharedTargetTool && targetWfs.length === 0) ? agentsWorkflows : targetWfs;
-      targetEntries.push([toolId, wfs]);
-    }
-    for (const toolId of installedIntegration.presentToolDirectories ?? []) {
-      if (compared.has(toolId)) continue;
-      if (!isOpenSpecConfigurableTool(toolId)) continue;
-      const wfs = toolId === sharedTargetTool ? agentsWorkflows : [];
-      targetEntries.push([toolId, wfs]);
+    if (toolReport) {
+      const configuredReportTools = toolReport.tools.filter((t) => t.configured);
+      if (configuredReportTools.length > 0) {
+        for (const tool of configuredReportTools) {
+          let wfs = installedIntegration.installedWorkflowsByTarget[tool.id] ?? [];
+          if (wfs.length === 0 && tool.skillsDir === '.agents') {
+            wfs = installedIntegration.installedWorkflowsByTarget['agents'] ?? [];
+          }
+          targetEntries.push([tool.id, wfs]);
+        }
+      } else {
+        // Si no hay herramientas configuradas, los targets presentes participan
+        // para impedir declarar falsa convergencia (2.9 / Invariantes 8 & 19).
+        for (const tool of toolReport.tools) {
+          if (!tool.available) continue;
+          let wfs = installedIntegration.installedWorkflowsByTarget[tool.id] ?? [];
+          if (wfs.length === 0 && tool.skillsDir === '.agents') {
+            wfs = installedIntegration.installedWorkflowsByTarget['agents'] ?? [];
+          }
+          targetEntries.push([tool.id, wfs]);
+        }
+      }
+    } else {
+      for (const [toolId, targetWfs] of Object.entries(installedIntegration.installedWorkflowsByTarget)) {
+        targetEntries.push([toolId, targetWfs]);
+      }
     }
     for (const [toolId, targetWfs] of targetEntries) {
       const toolDef = getToolDef(toolId);
@@ -514,6 +543,8 @@ export async function buildEngineStatusSnapshot(
     },
     doctor: doctorResult,
     contextBrief: contextResult,
+    toolReport,
+    pendingTools,
   };
 }
 
@@ -701,6 +732,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         force,
         runtime: authorizedRuntime,
       });
+      invalidateEngineToolReportCache(validRepoPath);
       const recalculateStatus = deps.recalculateStatus ?? ((rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps));
       const engineStatus = await recalculateStatus(validRepoPath);
       return {
@@ -964,6 +996,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         const result = await pauseWatcher(validRepoPath, async () => {
           return runner(authorizedRuntime, args, { cwd: validRepoPath });
         });
+        invalidateEngineToolReportCache(validRepoPath);
         return { success: true, stdout: result.stdout, stderr: result.stderr };
       } catch (err: any) {
         return {
@@ -1017,7 +1050,10 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         targetPackage,
         resolvePackageManager: deps.resolvePackageManager,
         engineDeps: deps,
-        recalculateStatus: async (rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps),
+        recalculateStatus: async (rp?: string) => {
+          invalidateEngineToolReportCache(rp ?? validRepoPath);
+          return buildEngineStatusSnapshot(rp ?? validRepoPath, deps);
+        },
       });
     },
   );
@@ -1067,7 +1103,10 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         targetPackage,
         resolvePackageManager: deps.resolvePackageManager,
         engineDeps: deps,
-        recalculateStatus: async (rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps),
+        recalculateStatus: async (rp?: string) => {
+          invalidateEngineToolReportCache();
+          return buildEngineStatusSnapshot(rp ?? validRepoPath, deps);
+        },
       });
     },
   );
@@ -1120,7 +1159,9 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       const authorizedRuntime = resolveRuntime({ userDataDir });
 
       const setWorkflowFn = deps.setWorkflow ?? setOpenSpecWorkflow;
-      return setWorkflowFn({ workflow: rawWorkflow, enabled, runtime: authorizedRuntime });
+      const res = await setWorkflowFn({ workflow: rawWorkflow, enabled, runtime: authorizedRuntime });
+      if (res.ok) invalidateEngineToolReportCache();
+      return res;
     },
   );
 
@@ -1141,7 +1182,9 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
       const authorizedRuntime = resolveRuntime({ userDataDir });
 
       const setProfileFn = deps.setProfile ?? setOpenSpecProfile;
-      return setProfileFn({ profile: rawProfile, runtime: authorizedRuntime });
+      const res = await setProfileFn({ profile: rawProfile, runtime: authorizedRuntime });
+      if (res.ok) invalidateEngineToolReportCache();
+      return res;
     },
   );
 

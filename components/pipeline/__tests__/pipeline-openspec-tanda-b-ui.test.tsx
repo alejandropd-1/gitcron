@@ -1,13 +1,14 @@
 // @vitest-environment jsdom
 import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { OpenSpecEngineCard } from '../OpenSpecEngineCard';
 import { OpenSpecUpdateReview } from '../OpenSpecUpdateReview';
 import type { OpenSpecEngineStatus } from '../../../types/pipeline';
 
 afterEach(() => {
   cleanup();
+  delete (window as unknown as { api?: unknown }).api;
 });
 
 function makeStatus(overrides?: Partial<OpenSpecEngineStatus>): OpenSpecEngineStatus {
@@ -182,5 +183,74 @@ describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
 
     // No hay botón «Actualizar»
     expect(screen.queryByRole('button', { name: /^Actualizar$/i })).toBeNull();
+  });
+
+  it('Tarjeta: init devuelve success:false con openspec-cli-not-found -> muestra error traducido y botón re-habilitado para reintentar', async () => {
+    const initMock = vi.fn().mockResolvedValue({
+      success: false,
+      error: 'openspec-cli-not-found',
+      needsTool: false,
+    });
+    (window as unknown as { api: unknown }).api = { pipelineInitOpenSpec: initMock };
+
+    const status = makeStatus();
+    render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
+
+    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
+    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(configureBtn);
+
+    // Aparece el error traducido en criollo
+    expect(await screen.findByText(/No se encontró el ejecutable de OpenSpec en el sistema/i)).toBeDefined();
+    // El botón vuelve a estar habilitado para reintentar
+    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('Tarjeta: init rechaza -> muestra error con detalle y botón re-habilitado para reintentar', async () => {
+    const initMock = vi.fn().mockRejectedValue(new Error('Fallo de conexión'));
+    (window as unknown as { api: unknown }).api = { pipelineInitOpenSpec: initMock };
+
+    const status = makeStatus();
+    render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
+
+    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
+    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(configureBtn);
+
+    // Aparece el error con el detalle
+    expect(await screen.findByText(/No se pudo configurar la herramienta: Fallo de conexión/i)).toBeDefined();
+    // El botón vuelve a estar habilitado para reintentar
+    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+  });
+
+  it('Tarjeta: init devuelve invalid-tool-id -> traduce el código conocido y permite reintentar con éxito', async () => {
+    const initMock = vi
+      .fn()
+      .mockResolvedValueOnce({
+        success: false,
+        error: 'invalid-tool-id',
+        needsTool: false,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        needsTool: false,
+      });
+    (window as unknown as { api: unknown }).api = { pipelineInitOpenSpec: initMock };
+
+    const status = makeStatus();
+    render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
+
+    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
+    fireEvent.click(configureBtn);
+
+    expect(await screen.findByText(/Identificador de herramienta no reconocido o no válido/i)).toBeDefined();
+    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+
+    // Reintentar con éxito limpia el error previo
+    fireEvent.click(configureBtn);
+    expect(await screen.findByText(/Falta configurar: zcode/i)).toBeDefined();
+    expect(screen.queryByText(/Identificador de herramienta no reconocido o no válido/i)).toBeNull();
   });
 });

@@ -221,6 +221,22 @@ export function formatDivergenceReason(
   return '';
 }
 
+function resolveConfigureErrorMessage(
+  error: string | null | undefined,
+  t: (key: string, params?: Record<string, string | number>) => string,
+): string {
+  if (error === 'openspec-cli-not-found') {
+    return t('pipeline.openspec.engine.configureError.cliNotFound');
+  }
+  if (error === 'invalid-tool-id' || error === 'invalid_tools') {
+    return t('pipeline.openspec.engine.configureError.invalidTool');
+  }
+  const detail = error && error.trim().length > 0
+    ? error
+    : t('pipeline.openspec.engine.configureError.unknown');
+  return t('pipeline.openspec.engine.configureError.generic', { detail });
+}
+
 export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   status,
   isLoading = false,
@@ -255,6 +271,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [profileWriteError, setProfileWriteError] = useState<string | null>(null);
   const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
   const [configuringTool, setConfiguringTool] = useState<string | null>(null);
+  const [configureErrors, setConfigureErrors] = useState<Record<string, string>>({});
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
@@ -264,6 +281,12 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     const api = typeof window !== 'undefined' ? (window as unknown as { api?: typeof window.api }).api : null;
     if (!api?.pipelineInitOpenSpec) return;
     setConfiguringTool(toolId);
+    setConfigureErrors((prev) => {
+      if (!prev[toolId]) return prev;
+      const next = { ...prev };
+      delete next[toolId];
+      return next;
+    });
     try {
       const configured = status?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
         ?? status?.installedIntegration?.configuredTools
@@ -273,7 +296,14 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
       if (res?.success) {
         usePipelineStore.getState().notifyEngineChanged();
         onChanged?.();
+      } else {
+        const msg = resolveConfigureErrorMessage(res?.error, t);
+        setConfigureErrors((prev) => ({ ...prev, [toolId]: msg }));
       }
+    } catch (err: unknown) {
+      const errMsg = err instanceof Error ? err.message : (typeof err === 'string' ? err : String(err));
+      const msg = resolveConfigureErrorMessage(errMsg, t);
+      setConfigureErrors((prev) => ({ ...prev, [toolId]: msg }));
     } finally {
       setConfiguringTool(null);
     }
@@ -823,6 +853,14 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
                         t('pipeline.openspec.engine.configureAction')
                       )}
                     </button>
+                  )}
+                  {configureErrors[toolId] && (
+                    <span
+                      style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}
+                      role="alert"
+                    >
+                      {configureErrors[toolId]}
+                    </span>
                   )}
                 </div>
               );

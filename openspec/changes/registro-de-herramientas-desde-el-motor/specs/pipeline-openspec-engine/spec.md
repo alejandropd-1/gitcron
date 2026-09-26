@@ -41,6 +41,73 @@ SHALL corresponder a la versión del ciclo SDD; una verificación automática SH
 - **WHEN** se sube la versión del ciclo SDD y la copia propia sigue siendo de la anterior
 - **THEN** la verificación automática falla indicando cómo volver a capturarla
 
+### Requirement: Mientras se lee el motor, la pantalla SHALL decir que está leyendo
+
+Hasta que llegue la primera medición del motor de un repositorio, y mientras se vuelve a medir después
+de una acción, GitCron SHALL mostrar que está leyendo, ocupando el mismo lugar que ocupará el
+resultado. SHALL NOT mostrar «Ausente», «Desconocido», «No se puede determinar» ni «El CLI de
+OpenSpec no está instalado» sin una medición que lo sostenga: son afirmaciones sobre la máquina y,
+mostradas por falta de datos, se leen como un error que no existe.
+
+#### Scenario: Primera carga
+- **WHEN** se abre la configuración de OpenSpec de un repositorio y el estado del motor todavía no llegó
+- **THEN** se ve «Leyendo OpenSpec…» en el lugar del resultado, sin «Ausente» ni «Desconocido», y al llegar el resultado la pantalla no salta
+
+#### Scenario: Motor realmente ausente
+- **WHEN** la medición termina y no hay motor de OpenSpec
+- **THEN** recién entonces se declara ausente, con el motivo
+
+### Requirement: Un repositorio sin OpenSpec SHALL ofrecer inicializarlo una sola vez, eligiendo herramientas
+
+En un repositorio que no usa OpenSpec, GitCron SHALL ofrecer una única acción de inicializar, que
+muestra qué herramientas detectó, deja elegir cuáles configurar y declara qué va a escribir. SHALL NOT
+ofrecer un «Configurar» por herramienta: cada uno inicializa OpenSpec en el repositorio aunque diga
+otra cosa. Al terminar SHALL decir qué quedó: las herramientas configuradas y los archivos nuevos sin
+confirmar.
+
+#### Scenario: Repositorio que no usa OpenSpec
+- **WHEN** el repositorio no tiene OpenSpec inicializado y hay herramientas detectadas
+- **THEN** se ve un solo bloque «Este repositorio no usa OpenSpec» con la lista de herramientas para elegir y un botón «Inicializar OpenSpec», sin botones por herramienta
+
+#### Scenario: Resultado de inicializar
+- **WHEN** termina la inicialización
+- **THEN** se informa con qué herramientas quedó y cuántos archivos nuevos quedaron sin confirmar
+
+### Requirement: Las herramientas sin configurar SHALL resumirse con una sola acción
+
+En un repositorio que ya usa OpenSpec, las herramientas presentes sin configurar SHALL mostrarse en
+un solo resumen con una única acción «Configurar…» que deja elegir cuáles, y SHALL informar el
+resultado. La lista, los nombres y las carpetas SHALL leerse sin superponerse y sin que la pantalla
+salte al terminar.
+
+#### Scenario: Varias pendientes
+- **WHEN** el motor informa dos o más herramientas presentes sin configurar
+- **THEN** se ve una línea «Detectadas sin configurar: …» y un solo botón «Configurar…», que abre la elección
+
+### Requirement: La cabecera y su botón SHALL decir lo mismo
+
+El texto del estado de la integración y el del botón de la cabecera SHALL derivarse de la misma
+medición. SHALL NOT mostrarse «Todo al día» cuando el estado declara que falta inicializar, que hay
+herramientas pendientes o que la actualización está detenida.
+
+#### Scenario: Repositorio sin inicializar
+- **WHEN** el estado de la integración es «Inicialización del repositorio»
+- **THEN** el botón no dice «Todo al día»
+
+### Requirement: Las salidas administrables SHALL listarse por carpeta y presentes sólo con instrucciones
+
+La lista de salidas administrables SHALL tener una fila por carpeta física, nombrando las
+herramientas que la usan, y SHALL marcarla presente sólo si contiene instrucciones de OpenSpec, no
+porque la carpeta exista.
+
+#### Scenario: Carpeta compartida
+- **WHEN** varias herramientas comparten `.agents/skills`
+- **THEN** hay una sola fila para esa carpeta, con las herramientas que la usan
+
+#### Scenario: Carpeta sin instrucciones
+- **WHEN** existe `.github` pero no tiene instrucciones de OpenSpec
+- **THEN** su salida no figura como presente
+
 ## MODIFIED Requirements
 
 ### Requirement: El estado de la integración SHALL derivarse de los targets instalados y no del recuento de skills

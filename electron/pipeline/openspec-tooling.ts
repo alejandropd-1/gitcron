@@ -5,6 +5,8 @@
  * conjuntos oficiales de workflows y bloqueo de seguridad.
  */
 
+import snapshot from './openspec-tools-snapshot.json';
+
 export const OPENSPEC_CORE_WORKFLOW_SET = new Set([
   'propose',
   'explore',
@@ -59,7 +61,38 @@ export const OFFICIAL_WORKFLOW_MAP: Readonly<Record<string, string>> = {
 
 export const OFFICIAL_OPENSPEC_SKILL_SLUGS = new Set(Object.keys(OFFICIAL_WORKFLOW_MAP));
 
-export type OpenSpecToolCategory = 'interactive-agent' | 'ci' | 'global-agent';
+export type OpenSpecToolCategory = 'interactive-agent' | 'global-agent';
+
+export interface OpenSpecToolPresentation {
+  label?: string;
+  directory?: string;
+  descriptionKey: string;
+  blocked?: boolean;
+  kind?: 'repo-local' | 'external-global';
+}
+
+export const OPENSPEC_TOOL_PRESENTATION: Readonly<Record<string, OpenSpecToolPresentation>> = {
+  agents: { label: 'Agents Multi-Agent', descriptionKey: 'pipeline.openspec.engine.output.agentsDesc' },
+  codex: { descriptionKey: 'pipeline.openspec.engine.output.codexDesc' },
+  claude: { descriptionKey: 'pipeline.openspec.engine.output.claudeDesc' },
+  antigravity: { descriptionKey: 'pipeline.openspec.engine.output.antigravityDesc' },
+  opencode: { descriptionKey: 'pipeline.openspec.engine.output.opencodeDesc' },
+  'minimax-code': { descriptionKey: 'pipeline.openspec.engine.output.minimaxDesc', blocked: true, kind: 'external-global' },
+  cursor: { descriptionKey: 'pipeline.openspec.engine.output.cursorDesc' },
+  gemini: { descriptionKey: 'pipeline.openspec.engine.output.geminiDesc' },
+  'github-copilot': { directory: '.github-copilot', descriptionKey: 'pipeline.openspec.engine.output.copilotDesc' },
+  'amazon-q': { directory: '.amazonq', descriptionKey: 'pipeline.openspec.engine.output.amazonqDesc' },
+  auggie: { directory: '.augment', descriptionKey: 'pipeline.openspec.engine.output.auggieDesc' },
+  cline: { descriptionKey: 'pipeline.openspec.engine.output.clineDesc' },
+  crush: { descriptionKey: 'pipeline.openspec.engine.output.crushDesc' },
+  junie: { descriptionKey: 'pipeline.openspec.engine.output.junieDesc' },
+  kilocode: { descriptionKey: 'pipeline.openspec.engine.output.kilocodeDesc' },
+  kiro: { descriptionKey: 'pipeline.openspec.engine.output.kiroDesc' },
+  qwen: { descriptionKey: 'pipeline.openspec.engine.output.qwenDesc' },
+  roocode: { directory: '.roo', descriptionKey: 'pipeline.openspec.engine.output.roocodeDesc' },
+  trae: { descriptionKey: 'pipeline.openspec.engine.output.traeDesc' },
+  windsurf: { directory: '.windsurf', descriptionKey: 'pipeline.openspec.engine.output.windsurfDesc' },
+};
 
 export interface OpenSpecToolDef {
   toolId: string;
@@ -71,46 +104,56 @@ export interface OpenSpecToolDef {
   displayPath: string;
   blocked: boolean;
   descriptionKey: string;
+  skillsDir?: string;
+  legacySkillsDirs?: string[];
+  detectionPaths?: string[];
+  globalSkillsDir?: string;
 }
 
-export const OPENSPEC_TOOL_DIRECTORIES: ReadonlyArray<OpenSpecToolDef> = [
-  { toolId: 'agents', directory: '.agents', label: 'Agents Multi-Agent', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.agents/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.agentsDesc' },
-  { toolId: 'codex', directory: '.codex', label: 'Codex', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.codex/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.codexDesc' },
-  { toolId: 'claude', directory: '.claude', label: 'Claude Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.claude/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.claudeDesc' },
-  { toolId: 'antigravity', directory: '.agent', label: 'Antigravity', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.agent/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.antigravityDesc' },
-  { toolId: 'opencode', directory: '.opencode', label: 'OpenCode', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.opencode/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.opencodeDesc' },
-  { toolId: 'github', directory: '.github', label: 'GitHub Workflows', kind: 'repo-local', category: 'ci', isInteractiveAgent: false, displayPath: '.github/workflows/openspec-*.yml', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.githubDesc' },
-  { toolId: 'minimax-code', directory: '.minimax', label: 'MiniMax Code', kind: 'external-global', category: 'global-agent', isInteractiveAgent: false, displayPath: '~/.minimax/skills/openspec-*', blocked: true, descriptionKey: 'pipeline.openspec.engine.output.minimaxDesc' },
-  { toolId: 'cursor', directory: '.cursor', label: 'Cursor', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.cursor/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.cursorDesc' },
-  { toolId: 'gemini', directory: '.gemini', label: 'Gemini CLI', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.gemini/skills/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.geminiDesc' },
-  { toolId: 'github-copilot', directory: '.github-copilot', label: 'GitHub Copilot', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.github-copilot/prompts/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.copilotDesc' },
-  { toolId: 'amazon-q', directory: '.amazonq', label: 'Amazon Q', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.amazonq/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.amazonqDesc' },
-  { toolId: 'auggie', directory: '.augment', label: 'Auggie', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.augment/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.auggieDesc' },
-  { toolId: 'cline', directory: '.cline', label: 'Cline', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.cline/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.clineDesc' },
-  { toolId: 'crush', directory: '.crush', label: 'Crush', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.crush/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.crushDesc' },
-  { toolId: 'junie', directory: '.junie', label: 'Junie', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.junie/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.junieDesc' },
-  { toolId: 'kilocode', directory: '.kilocode', label: 'Kilo Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.kilocode/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.kilocodeDesc' },
-  { toolId: 'kiro', directory: '.kiro', label: 'Kiro', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.kiro/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.kiroDesc' },
-  { toolId: 'qwen', directory: '.qwen', label: 'Qwen Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.qwen/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.qwenDesc' },
-  { toolId: 'roocode', directory: '.roo', label: 'Roo Code', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.roo/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.roocodeDesc' },
-  { toolId: 'trae', directory: '.trae', label: 'Trae', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.trae/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.traeDesc' },
-  { toolId: 'windsurf', directory: '.windsurf', label: 'Windsurf', kind: 'repo-local', category: 'interactive-agent', isInteractiveAgent: true, displayPath: '.windsurf/rules/openspec-*', blocked: false, descriptionKey: 'pipeline.openspec.engine.output.windsurfDesc' },
-];
+export const OPENSPEC_TOOL_DIRECTORIES: ReadonlyArray<OpenSpecToolDef> = Object.entries(
+  OPENSPEC_TOOL_PRESENTATION,
+).map(([id, pres]) => {
+  const tool = snapshot.tools.find((t) => t.id === id);
+  const isGlobal = pres.kind === 'external-global' || Boolean(tool?.globalSkillsDir);
+  const directory =
+    pres.directory ??
+    tool?.legacySkillsDirs?.[0] ??
+    tool?.skillsDir ??
+    tool?.globalSkillsDir ??
+    `.${id}`;
+  const label = pres.label ?? tool?.label ?? id;
+  const displayPath = isGlobal
+    ? `~/${tool?.globalSkillsDir ?? directory}/skills/openspec-*`
+    : `${directory}/skills/openspec-*`;
+
+  return {
+    toolId: id,
+    directory,
+    label,
+    kind: isGlobal ? 'external-global' : 'repo-local',
+    category: isGlobal ? 'global-agent' : 'interactive-agent',
+    isInteractiveAgent: !isGlobal,
+    displayPath,
+    blocked: pres.blocked ?? false,
+    descriptionKey: pres.descriptionKey,
+    skillsDir: tool?.skillsDir,
+    legacySkillsDirs: tool?.legacySkillsDirs,
+    detectionPaths: tool?.detectionPaths,
+    globalSkillsDir: tool?.globalSkillsDir,
+  };
+});
 
 export function getToolDef(toolId: string): OpenSpecToolDef | undefined {
   return OPENSPEC_TOOL_DIRECTORIES.find((t) => t.toolId === toolId);
 }
 
 /**
- * Determina si una entrada de herramienta corresponde a una herramienta configurable por OpenSpec.
- * Las entradas de categoría 'ci' (como .github) están en el registro por fines informativos
- * para el inventario de outputs del repositorio, pero OpenSpec 1.13.2 no tiene herramienta para
- * flujos de GitHub (no se incluye en los valores aceptados por `openspec init --tools`).
+ * @deprecated Retirada en favor de toolReport. En OpenSpec 1.13 todas las herramientas del registro son configurables.
+ * Conservada como compatibilidad para el renderer hasta la tanda B (tarea 4.2).
  */
 export function isOpenSpecConfigurableTool(toolId: string | null | undefined): boolean {
   if (!toolId) return false;
-  const def = getToolDef(toolId);
-  return def?.category !== 'ci';
+  return toolId !== 'github';
 }
 
 /** Comprueba si una entrada corresponde a una skill oficial o declarada de OpenSpec. */

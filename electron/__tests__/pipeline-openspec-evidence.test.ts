@@ -115,8 +115,8 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       readFile: () => 'generatedBy: "1.8.0"',
     });
 
-    // Ambos están en configuredTools pero sólo .agents cuenta en configuredAgentsCount
-    expect(evidence.configuredTools).toContain('github');
+    // .agents cuenta en configuredTools y configuredAgentsCount; github ya no es una herramienta de OpenSpec (1.3)
+    expect(evidence.configuredTools).not.toContain('github');
     expect(evidence.configuredTools).toContain('agents');
     expect(evidence.configuredAgentsCount).toBe(1);
     expect(evidence.configuredCount).toBe(1);
@@ -236,9 +236,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
     expect(minimax?.presenceState).toBe('present');
 
     const github = evidence.outputInventory.find((o) => o.targetName === 'GitHub Workflows' || o.id === 'output-github');
-    expect(github?.kind).toBe('repo-local');
-    expect(github?.blocked).toBe(false);
-    expect(github?.presenceState).toBe('present');
+    expect(github).toBeUndefined();
 
     const cursor = evidence.outputInventory.find((o) => o.targetName === 'Cursor' || o.id === 'output-cursor');
     expect(cursor?.presenceState).toBe('absent');
@@ -511,7 +509,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
 
       // Verificamos estado exacto medido de OdontoPau
       expect(snapshot.installedIntegration?.configuredTools).toEqual(expect.arrayContaining(['agents', 'codex']));
-      expect(snapshot.installedIntegration?.presentToolDirectories).toEqual(expect.arrayContaining(['agents', 'codex', 'github']));
+      expect(snapshot.installedIntegration?.presentToolDirectories).toEqual(expect.arrayContaining(['agents', 'codex']));
       expect(snapshot.installedIntegration?.conflicts).toBeNull();
       // .github no debe provocar 'outdated'
       expect(snapshot.integrationState).toBe('up-to-date');

@@ -1,0 +1,266 @@
+{
+  "version": "1.13.2",
+  "tools": [
+    {
+      "id": "amazon-q",
+      "label": "Amazon Q Developer",
+      "skillsDir": ".amazonq"
+    },
+    {
+      "id": "antigravity",
+      "label": "Antigravity",
+      "skillsDir": ".agents",
+      "legacySkillsDirs": [
+        ".agent"
+      ],
+      "detectionPaths": [
+        ".agent",
+        ".agents/workflows"
+      ]
+    },
+    {
+      "id": "auggie",
+      "label": "Auggie (Augment CLI)",
+      "skillsDir": ".augment"
+    },
+    {
+      "id": "bob",
+      "label": "Bob Shell",
+      "skillsDir": ".bob"
+    },
+    {
+      "id": "claude",
+      "label": "Claude Code",
+      "skillsDir": ".claude"
+    },
+    {
+      "id": "cline",
+      "label": "Cline",
+      "skillsDir": ".cline"
+    },
+    {
+      "id": "command-code",
+      "label": "Command Code",
+      "skillsDir": ".commandcode"
+    },
+    {
+      "id": "codeartsagent",
+      "label": "CodeArts",
+      "skillsDir": ".codeartsdoer"
+    },
+    {
+      "id": "codex",
+      "label": "Codex",
+      "skillsDir": ".agents",
+      "legacySkillsDirs": [
+        ".codex"
+      ],
+      "detectionPaths": [
+        ".agents/skills",
+        ".codex/skills"
+      ]
+    },
+    {
+      "id": "devin",
+      "label": "Devin Desktop (formerly Windsurf)",
+      "skillsDir": ".devin",
+      "detectionPaths": [
+        ".devin",
+        ".windsurf"
+      ]
+    },
+    {
+      "id": "forgecode",
+      "label": "ForgeCode",
+      "skillsDir": ".forge"
+    },
+    {
+      "id": "codebuddy",
+      "label": "CodeBuddy Code (CLI)",
+      "skillsDir": ".codebuddy"
+    },
+    {
+      "id": "continue",
+      "label": "Continue",
+      "skillsDir": ".continue"
+    },
+    {
+      "id": "costrict",
+      "label": "CoStrict",
+      "skillsDir": ".cospec"
+    },
+    {
+      "id": "crush",
+      "label": "Crush",
+      "skillsDir": ".crush"
+    },
+    {
+      "id": "cursor",
+      "label": "Cursor",
+      "skillsDir": ".cursor"
+    },
+    {
+      "id": "factory",
+      "label": "Factory Droid",
+      "skillsDir": ".factory"
+    },
+    {
+      "id": "gemini",
+      "label": "Gemini CLI",
+      "skillsDir": ".gemini"
+    },
+    {
+      "id": "github-copilot",
+      "label": "GitHub Copilot",
+      "skillsDir": ".github",
+      "detectionPaths": [
+        ".github/copilot-instructions.md",
+        ".github/instructions",
+        ".github/workflows/copilot-setup-steps.yml",
+        ".github/prompts",
+        ".github/agents",
+        ".github/skills",
+        ".github/.mcp.json"
+      ]
+    },
+    {
+      "id": "hermes",
+      "label": "Hermes Agent",
+      "skillsDir": ".hermes",
+      "detectionPaths": [
+        ".hermes",
+        "HERMES.md",
+        ".hermes.md"
+      ]
+    },
+    {
+      "id": "iflow",
+      "label": "iFlow",
+      "skillsDir": ".iflow"
+    },
+    {
+      "id": "junie",
+      "label": "Junie",
+      "skillsDir": ".junie"
+    },
+    {
+      "id": "kilocode",
+      "label": "Kilo Code",
+      "skillsDir": ".kilocode"
+    },
+    {
+      "id": "kimi",
+      "label": "Kimi Code",
+      "skillsDir": ".kimi-code",
+      "detectionPaths": [
+        ".kimi-code",
+        ".kimi"
+      ]
+    },
+    {
+      "id": "kiro",
+      "label": "Kiro",
+      "skillsDir": ".kiro"
+    },
+    {
+      "id": "lingma",
+      "label": "Lingma",
+      "skillsDir": ".lingma"
+    },
+    {
+      "id": "minimax-code",
+      "label": "MiniMax Code",
+      "globalSkillsDir": ".minimax"
+    },
+    {
+      "id": "vibe",
+      "label": "Mistral Vibe",
+      "skillsDir": ".vibe"
+    },
+    {
+      "id": "oh-my-pi",
+      "label": "Oh My Pi",
+      "skillsDir": ".omp"
+    },
+    {
+      "id": "opencode",
+      "label": "OpenCode",
+      "skillsDir": ".opencode"
+    },
+    {
+      "id": "pi",
+      "label": "Pi",
+      "skillsDir": ".pi"
+    },
+    {
+      "id": "codeassistant",
+      "label": "SourceCraft Code Assistant",
+      "skillsDir": ".codeassistant"
+    },
+    {
+      "id": "qoder",
+      "label": "Qoder",
+      "skillsDir": ".qoder"
+    },
+    {
+      "id": "qwen",
+      "label": "Qwen Code",
+      "skillsDir": ".qwen"
+    },
+    {
+      "id": "rovodev",
+      "label": "Rovo Dev CLI",
+      "skillsDir": ".rovodev",
+      "detectionPaths": [
+        ".rovodev/skills",
+        ".rovodev"
+      ]
+    },
+    {
+      "id": "roocode",
+      "label": "Zoo Code",
+      "skillsDir": ".roo"
+    },
+    {
+      "id": "trae",
+      "label": "Trae",
+      "skillsDir": ".trae"
+    },
+    {
+      "id": "zed",
+      "label": "Zed Agent",
+      "skillsDir": ".agents",
+      "detectionPaths": [
+        ".zed",
+        ".agents/skills"
+      ]
+    },
+    {
+      "id": "zcode",
+      "label": "ZCode",
+      "skillsDir": ".zcode"
+    },
+    {
+      "id": "agents",
+      "label": "Other / Universal (shared .agents skills)",
+      "skillsDir": ".agents",
+      "detectionPaths": [
+        ".agents/skills"
+      ]
+    }
+  ],
+  "skillNames": [
+    "openspec-explore",
+    "openspec-new-change",
+    "openspec-continue-change",
+    "openspec-apply-change",
+    "openspec-update-change",
+    "openspec-ff-change",
+    "openspec-sync-specs",
+    "openspec-archive-change",
+    "openspec-bulk-archive-change",
+    "openspec-verify-change",
+    "openspec-onboard",
+    "openspec-propose"
+  ]
+}

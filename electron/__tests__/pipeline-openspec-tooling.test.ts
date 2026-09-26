@@ -29,7 +29,7 @@ describe('herramientas con OpenSpec configurado', () => {
   });
 
   it('marca como no configurada la que está presente y no tiene skills', () => {
-    // El caso de `odontoPau`: `.codex` con skills y `.agent` sin ninguna.
+    // En OpenSpec 1.13, tanto Codex como Antigravity usan .agents como directorio de skills.
     const result = resolveToolStates(presence({
       codex: { present: true, configured: true },
       antigravity: { present: true, configured: false },
@@ -61,22 +61,21 @@ describe('herramientas con OpenSpec configurado', () => {
     expect(isOpenSpecSkillEntry('')).toBe(false);
   });
 
-  it('cada herramienta conocida tiene identificador y directorio únicos', () => {
-    // Dos entradas con el mismo directorio harían que una tape a la otra.
+  it('cada herramienta conocida tiene identificador único y no incluye github', () => {
     const ids = OPENSPEC_TOOL_DIRECTORIES.map((tool) => tool.toolId);
-    const dirs = OPENSPEC_TOOL_DIRECTORIES.map((tool) => tool.directory);
     expect(new Set(ids).size).toBe(ids.length);
-    expect(new Set(dirs).size).toBe(dirs.length);
+    expect(ids).not.toContain('github');
+    expect(ids.length).toBe(20);
   });
 
-  it('isOpenSpecConfigurableTool distingue herramientas configurables de flujos CI (6.6)', () => {
+  it('isOpenSpecConfigurableTool reconoce herramientas configurables y rechaza vacías o github', () => {
     // Las herramientas de agentes son configurables
     expect(isOpenSpecConfigurableTool('agents')).toBe(true);
     expect(isOpenSpecConfigurableTool('codex')).toBe(true);
     expect(isOpenSpecConfigurableTool('claude')).toBe(true);
     expect(isOpenSpecConfigurableTool('antigravity')).toBe(true);
 
-    // .github (categoría 'ci') NO es configurable por OpenSpec 1.13.2
+    // .github no es una herramienta configurable de OpenSpec
     expect(isOpenSpecConfigurableTool('github')).toBe(false);
 
     // Inválidos
@@ -84,7 +83,7 @@ describe('herramientas con OpenSpec configurado', () => {
     expect(isOpenSpecConfigurableTool(undefined)).toBe(false);
     expect(isOpenSpecConfigurableTool('')).toBe(false);
 
-    // Herramientas personalizadas no pertenecientes a la categoría 'ci'
+    // Herramientas personalizadas
     expect(isOpenSpecConfigurableTool('custom-tool')).toBe(true);
   });
 });

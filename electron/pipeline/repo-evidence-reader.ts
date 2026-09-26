@@ -158,15 +158,29 @@ export async function readOpenSpecTooling(repoPath: string): Promise<{
   const hasAgentsSkills = agentsSkills.some(isOpenSpecSkillEntry);
 
   for (const tool of OPENSPEC_TOOL_DIRECTORIES) {
-    const entries = await safeListRepoDirectory(repoPath, tool.directory);
-    if (entries.length === 0) continue;
-    // Presente pero sin skills es el estado que interesa mostrar: la herramienta
-    // se usa acá y su ejecutor no sabe que el canal existe.
-    const skills = await safeListRepoDirectory(repoPath, `${tool.directory}/skills`);
-    const hasOwnSkills = skills.some(isOpenSpecSkillEntry);
+    const candidateDirs = [tool.directory, ...(tool.legacySkillsDirs ?? [])];
+    let hasPresence = false;
+    let hasOwnSkills = false;
+
+    for (const dir of candidateDirs) {
+      const entries = await safeListRepoDirectory(repoPath, dir);
+      if (entries.length > 0) {
+        hasPresence = true;
+        if (dir !== '.agents') {
+          const skills = await safeListRepoDirectory(repoPath, `${dir}/skills`);
+          if (skills.some(isOpenSpecSkillEntry)) {
+            hasOwnSkills = true;
+            break;
+          }
+        }
+      }
+    }
+
+    if (!hasPresence) continue;
+
     const isSharedConfigured =
       isOpenSpecConfigurableTool(tool.toolId) &&
-      tool.toolId === sharedTargetTool &&
+      (tool.toolId === sharedTargetTool || (!sharedTargetTool && tool.toolId === 'agents')) &&
       hasAgentsSkills;
     presence.set(tool.toolId, {
       present: true,

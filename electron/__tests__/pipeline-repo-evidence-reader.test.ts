@@ -189,10 +189,10 @@ describe('RepoEvidenceReader', () => {
 
       // Codex está configurada gracias a la marca en .agents/skills/.openspec-target
       expect(codexTool).toEqual({ toolId: 'codex', label: 'Codex', directory: '.codex', configured: true });
-      expect(agentsTool).toEqual({ toolId: 'agents', label: 'Agents Multi-Agent', directory: '.agents', configured: true });
-      // GitHub está presente pero configured: false, y no es configurable por OpenSpec (informativa)
-      expect(githubTool).toEqual({ toolId: 'github', label: 'GitHub Workflows', directory: '.github', configured: false });
-      expect(isOpenSpecConfigurableTool(githubTool?.toolId)).toBe(false);
+      expect(agentsTool).toEqual({ toolId: 'agents', label: 'Agents Multi-Agent', directory: '.agents', configured: false });
+      // GitHub ya no pertenece al registro de herramientas de OpenSpec (1.3)
+      expect(githubTool).toBeUndefined();
+      expect(isOpenSpecConfigurableTool('github')).toBe(false);
       expect(isOpenSpecConfigurableTool(codexTool?.toolId)).toBe(true);
 
       const snapshot = await readerFor(root);

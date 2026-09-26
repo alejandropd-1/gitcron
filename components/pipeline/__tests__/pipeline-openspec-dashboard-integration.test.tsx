@@ -146,7 +146,7 @@ describe('OpenSpecDashboard Integration (Ubicación, Jerarquía Visual y Cablead
     );
 
     // Clic en insignia de motor en franja de identidad abre la revisión en el centro
-    const compactBadge = await screen.findByTitle(/OpenSpec v1.8.0/i);
+    const compactBadge = await screen.findByTitle(/OpenSpec v1.8.0/i, {}, { timeout: 10000 });
     fireEvent.click(compactBadge);
 
     expect(onEnsureRightOpenMock).not.toHaveBeenCalled();

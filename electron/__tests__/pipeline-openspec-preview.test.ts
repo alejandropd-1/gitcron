@@ -53,7 +53,7 @@ describe('generateDiagnosticPreview & validatePlanIntegrity (Tasks 2.11 & 2.12)'
     expect(preview.invalidationParams.packageIntegrity).toBeNull();
   });
 
-  it('generateUpdatePlan evalúa la matriz de decisión y declara canExecute: false', () => {
+  it('generateUpdatePlan evalúa la matriz de decisión y declara canExecute: false sin texto de POC', () => {
     const plan = generateUpdatePlan({
       repoPath: 'C:\\repo',
       engineStatus: dummyStatus,
@@ -61,13 +61,25 @@ describe('generateDiagnosticPreview & validatePlanIntegrity (Tasks 2.11 & 2.12)'
 
     expect(plan.canExecute).toBe(false);
     expect(plan.requiredAction).toBe('none');
-    expect(plan.reason).toContain('POC');
+    expect(plan.reason).not.toContain('POC');
 
     const uninitializedPlan = generateUpdatePlan({
       repoPath: 'C:\\repo',
       engineStatus: { ...dummyStatus, repoState: 'not-initialized' },
     });
     expect(uninitializedPlan.requiredAction).toBe('init');
+    expect(uninitializedPlan.reason).not.toContain('POC');
+
+    const blockedPlan = generateUpdatePlan({
+      repoPath: 'C:\\repo',
+      engineStatus: {
+        ...dummyStatus,
+        cli: { ...dummyStatus.cli, versionClass: 'unknown' },
+      },
+    });
+    expect(blockedPlan.requiredAction).toBe('blocked');
+    expect(blockedPlan.reason).toBe('version-unknown');
+    expect(blockedPlan.reason).not.toContain('POC');
   });
 
   it('validatePlanIntegrity (2.12) invalida el plan ante cualquier cambio en todos los campos transportados', () => {

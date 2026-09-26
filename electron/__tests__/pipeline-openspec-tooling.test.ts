@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isOpenSpecConfigurableTool,
   isOpenSpecSkillEntry,
   OPENSPEC_TOOL_DIRECTORIES,
   resolveToolStates,
@@ -66,5 +67,24 @@ describe('herramientas con OpenSpec configurado', () => {
     const dirs = OPENSPEC_TOOL_DIRECTORIES.map((tool) => tool.directory);
     expect(new Set(ids).size).toBe(ids.length);
     expect(new Set(dirs).size).toBe(dirs.length);
+  });
+
+  it('isOpenSpecConfigurableTool distingue herramientas configurables de flujos CI (6.6)', () => {
+    // Las herramientas de agentes son configurables
+    expect(isOpenSpecConfigurableTool('agents')).toBe(true);
+    expect(isOpenSpecConfigurableTool('codex')).toBe(true);
+    expect(isOpenSpecConfigurableTool('claude')).toBe(true);
+    expect(isOpenSpecConfigurableTool('antigravity')).toBe(true);
+
+    // .github (categoría 'ci') NO es configurable por OpenSpec 1.13.2
+    expect(isOpenSpecConfigurableTool('github')).toBe(false);
+
+    // Inválidos
+    expect(isOpenSpecConfigurableTool(null)).toBe(false);
+    expect(isOpenSpecConfigurableTool(undefined)).toBe(false);
+    expect(isOpenSpecConfigurableTool('')).toBe(false);
+
+    // Herramientas personalizadas no pertenecientes a la categoría 'ci'
+    expect(isOpenSpecConfigurableTool('custom-tool')).toBe(true);
   });
 });

@@ -3,6 +3,7 @@ import { existsSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import * as path from 'node:path';
 import { promisify } from 'node:util';
 import type { PackageManagerType } from '../../types/pipeline';
+import { parseSemver } from '../../lib/openspec-version';
 import { quoteWindowsCmdArg, type PathStateResult } from './openspec-engine';
 
 const execFileAsync = promisify(execFile);
@@ -221,17 +222,18 @@ export function getPackageManagerInstallArgs(
   manager: PackageManagerType,
   mode: 'local' | 'global',
   targetPackage: string = '@fission-ai/openspec@latest',
+  exact: boolean = false,
 ): string[] {
   if (mode === 'local') {
     switch (manager) {
       case 'pnpm':
-        return ['add', '-D', targetPackage];
+        return exact ? ['add', '-D', '--save-exact', targetPackage] : ['add', '-D', targetPackage];
       case 'npm':
-        return ['install', '-D', targetPackage];
+        return exact ? ['install', '-D', '--save-exact', targetPackage] : ['install', '-D', targetPackage];
       case 'yarn':
-        return ['add', '-D', targetPackage];
+        return exact ? ['add', '-D', '--exact', targetPackage] : ['add', '-D', targetPackage];
       case 'bun':
-        return ['add', '-d', targetPackage];
+        return exact ? ['add', '-d', '--exact', targetPackage] : ['add', '-d', targetPackage];
     }
   } else {
     switch (manager) {
@@ -257,13 +259,55 @@ export interface PackageManagerInstallPlan {
 }
 
 /**
+ * Determina si el package.json del repositorio fija @fission-ai/openspec con
+ * una versión exacta (sin prefijos de rango como ^ o ~).
+ */
+export function doesManifestPinOpenSpecExactly(
+  repoPath?: string | null,
+  options?: { readFile?: (p: string) => string | null },
+): boolean {
+  if (!repoPath) return false;
+  const manifestPath = path.join(repoPath, 'package.json');
+  try {
+    const read = options?.readFile ?? ((p: string) => {
+      try {
+        return readFileSync(p, 'utf8');
+      } catch {
+        return null;
+      }
+    });
+    const content = read(manifestPath);
+    if (!content) return false;
+    const parsed = JSON.parse(content) as {
+      dependencies?: Record<string, unknown>;
+      devDependencies?: Record<string, unknown>;
+    };
+    const versionSpec =
+      (typeof parsed.devDependencies?.['@fission-ai/openspec'] === 'string'
+        ? parsed.devDependencies['@fission-ai/openspec']
+        : null) ??
+      (typeof parsed.dependencies?.['@fission-ai/openspec'] === 'string'
+        ? parsed.dependencies['@fission-ai/openspec']
+        : null);
+
+    return Boolean(versionSpec && parseSemver(versionSpec) !== null);
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Resuelve el plan de instalación SIN ejecutar ninguna operación.
  * Devuelve el gestor detectado, su ruta, la ruta de Node y los comandos
  * previstos para cada modo (local / global). Es un canal de solo lectura.
  */
 export function resolvePackageManagerInstallPlan(
   repoPath?: string | null,
-  options?: { exists?: (p: string) => boolean },
+  options?: {
+    exists?: (p: string) => boolean;
+    readFile?: (p: string) => string | null;
+    targetVersion?: string;
+  },
 ): PackageManagerInstallPlan {
   const exists = options?.exists ?? existsSync;
   const hasManifest = repoPath ? exists(path.join(repoPath, 'package.json')) : false;
@@ -281,8 +325,13 @@ export function resolvePackageManagerInstallPlan(
     };
   }
 
-  const localArgs = getPackageManagerInstallArgs(pm.name, 'local');
-  const globalArgs = getPackageManagerInstallArgs(pm.name, 'global');
+  const isExactPinned = doesManifestPinOpenSpecExactly(repoPath, options);
+  const targetPackage = options?.targetVersion
+    ? `@fission-ai/openspec@${options.targetVersion}`
+    : '@fission-ai/openspec@latest';
+
+  const localArgs = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, isExactPinned);
+  const globalArgs = getPackageManagerInstallArgs(pm.name, 'global', targetPackage);
 
   const localCmd = `${pm.name} ${localArgs.join(' ')}`;
   const globalCmd = `${pm.name} ${globalArgs.join(' ')}`;

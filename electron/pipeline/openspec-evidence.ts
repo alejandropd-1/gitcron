@@ -11,6 +11,7 @@ import {
   OFFICIAL_WORKFLOW_MAP,
   OPENSPEC_TOOL_DIRECTORIES,
   getToolDef,
+  isOpenSpecConfigurableTool,
   type OpenSpecToolDef,
 } from './openspec-tooling';
 import { isContainedWithin } from '../ipc/authorized-repos';
@@ -38,6 +39,62 @@ function defaultReadFile(p: string): string {
 function defaultRealpath(p: string): string | null {
   try {
     return fs.realpathSync(p);
+  } catch {
+    return null;
+  }
+}
+
+export interface ReadSharedSkillTargetDeps {
+  lstat?: (p: string) => fs.Stats | null;
+  readFile?: (p: string) => string;
+  realpath?: (p: string) => string | null;
+  onEscape?: (realMarkerPath: string) => void;
+}
+
+/**
+ * Resuelve la herramienta dueña de la carpeta compartida `.agents/skills`
+ * a partir de la marca `.agents/skills/.openspec-target` (Decisiones 9 y 12).
+ *
+ * Aplica contención de rutas respecto a la raíz del repositorio y sólo devuelve
+ * un `toolId` si corresponde a una herramienta configurable por OpenSpec.
+ */
+export function readSharedSkillTarget(
+  repoPath: string,
+  deps: ReadSharedSkillTargetDeps = {},
+): string | null {
+  const realpathFn = deps.realpath ?? defaultRealpath;
+  const lstatFn = deps.lstat ?? defaultLstat;
+  const readFileFn = deps.readFile ?? defaultReadFile;
+
+  let canonicalRepoRoot: string | null = null;
+  try {
+    canonicalRepoRoot = realpathFn(repoPath) ?? repoPath;
+  } catch {
+    return null;
+  }
+
+  const sharedTargetMarkerPath = path.join(repoPath, '.agents', 'skills', '.openspec-target');
+  if (canonicalRepoRoot) {
+    let realMarkerPath = sharedTargetMarkerPath;
+    try {
+      realMarkerPath = realpathFn(sharedTargetMarkerPath) ?? sharedTargetMarkerPath;
+    } catch {
+      realMarkerPath = sharedTargetMarkerPath;
+    }
+    if (!isContainedWithin(canonicalRepoRoot, realMarkerPath)) {
+      deps.onEscape?.(realMarkerPath);
+      return null;
+    }
+  }
+
+  try {
+    const markerStat = lstatFn(sharedTargetMarkerPath);
+    if (!markerStat?.isFile()) return null;
+    const targetToolName = readFileFn(sharedTargetMarkerPath).trim();
+    if (!targetToolName) return null;
+    const toolDef = getToolDef(targetToolName);
+    if (!toolDef || !isOpenSpecConfigurableTool(toolDef.toolId)) return null;
+    return toolDef.toolId;
   } catch {
     return null;
   }
@@ -418,8 +475,25 @@ export function inspectInstalledEvidence(
     markersFound.push('openspec/');
   }
 
-  // Conflictos entre legacy y nuevos si ambos están presentes
-  const hasLegacy = configuredTools.includes('antigravity') || configuredTools.includes('codex');
+  // 4. Leer marca de carpeta compartida .agents/skills/.openspec-target (Decisiones 9 y 12)
+  const sharedTarget = readSharedSkillTarget(repoPath, {
+    realpath: realpathFn,
+    lstat: (p) => safeLstat(p).stat,
+    readFile: safeReadFile,
+    onEscape: (realMarkerPath) => {
+      conflictsList.push(`Symlink o junction en .agents/skills/.openspec-target apunta fuera del repositorio: ${realMarkerPath}`);
+    },
+  });
+
+  if (sharedTarget) {
+    if (!configuredTools.includes(sharedTarget)) {
+      configuredTools.push(sharedTarget);
+    }
+    targetsFound.add(sharedTarget);
+  }
+
+  // Conflictos entre legacy y nuevos si ambos están presentes (mirando origen de skills para legacy)
+  const hasLegacy = skills.some((s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent');
   const hasNew = configuredTools.includes('agents');
   if (hasLegacy && hasNew) {
     conflictsList.push('Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).');

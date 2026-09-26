@@ -84,8 +84,8 @@ const mockEngineStatus: OpenSpecEngineStatus = {
   cli: {
     installed: true,
     runtimeVersion: '1.5.0',
-    provenance: 'global',
-    displayPath: 'C:\\Users\\user\\AppData\\Roaming\\npm\\openspec.cmd',
+    provenance: 'local',
+    displayPath: 'node_modules/.bin/openspec',
     supportedRange: { min: '1.5.0', max: '1.8.0' },
     versionClass: 'supported',
     evidenceStatus: 'confirmed',
@@ -159,9 +159,25 @@ describe('OpenSpecDashboard / RepoDetailsPanel — Única fuente de verdad para 
           getEngineStatus: vi.fn().mockResolvedValue(mockEngineStatus),
           checkLatestVersion: vi.fn().mockResolvedValue(null),
           getUpdatePlan: vi.fn().mockResolvedValue(mockUpdatePlan),
+          installLocal: vi.fn().mockResolvedValue({
+            success: true,
+            engineStatus: {
+              ...mockEngineStatus,
+              cli: {
+                ...mockEngineStatus.cli,
+                runtimeVersion: '1.8.0',
+              },
+            },
+          }),
           installGlobal: vi.fn().mockResolvedValue({
             success: true,
-            engineStatus: mockEngineStatus,
+            engineStatus: {
+              ...mockEngineStatus,
+              cli: {
+                ...mockEngineStatus.cli,
+                runtimeVersion: '1.8.0',
+              },
+            },
           }),
           runUpdate: vi.fn().mockResolvedValue({
             success: true,

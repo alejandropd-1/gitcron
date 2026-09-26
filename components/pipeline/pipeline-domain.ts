@@ -1,4 +1,5 @@
 import type {
+  OpenSpecCliProvenance,
   OpenSpecEngineStatus,
   OpenSpecToolEvidence,
   PipelineDataProvenance,
@@ -8,6 +9,7 @@ import {
   parseSemver,
   compareSemver,
 } from '@/lib/openspec-version';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 
 
 export type DecisionOption = {
@@ -365,15 +367,75 @@ export function assessOpenSpecEngineAfterInstall(
   return { verdict: 'ok', reasonKeys: [] };
 }
 
+export type OpenSpecEngineTargetVerdict = 'ok' | 'broken' | 'unverified' | 'version-mismatch';
+
+export interface OpenSpecEngineTargetAssessment {
+  verdict: OpenSpecEngineTargetVerdict;
+  reasonKeys: string[];
+  requested?: string;
+  responded?: string;
+  provenance?: OpenSpecCliProvenance;
+}
+
+/**
+ * Evalúa el estado del motor OpenSpec tras una instalación o actualización comparando
+ * la versión pedida contra la versión que efectivamente responde el motor en el disco.
+ *
+ * Devuelve:
+ * - 'ok' si pasan las comprobaciones de assessOpenSpecEngineAfterInstall y la versión
+ *   que responde coincide semánticamente con la versión pedida.
+ * - 'version-mismatch' si las comprobaciones pasan pero responde una versión distinta
+ *   (e.g., OdontoPau: pedida 1.13.2, responde 1.5.0 local).
+ * - 'broken' si el motor no responde o falló la verificación (conserva reasonKeys).
+ * - 'unverified' si el estado es nulo o indefinido.
+ */
+export function assessOpenSpecEngineTargetVersion(
+  status: OpenSpecEngineStatus | null | undefined,
+  targetVersion: string,
+): OpenSpecEngineTargetAssessment {
+  if (!status) {
+    return { verdict: 'unverified', reasonKeys: [] };
+  }
+
+  const base = assessOpenSpecEngineAfterInstall(status);
+  if (base.verdict === 'broken') {
+    return { verdict: 'broken', reasonKeys: base.reasonKeys };
+  }
+  if (base.verdict === 'unverified') {
+    return { verdict: 'unverified', reasonKeys: [] };
+  }
+
+  const responded = status.cli?.runtimeVersion ?? '';
+  const cleanTarget = targetVersion.trim().replace(/^v/i, '');
+  const cleanResponded = responded.trim().replace(/^v/i, '');
+  const parsedTarget = parseSemver(cleanTarget);
+  const parsedResponded = parseSemver(cleanResponded);
+
+  if (parsedTarget && parsedResponded && compareSemver(parsedTarget, parsedResponded) === 0) {
+    return { verdict: 'ok', reasonKeys: [] };
+  }
+
+  return {
+    verdict: 'version-mismatch',
+    reasonKeys: [],
+    requested: targetVersion,
+    responded,
+    provenance: status.cli?.provenance ?? 'unknown',
+  };
+}
+
 /**
  * Evalúa si las herramientas de OpenSpec requieren atención (herramientas sin configurar
  * o integración ausente).
  */
 export function hasOpenSpecToolsAttention(
-  tools: { configured?: boolean }[] | null | undefined,
+  tools: { toolId?: string; configured?: boolean }[] | null | undefined,
   openSpecPresent: boolean | undefined,
 ): boolean {
-  const pending = (tools ?? []).filter((tool) => !tool.configured);
+  const pending = (tools ?? []).filter((tool) => {
+    if (tool.toolId && !isOpenSpecConfigurableTool(tool.toolId)) return false;
+    return !tool.configured;
+  });
   return Boolean(openSpecPresent !== undefined && (!openSpecPresent || pending.length > 0));
 }
 

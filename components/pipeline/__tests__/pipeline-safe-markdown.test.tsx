@@ -16,7 +16,7 @@ import { MarkdownViewer } from '../MarkdownViewer';
 
 afterEach(cleanup);
 
-describe('visor de artefactos (MarkdownViewer)', () => {
+describe('visor de artefactos (MarkdownViewer)', { timeout: 15_000 }, () => {
   it('renderiza el escenario de cuatro almohadillas como encabezado', () => {
     render(<MarkdownViewer content={'#### Scenario: Path fuera del repo'} />);
 

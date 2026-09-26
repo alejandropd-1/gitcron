@@ -12,6 +12,7 @@ import type {
   OpenSpecInstalledSkill,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 
 export interface CoexistenceDiagnostic {
   legacySkills: OpenSpecInstalledSkill[];
@@ -90,7 +91,17 @@ export interface UpdateMatrixInputs {
   freshnessState?: OpenSpecEngineStatus['freshnessState'];
   integrationState?: OpenSpecEngineStatus['integrationState'];
   repoState?: OpenSpecEngineStatus['repoState'];
+  installedIntegration?: OpenSpecEngineStatus['installedIntegration'];
 }
+
+export type UpdateBlockReason =
+  | 'cli-not-installed'
+  | 'version-unknown'
+  | 'legacy-coexistence'
+  | 'unconfigured-tools'
+  | 'customized'
+  | 'evidence-unknown'
+  | 'unclassified';
 
 /**
  * Deriva la acción requerida de actualización evaluando de forma independiente
@@ -140,11 +151,11 @@ export function deriveUpdateMatrixAction(
 
 /**
  * Deriva el motivo del bloqueo cuando la acción de actualización es 'blocked'.
- * Devuelve 'cli-not-installed', 'version-unknown' o null cuando no corresponde a estas causas.
+ * Devuelve un código tipado o null cuando la operación no está bloqueada.
  */
 export function deriveUpdateBlockReason(
   inputs: UpdateMatrixInputs | OpenSpecEngineStatus | null | undefined,
-): 'cli-not-installed' | 'version-unknown' | null {
+): UpdateBlockReason | null {
   if (!inputs) return 'cli-not-installed';
 
   const isCliInstalled = ('cli' in inputs && inputs.cli) ? inputs.cli.installed : true;
@@ -160,7 +171,70 @@ export function deriveUpdateBlockReason(
     return 'version-unknown';
   }
 
-  return null;
+  const installed = ('installedIntegration' in inputs && inputs.installedIntegration)
+    ? inputs.installedIntegration
+    : (inputs as UpdateMatrixInputs).installedIntegration;
+
+  const hasLegacySkills = installed?.skills?.some(
+    (s) => s.origin === 'legacy-codex' || s.origin === 'legacy-agent',
+  );
+
+  if (hasLegacySkills) {
+    return 'legacy-coexistence';
+  }
+
+  const configured = installed?.configuredTools ?? installed?.tools ?? [];
+  const hasUnconfiguredTools = installed?.presentToolDirectories?.some(
+    (tool) => isOpenSpecConfigurableTool(tool) && !configured.includes(tool),
+  );
+
+  if (hasUnconfiguredTools) {
+    return 'unconfigured-tools';
+  }
+
+  const action = deriveUpdateMatrixAction(inputs);
+  if (action !== 'blocked') {
+    return null;
+  }
+
+  const integrationState = inputs.integrationState;
+
+  if (integrationState === 'custom') {
+    return 'customized';
+  }
+
+  if (integrationState === 'unknown' || installed?.evidenceStatus === 'unknown' || repoState === 'unknown') {
+    return 'evidence-unknown';
+  }
+
+  return 'unclassified';
+}
+
+/**
+ * Devuelve la clave de i18n para el motivo por el cual la actualización está detenida
+ * o la integración no quedó al día.
+ */
+export function getUpdateBlockReasonKey(
+  input: UpdateBlockReason | UpdateMatrixInputs | OpenSpecEngineStatus | null | undefined,
+): string {
+  const reason = typeof input === 'string' ? input : deriveUpdateBlockReason(input);
+  switch (reason) {
+    case 'cli-not-installed':
+      return 'pipeline.openspec.engine.matrix.blockedCliNotInstalled';
+    case 'version-unknown':
+      return 'pipeline.openspec.engine.matrix.blockedVersionUnknown';
+    case 'legacy-coexistence':
+      return 'pipeline.openspec.engine.matrix.blockedLegacyCoexistence';
+    case 'unconfigured-tools':
+      return 'pipeline.openspec.engine.summary.reasonUnconfiguredTools';
+    case 'customized':
+      return 'pipeline.openspec.engine.matrix.blockedCustomized';
+    case 'evidence-unknown':
+      return 'pipeline.openspec.engine.matrix.blockedEvidenceUnknown';
+    case 'unclassified':
+    default:
+      return 'pipeline.openspec.engine.matrix.blockedUnclassified';
+  }
 }
 
 /**

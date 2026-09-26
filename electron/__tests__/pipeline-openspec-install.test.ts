@@ -4,8 +4,10 @@ import * as path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   detectRepoPackageManager,
+  doesManifestPinOpenSpecExactly,
   getPackageManagerInstallArgs,
   resolvePackageManager,
+  resolvePackageManagerInstallPlan,
   resolveSystemExecutable,
   type ResolvedPackageManager,
 } from '../pipeline/package-manager';
@@ -760,6 +762,73 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
         'IPC Security Error: Unknown payload property "maliciousKey"',
       );
     }, 30_000);
+
+    it('rechaza un targetVersion inválido', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      await expect(
+        planHandler!({}, { repoPath: tempDir, targetVersion: '1.13.0 & echo MAL' })
+      ).rejects.toThrow('Versión de destino inválida: "1.13.0 & echo MAL"');
+    }, 30_000);
+
+    it('acepta un targetVersion válido y genera el comando con esa versión', async () => {
+      const handlers = new Map<string, Function>();
+      const mockIpc = {
+        handle: (channel: string, listener: Function) => handlers.set(channel, listener),
+      };
+
+      registerOpenSpecIpcHandlers({
+        ipcMain: mockIpc as any,
+        getUserDataDir: () => null,
+      });
+
+      const planHandler = handlers.get('pipeline:openspec:install-plan');
+      expect(planHandler).toBeDefined();
+
+      authorizedRepoStore.authorizeRepo(tempDir);
+
+      const plan = await planHandler!({}, { repoPath: tempDir, targetVersion: '1.13.0' });
+      expect(plan.globalCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(plan.globalCommand).not.toContain('@latest');
+    }, 30_000);
+
+    it('con package.json "^1.5.0" y targetVersion, localCommand no lleva --save-exact; con "1.5.0", sí', async () => {
+      // 1. Con rango ^1.5.0
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@fission-ai/openspec': '^1.5.0' } }),
+      );
+      expect(doesManifestPinOpenSpecExactly(tempDir)).toBe(false);
+      const planRange = resolvePackageManagerInstallPlan(tempDir, { targetVersion: '1.13.0' });
+      expect(planRange.localCommand).toBeTruthy();
+      expect(planRange.localCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(planRange.localCommand).not.toContain('--save-exact');
+      expect(planRange.localCommand).not.toContain('--exact');
+
+      // 2. Con versión exacta 1.5.0
+      fs.writeFileSync(
+        path.join(tempDir, 'package.json'),
+        JSON.stringify({ devDependencies: { '@fission-ai/openspec': '1.5.0' } }),
+      );
+      expect(doesManifestPinOpenSpecExactly(tempDir)).toBe(true);
+      const planExact = resolvePackageManagerInstallPlan(tempDir, { targetVersion: '1.13.0' });
+      expect(planExact.localCommand).toBeTruthy();
+      expect(planExact.localCommand).toContain('@fission-ai/openspec@1.13.0');
+      expect(planExact.localCommand).toMatch(/--save-exact|--exact/);
+    });
   });
 
   describe('pipeline:openspec:set-profile (IPC Channel)', () => {
@@ -829,6 +898,213 @@ describe('Instalación del Motor OpenSpec (Tareas 6.1 a 6.5)', () => {
       await expect(setProfileHandler!({}, { profile: 'custom', extraKey: 'bad' })).rejects.toThrow(
         'IPC Security Error: Unknown payload property "extraKey"',
       );
+    });
+  });
+
+  // =========================================================================
+  // Tarea 1.1: Indicador de exactitud en getPackageManagerInstallArgs
+  // =========================================================================
+  describe('Tarea 1.1: Indicador de exactitud en getPackageManagerInstallArgs', () => {
+    it('pnpm: local sin exact -> [add, -D], con exact -> [add, -D, --save-exact], global ignora exact', () => {
+      expect(getPackageManagerInstallArgs('pnpm', 'local', '@fission-ai/openspec@1.13.2')).toEqual([
+        'add',
+        '-D',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('pnpm', 'local', '@fission-ai/openspec@1.13.2', false)).toEqual([
+        'add',
+        '-D',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('pnpm', 'local', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'add',
+        '-D',
+        '--save-exact',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('pnpm', 'global', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'add',
+        '-g',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('pnpm', 'global', '@fission-ai/openspec@1.13.2', false)).toEqual([
+        'add',
+        '-g',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+    });
+
+    it('npm: local sin exact -> [install, -D], con exact -> [install, -D, --save-exact], global ignora exact', () => {
+      expect(getPackageManagerInstallArgs('npm', 'local', '@fission-ai/openspec@1.13.2')).toEqual([
+        'install',
+        '-D',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('npm', 'local', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'install',
+        '-D',
+        '--save-exact',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('npm', 'global', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'install',
+        '-g',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+    });
+
+    it('yarn: local sin exact -> [add, -D], con exact -> [add, -D, --exact], global ignora exact', () => {
+      expect(getPackageManagerInstallArgs('yarn', 'local', '@fission-ai/openspec@1.13.2')).toEqual([
+        'add',
+        '-D',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('yarn', 'local', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'add',
+        '-D',
+        '--exact',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('yarn', 'global', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'global',
+        'add',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+    });
+
+    it('bun: local sin exact -> [add, -d], con exact -> [add, -d, --exact], global ignora exact', () => {
+      expect(getPackageManagerInstallArgs('bun', 'local', '@fission-ai/openspec@1.13.2')).toEqual([
+        'add',
+        '-d',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('bun', 'local', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'add',
+        '-d',
+        '--exact',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+      expect(getPackageManagerInstallArgs('bun', 'global', '@fission-ai/openspec@1.13.2', true)).toEqual([
+        'add',
+        '-g',
+        '@fission-ai/openspec@1.13.2',
+      ]);
+    });
+  });
+
+  // =========================================================================
+  // Tarea 1.2: Preservación de fijación exacta en installOpenSpecLocal
+  // =========================================================================
+  describe('Tarea 1.2: Preservación de fijación exacta en installOpenSpecLocal', () => {
+    const fakePm = (name: 'pnpm' | 'npm' | 'yarn' | 'bun'): ResolvedPackageManager => ({
+      name,
+      executablePath: `/bin/${name}`,
+      command: name,
+      shell: false,
+      displayPath: `/bin/${name}`,
+    });
+
+    it('exacta 1.5.0 en devDependencies -> comando con --save-exact', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), '{}');
+      const runnerMock = vi.fn().mockResolvedValue({ stdout: 'Done', stderr: '' });
+
+      const result = await installOpenSpecLocal(tempDir, {
+        resolvePackageManager: () => fakePm('pnpm'),
+        runPackageManager: runnerMock,
+        readFile: () => JSON.stringify({ devDependencies: { '@fission-ai/openspec': '1.5.0' } }),
+        targetPackage: '@fission-ai/openspec@1.13.2',
+        git: { status: vi.fn().mockResolvedValue({ files: [] }) } as any,
+        recalculateStatus: vi.fn().mockResolvedValue(null),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.commandExecuted).toBe('pnpm add -D --save-exact @fission-ai/openspec@1.13.2');
+      expect(runnerMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'pnpm' }),
+        ['add', '-D', '--save-exact', '@fission-ai/openspec@1.13.2'],
+        expect.any(Object),
+      );
+    });
+
+    it('exacta 1.5.0 en dependencies -> comando con --save-exact', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), '{}');
+      const runnerMock = vi.fn().mockResolvedValue({ stdout: 'Done', stderr: '' });
+
+      const result = await installOpenSpecLocal(tempDir, {
+        resolvePackageManager: () => fakePm('npm'),
+        runPackageManager: runnerMock,
+        readFile: () => JSON.stringify({ dependencies: { '@fission-ai/openspec': '1.5.0' } }),
+        targetPackage: '@fission-ai/openspec@1.13.2',
+        git: { status: vi.fn().mockResolvedValue({ files: [] }) } as any,
+        recalculateStatus: vi.fn().mockResolvedValue(null),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.commandExecuted).toBe('npm install -D --save-exact @fission-ai/openspec@1.13.2');
+    });
+
+    it('rango ^1.5.0 -> sin indicador', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), '{}');
+      const runnerMock = vi.fn().mockResolvedValue({ stdout: 'Done', stderr: '' });
+
+      const result = await installOpenSpecLocal(tempDir, {
+        resolvePackageManager: () => fakePm('pnpm'),
+        runPackageManager: runnerMock,
+        readFile: () => JSON.stringify({ devDependencies: { '@fission-ai/openspec': '^1.5.0' } }),
+        targetPackage: '@fission-ai/openspec@1.13.2',
+        git: { status: vi.fn().mockResolvedValue({ files: [] }) } as any,
+        recalculateStatus: vi.fn().mockResolvedValue(null),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.commandExecuted).toBe('pnpm add -D @fission-ai/openspec@1.13.2');
+      expect(runnerMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'pnpm' }),
+        ['add', '-D', '@fission-ai/openspec@1.13.2'],
+        expect.any(Object),
+      );
+    });
+
+    it('sin entrada -> sin indicador', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), '{}');
+      const runnerMock = vi.fn().mockResolvedValue({ stdout: 'Done', stderr: '' });
+
+      const result = await installOpenSpecLocal(tempDir, {
+        resolvePackageManager: () => fakePm('pnpm'),
+        runPackageManager: runnerMock,
+        readFile: () => JSON.stringify({ devDependencies: { react: '^19.0.0' } }),
+        targetPackage: '@fission-ai/openspec@1.13.2',
+        git: { status: vi.fn().mockResolvedValue({ files: [] }) } as any,
+        recalculateStatus: vi.fn().mockResolvedValue(null),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.commandExecuted).toBe('pnpm add -D @fission-ai/openspec@1.13.2');
+      expect(runnerMock).toHaveBeenCalledWith(
+        expect.objectContaining({ name: 'pnpm' }),
+        ['add', '-D', '@fission-ai/openspec@1.13.2'],
+        expect.any(Object),
+      );
+    });
+
+    it('package.json ilegible -> sin indicador y la instalación sigue', async () => {
+      fs.writeFileSync(path.join(tempDir, 'package.json'), 'not-valid-json');
+      const runnerMock = vi.fn().mockResolvedValue({ stdout: 'Done', stderr: '' });
+
+      const result = await installOpenSpecLocal(tempDir, {
+        resolvePackageManager: () => fakePm('pnpm'),
+        runPackageManager: runnerMock,
+        readFile: () => {
+          throw new Error('EACCES: permission denied');
+        },
+        targetPackage: '@fission-ai/openspec@1.13.2',
+        git: { status: vi.fn().mockResolvedValue({ files: [] }) } as any,
+        recalculateStatus: vi.fn().mockResolvedValue(null),
+      });
+
+      expect(result.success).toBe(true);
+      expect(result.commandExecuted).toBe('pnpm add -D @fission-ai/openspec@1.13.2');
+      expect(runnerMock).toHaveBeenCalled();
     });
   });
 });

@@ -1,9 +1,10 @@
 // @vitest-environment jsdom
-import { cleanup, fireEvent, render, screen, within } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import React from 'react';
 import { OpenSpecUpdateReview } from '../OpenSpecUpdateReview';
-import type { OpenSpecEngineStatus } from '@/types/pipeline';
+import type { OpenSpecEngineStatus, OpenSpecUpdatePlan } from '@/types/pipeline';
+import { usePipelineStore } from '@/lib/pipeline-store';
 
 describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna central)', () => {
   const mockStatus: OpenSpecEngineStatus = {
@@ -354,7 +355,12 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     expect(runUpdateMock).toHaveBeenCalledTimes(1);
   });
 
-  it('muestra la opción condicional de --force cuando hay skills legacy', () => {
+  it('con copias viejas no aparece «--force» y con getLegacySkillsPlan pendiente no hay botón de retiro y muestra comprobando', () => {
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: vi.fn().mockReturnValue(new Promise(() => {})),
+      },
+    };
     render(
       <OpenSpecUpdateReview
         repoPath="C:\\repo"
@@ -365,8 +371,273 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
       />,
     );
 
-    expect(screen.getByText(/Limpieza de configuración legacy \(--force\)/i)).toBeTruthy();
+    expect(screen.queryByText(/--force/i)).toBeNull();
+    expect(screen.queryByText(/Limpieza de configuración legacy/i)).toBeNull();
+    expect(screen.getByText('Copias viejas de las instrucciones')).toBeTruthy();
     expect(screen.getByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeTruthy();
+    expect(screen.getByText(/Comprobando si se pueden recuperar con Git…/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retirar copias viejas' })).toBeNull();
+  });
+
+  it('con fallo en getLegacySkillsPlan avisa que no se pudo comprobar y no ofrece el botón de retiro', async () => {
+    const getLegacySkillsPlanMock = vi.fn().mockRejectedValue(new Error('Fallo de lectura'));
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: getLegacySkillsPlanMock,
+      },
+    };
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={mockStatus}
+        currentBranch="change/test"
+        isClean={true}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByText(/No se pudo comprobar si las copias se pueden recuperar con Git/i)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Retirar copias viejas' })).toBeNull();
+  });
+
+  it('con getLegacySkillsPlan resuelto muestra las acciones del plan y ofrece el botón «Retirar copias viejas»', async () => {
+    const getLegacySkillsPlanMock = vi.fn().mockResolvedValue({
+      items: [
+        {
+          name: 'openspec-propose',
+          path: 'C:\\repo\\.codex\\skills\\openspec-propose',
+          origin: 'legacy-codex',
+          removable: true,
+        },
+        {
+          name: 'openspec-custom',
+          path: 'C:\\repo\\.codex\\skills\\openspec-custom',
+          origin: 'legacy-codex',
+          removable: false,
+          reason: 'untracked',
+        },
+      ],
+    });
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: getLegacySkillsPlanMock,
+      },
+    };
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={mockStatus}
+        currentBranch="change/test"
+        isClean={true}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(await screen.findByRole('button', { name: 'Retirar copias viejas' })).toBeTruthy();
+    expect(screen.getByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeTruthy();
+    expect(screen.getByText('C:\\repo\\.codex\\skills\\openspec-custom')).toBeTruthy();
+    expect(screen.getByText(/No está seguida en Git/i)).toBeTruthy();
+  });
+
+  it('flujo de retiro de copias viejas: confirmar llama al canal una vez, muestra lo borrado y el estado recalculado; cancelar llama cero veces', async () => {
+    const getLegacySkillsPlanMock = vi.fn().mockResolvedValue({
+      items: [
+        {
+          name: 'openspec-propose',
+          path: 'C:\\repo\\.codex\\skills\\openspec-propose',
+          origin: 'legacy-codex',
+          removable: true,
+        },
+      ],
+    });
+    const removeLegacySkillsMock = vi.fn().mockResolvedValue({
+      removed: ['C:\\repo\\.codex\\skills\\openspec-propose'],
+      skipped: [],
+      engineStatus: {
+        ...mockStatus,
+        installedIntegration: {
+          ...mockStatus.installedIntegration,
+          skills: [],
+          legacy: [],
+        },
+        integrationState: 'up-to-date',
+      },
+    });
+
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: getLegacySkillsPlanMock,
+        removeLegacySkills: removeLegacySkillsMock,
+      },
+    };
+
+    const repoPath = 'C:/repo';
+    render(
+      <OpenSpecUpdateReview
+        repoPath={repoPath}
+        status={mockStatus}
+        currentBranch="change/test"
+        isClean={true}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // 1. Abrir diálogo de confirmación
+    const removeBtn = await screen.findByRole('button', { name: 'Retirar copias viejas' });
+    await waitFor(() => {
+      expect(removeBtn.hasAttribute('disabled')).toBe(false);
+    });
+    fireEvent.click(removeBtn);
+
+    expect(screen.getByText('Confirmar retiro de copias viejas')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Confirmar retiro' })).toBeTruthy();
+    const cancelBtn = screen.getByRole('button', { name: 'Cancelar' });
+    expect(cancelBtn).toBeTruthy();
+
+    // 2. Cancelar retiro: no llama a removeLegacySkills y cierra la confirmación
+    fireEvent.click(cancelBtn);
+    expect(removeLegacySkillsMock).not.toHaveBeenCalled();
+    expect(screen.queryByText('Confirmar retiro de copias viejas')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Retirar copias viejas' })).toBeTruthy();
+
+    // 3. Volver a abrir y confirmar retiro
+    fireEvent.click(screen.getByRole('button', { name: 'Retirar copias viejas' }));
+    await React.act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }));
+    });
+
+    // 4. Verifica llamada única al canal con el repoPath
+    expect(removeLegacySkillsMock).toHaveBeenCalledTimes(1);
+    expect(removeLegacySkillsMock).toHaveBeenCalledWith(repoPath);
+
+    // 5. Muestra la línea reducida y no la lista de archivos inicialmente (6.8)
+    expect(screen.getByText(/Se retiraron 1 copias viejas; quedan como borradas sin confirmar en Git/i)).toBeTruthy();
+    expect(screen.queryByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeNull();
+
+    // 6. Al tocar «Ver lista» se muestra la lista de archivos borrados
+    const viewListBtn = screen.getByRole('button', { name: 'Ver lista' });
+    fireEvent.click(viewListBtn);
+    expect(screen.getByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Ocultar lista' })).toBeTruthy();
+
+    // 7. Al tocar «Ocultar lista» se vuelve a ocultar
+    fireEvent.click(screen.getByRole('button', { name: 'Ocultar lista' }));
+    expect(screen.queryByText('C:\\repo\\.codex\\skills\\openspec-propose')).toBeNull();
+    expect(screen.getByRole('button', { name: 'Ver lista' })).toBeTruthy();
+
+    // 8. Al tocar «Cerrar» se quita la sección completamente
+    const legacySection = screen.getByRole('region', { name: 'Copias viejas de las instrucciones' });
+    const closeBtn = within(legacySection).getByRole('button', { name: 'Cerrar' });
+    fireEvent.click(closeBtn);
+    expect(screen.queryByRole('region', { name: 'Copias viejas de las instrucciones' })).toBeNull();
+  });
+
+  it('el retiro que falla muestra el error y deja el botón disponible para reintentar', async () => {
+    const getLegacySkillsPlanMock = vi.fn().mockResolvedValue({
+      items: [
+        {
+          name: 'openspec-propose',
+          path: 'C:\\repo\\.codex\\skills\\openspec-propose',
+          origin: 'legacy-codex',
+          removable: true,
+        },
+      ],
+    });
+    const removeLegacySkillsMock = vi.fn().mockRejectedValue(new Error('Permiso denegado'));
+
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: getLegacySkillsPlanMock,
+        removeLegacySkills: removeLegacySkillsMock,
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={mockStatus}
+        currentBranch="change/test"
+        isClean={true}
+        onBack={vi.fn()}
+      />,
+    );
+
+    const removeBtn = await screen.findByRole('button', { name: 'Retirar copias viejas' });
+    fireEvent.click(removeBtn);
+
+    const confirmBtn = screen.getByRole('button', { name: 'Confirmar retiro' });
+    await React.act(async () => {
+      fireEvent.click(confirmBtn);
+    });
+
+    expect(screen.getByText(/Permiso denegado/i)).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Retirar copias viejas' })).toBeTruthy();
+  });
+
+  it('con updatePlan "blocked" y un retiro cuyo engineStatus queda al día, la cabecera deja de decir «detenida» y notifyEngineChanged se llamó una vez', async () => {
+    const notifySpy = vi.spyOn(usePipelineStore.getState(), 'notifyEngineChanged');
+    const getLegacySkillsPlanMock = vi.fn().mockResolvedValue({
+      items: [
+        {
+          name: 'openspec-propose',
+          path: 'C:\\repo\\.codex\\skills\\openspec-propose',
+          origin: 'legacy-codex',
+          removable: true,
+        },
+      ],
+    });
+    const removeLegacySkillsMock = vi.fn().mockResolvedValue({
+      removed: ['C:\\repo\\.codex\\skills\\openspec-propose'],
+      skipped: [],
+      engineStatus: {
+        ...mockStatus,
+        installedIntegration: {
+          ...mockStatus.installedIntegration,
+          skills: [],
+          legacy: [],
+        },
+        integrationState: 'up-to-date',
+      },
+    });
+
+    (window as any).api = {
+      pipelineOpenSpec: {
+        getLegacySkillsPlan: getLegacySkillsPlanMock,
+        removeLegacySkills: removeLegacySkillsMock,
+      },
+    };
+
+    const blockedPlan = {
+      repoPath: 'C:\\repo',
+      requiredAction: 'blocked',
+      reason: 'Hay copias viejas',
+      canExecute: false,
+    } as unknown as OpenSpecUpdatePlan;
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:\\repo"
+        status={mockStatus}
+        updatePlan={blockedPlan}
+        currentBranch="change/test"
+        isClean={true}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(screen.getByText(/detenida/i)).toBeTruthy();
+
+    const removeBtn = await screen.findByRole('button', { name: 'Retirar copias viejas' });
+    fireEvent.click(removeBtn);
+
+    await React.act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'Confirmar retiro' }));
+    });
+
+    expect(screen.queryByText(/detenida/i)).toBeNull();
+    expect(screen.getByText('Al día')).toBeTruthy();
+    expect(notifySpy).toHaveBeenCalledTimes(1);
+    notifySpy.mockRestore();
   });
 
   const statusWithOlderEngine: OpenSpecEngineStatus = {
@@ -477,8 +748,12 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     fireEvent.click(updateBtn);
 
+    const confirmGlobalBtn = await screen.findByRole('button', { name: /Confirmar instalación global/i });
+    fireEvent.click(confirmGlobalBtn);
+
     await screen.findByText(/Motor v1\.9\.0 instalado y respondiendo\./i);
     expect(installGlobalMock).toHaveBeenCalledTimes(1);
+    expect(installGlobalMock).toHaveBeenCalledWith({ repoPath: 'C:\\\\repo', targetVersion: '1.9.0' });
   });
 
   it('con CLI no instalado, el motivo de bloqueo explica la causa real y no contiene POC', () => {
@@ -559,6 +834,10 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
           'b.md',
         ],
         errors: [],
+        engineStatus: {
+          cli: { installed: true, runtimeVersion: '1.9.0', provenance: 'global', versionClass: 'supported' },
+          integrationState: 'up-to-date',
+        },
       });
     });
 
@@ -657,24 +936,22 @@ describe('OpenSpecUpdateReview (Fase 6: Revisión sin mutación en columna centr
     ).toBeTruthy();
   });
 
-  it('con action "blocked" el botón «Actualizar» está deshabilitado y se ve el motivo', () => {
+  it('con action "blocked" el botón «Actualizar» está deshabilitado y se ve el motivo derivado del estado', () => {
+    const blockedStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      integrationState: 'conflicted',
+    };
     render(
       <OpenSpecUpdateReview
         repoPath="C:/repo"
-        status={mockStatus}
-        updatePlan={{
-          requiredAction: 'blocked',
-          reason: 'Bloqueado por conflicto grave',
-          items: [],
-          blockers: ['conflict'],
-        } as any}
+        status={blockedStatus}
         onBack={vi.fn()}
       />,
     );
 
     const updateBtn = screen.getByRole('button', { name: /^Actualizar$/i });
     expect(updateBtn.hasAttribute('disabled')).toBe(true);
-    expect(screen.getByText(/Bloqueado por conflicto grave/i)).toBeTruthy();
+    expect(screen.getByText(/Conviven copias viejas de las instrucciones con las nuevas/i)).toBeTruthy();
   });
 
   it('alterna el plegable «Desde la terminal» actualizando aria-expanded', () => {
@@ -1060,10 +1337,100 @@ Archive and the delta parser stop quietly changing or dropping what you wrote, a
     );
 
     expect(
-      screen.getByText('Va a: actualizar el motor en toda la máquina a v1.13.1')
-    ).toBeTruthy();
-    expect(
       screen.queryByText(/actualizar la integración de este repositorio/i)
     ).toBeNull();
+  });
+
+  it('6.1: OdontoPau con copias viejas muestra el motivo real de convivencia legacy sin mencionar POC', () => {
+    const odontoPauStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        runtimeVersion: '1.13.2',
+        provenance: 'local',
+        versionClass: 'supported',
+      },
+      repoState: 'initialized',
+      integrationState: 'conflicted',
+      installedIntegration: {
+        skills: [
+          { name: 'openspec-explore', path: 'C:/repo/.codex/skills/openspec-explore', origin: 'legacy-codex', isOfficial: true },
+          { name: 'openspec-apply-change', path: 'C:/repo/.agents/skills/openspec-apply-change', origin: 'new-agents', isOfficial: true },
+        ],
+        generatedBy: '1.5.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: ['agents', 'codex'],
+        targets: ['agents', 'codex'],
+        configuredTools: ['agents', 'codex'],
+        presentToolDirectories: ['agents', 'codex'],
+        configuredAgentsCount: 2,
+        totalPresentAgentsCount: 2,
+        conflicts: ['Coexistencia de configuración legacy (.codex/.agent) y nueva (.agents).'],
+        installedWorkflowsByTarget: {},
+        missing: [],
+        legacy: ['codex'],
+        customized: [],
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={odontoPauStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    // Muestra el motivo real en criollo
+    expect(
+      screen.getByText(/Conviven copias viejas de las instrucciones con las nuevas/i)
+    ).toBeTruthy();
+    // No debe contener «POC» en ningún lugar
+    expect(screen.queryByText(/POC/i)).toBeNull();
+  });
+
+  it('6.1: un estado bloqueado no clasificado muestra el texto de causa no determinada sin texto de POC', () => {
+    const unclassifiedStatus: OpenSpecEngineStatus = {
+      ...mockStatus,
+      cli: {
+        ...mockStatus.cli!,
+        versionClass: 'supported',
+      },
+      repoState: 'initialized',
+      integrationState: 'conflicted',
+      installedIntegration: {
+        skills: [],
+        generatedBy: '1.14.0',
+        markersFound: [],
+        outputInventory: [],
+        evidenceStatus: 'confirmed',
+        tools: [],
+        targets: [],
+        configuredTools: [],
+        presentToolDirectories: [],
+        configuredAgentsCount: 0,
+        totalPresentAgentsCount: 0,
+        conflicts: ['Otro conflicto'],
+        installedWorkflowsByTarget: {},
+        missing: [],
+        legacy: [],
+        customized: [],
+      },
+    };
+
+    render(
+      <OpenSpecUpdateReview
+        repoPath="C:/repo"
+        status={unclassifiedStatus}
+        onBack={vi.fn()}
+      />,
+    );
+
+    expect(
+      screen.getByText(/No se pudo determinar la causa de la detención/i)
+    ).toBeTruthy();
+    expect(screen.queryByText(/POC/i)).toBeNull();
   });
 });

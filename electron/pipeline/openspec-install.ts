@@ -1,4 +1,4 @@
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import * as path from 'node:path';
 import { simpleGit, type SimpleGit } from 'simple-git';
 import type {
@@ -7,6 +7,7 @@ import type {
   PackageManagerType,
 } from '../../types/pipeline';
 import {
+  doesManifestPinOpenSpecExactly,
   getPackageManagerInstallArgs,
   resolvePackageManager,
   resolveSystemExecutable,
@@ -163,7 +164,10 @@ export async function installOpenSpecLocal(
     };
   }
 
-  const args = getPackageManagerInstallArgs(pm.name, 'local', targetPackage);
+  // Lectura del package.json para determinar si se debe conservar la fijación exacta
+  const exact = doesManifestPinOpenSpecExactly(repoPath, options);
+
+  const args = getPackageManagerInstallArgs(pm.name, 'local', targetPackage, exact);
   const commandExecuted = `${pm.name} ${args.join(' ')}`;
 
   // 5. Captura del estado del working tree de Git antes de ejecutar

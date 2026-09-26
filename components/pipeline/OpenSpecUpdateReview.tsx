@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   Check,
@@ -13,6 +13,8 @@ import { useT } from '@/hooks/use-translation';
 import type {
   OpenSpecEngineStatus,
   OpenSpecInstallPlan,
+  OpenSpecLegacySkillsPlan,
+  OpenSpecRemoveLegacySkillsResult,
   OpenSpecRunUpdateResult,
   OpenSpecUpdatePlan,
 } from '@/types/pipeline';
@@ -21,6 +23,7 @@ import {
   deriveOfficialCommand,
   deriveUpdateBlockReason,
   deriveUpdateMatrixAction,
+  getUpdateBlockReasonKey,
 } from '@/lib/openspec-update-guide';
 import { OpenSpecEngineCard } from './OpenSpecEngineCard';
 import { OpenSpecAgentsBlock } from './OpenSpecAgentsBlock';
@@ -29,6 +32,7 @@ import { OpenSpecToolList } from './OpenSpecReadiness';
 import { OpenSpecUpdateRunner } from './OpenSpecUpdateRunner';
 import { OpenSpecReleaseNotes } from './OpenSpecReleaseNotes';
 import { getOpenSpecEngineUpgrade } from './pipeline-domain';
+import { isOpenSpecConfigurableTool } from '@/electron/pipeline/openspec-tooling';
 import type { PipelineSnapshot } from './pipeline-view-state';
 import { useOpenSpecInit } from '@/hooks/use-openspec-init';
 import { useOpenSpecVersionAnalysis } from '@/hooks/use-openspec-version-analysis';
@@ -71,15 +75,26 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const openSpecPresent = snapshot?.openSpec?.openSpecPresent ?? (status?.repoState === 'initialized');
   const [copiedCommand, setCopiedCommand] = useState(false);
   const [copiedHostCmd, setCopiedHostCmd] = useState(false);
-  const [forceConfirmed, setForceConfirmed] = useState(false);
   const [showTerminal, setShowTerminal] = useState(false);
   const [showTechnicalDetails, setShowTechnicalDetails] = useState(false);
   const [lastIntegration, setLastIntegration] = useState<OpenSpecRunUpdateResult | null>(null);
 
-  const cli = status?.cli;
-  const latest = status?.latestAvailable;
-  const installed = status?.installedIntegration;
-  const upgrade = getOpenSpecEngineUpgrade(status);
+  const [legacyPlanState, setLegacyPlanState] = useState<{ repoPath: string; status: 'loaded' | 'error'; plan?: OpenSpecLegacySkillsPlan } | null>(null);
+  const [showRemoveConfirm, setShowRemoveConfirm] = useState(false);
+  const [removingSkills, setRemovingSkills] = useState(false);
+  const [removeError, setRemoveError] = useState<string | null>(null);
+  const [removalResult, setRemovalResult] = useState<{ repoPath: string; result: OpenSpecRemoveLegacySkillsResult } | null>(null);
+  const [dismissedRemovalRepo, setDismissedRemovalRepo] = useState<string | null>(null);
+  const [showRemovalDetails, setShowRemovalDetails] = useState(false);
+
+  const effectiveRemovalResult = removalResult?.repoPath === repoPath ? removalResult.result : null;
+  const isRemovalDismissed = dismissedRemovalRepo === repoPath;
+  const effectiveStatus = effectiveRemovalResult?.engineStatus ?? status;
+
+  const cli = effectiveStatus?.cli;
+  const latest = effectiveStatus?.latestAvailable;
+  const installed = effectiveStatus?.installedIntegration;
+  const upgrade = getOpenSpecEngineUpgrade(effectiveStatus);
   const {
     analysis,
     loading: notesLoading,
@@ -94,10 +109,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     upgrade !== null,
   );
 
-  // Derivar operación oficial y comando literal
-  const action = updatePlan?.requiredAction ?? deriveUpdateMatrixAction(status);
+  // Derivar operación oficial y comando literal (Punto 1: si hay resultado de retiro, deriva del engineStatus recalculado)
+  const action = effectiveRemovalResult
+    ? deriveUpdateMatrixAction(effectiveRemovalResult.engineStatus)
+    : (updatePlan?.requiredAction ?? deriveUpdateMatrixAction(effectiveStatus));
 
-  const officialCommand = deriveOfficialCommand(action, status);
+  const officialCommand = deriveOfficialCommand(action, effectiveStatus);
 
   const actionKey = action === 'upgrade-init'
     ? 'upgradeInit'
@@ -110,12 +127,73 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const coexistence = classifyCoexistenceSkills(installed);
   const hasLegacyResidue = coexistence.legacySkills.length > 0;
 
-  // Contadores de agentes para el bloque AGENTES
+  useEffect(() => {
+    let active = true;
+    if (!repoPath || !hasLegacyResidue) {
+      return;
+    }
+    const apiCall = window.api?.pipelineOpenSpec?.getLegacySkillsPlan?.(repoPath);
+    if (!apiCall || typeof apiCall.then !== 'function') {
+      return;
+    }
+    apiCall
+      .then((plan) => {
+        if (active) {
+          setLegacyPlanState({ repoPath, status: 'loaded', plan });
+        }
+      })
+      .catch(() => {
+        if (active) {
+          setLegacyPlanState({ repoPath, status: 'error' });
+        }
+      });
+    return () => {
+      active = false;
+    };
+  }, [repoPath, hasLegacyResidue]);
+
+  const handleRemoveLegacySkills = async () => {
+    if (!repoPath || removingSkills) return;
+    const apiCall = window.api?.pipelineOpenSpec?.removeLegacySkills;
+    if (!apiCall) return;
+    setRemovingSkills(true);
+    setRemoveError(null);
+    try {
+      const result = await apiCall(repoPath);
+      setRemovalResult({ repoPath, result });
+      setShowRemoveConfirm(false);
+      usePipelineStore.getState().notifyEngineChanged();
+    } catch (err: any) {
+      setRemoveError(err?.message || t('pipeline.openspec.engine.review.removeError'));
+      setShowRemoveConfirm(false);
+    } finally {
+      setRemovingSkills(false);
+    }
+  };
+
+  const legacyPlanStatus: 'none' | 'loading' | 'loaded' | 'error' = !hasLegacyResidue || !repoPath
+    ? 'none'
+    : legacyPlanState?.repoPath === repoPath
+    ? legacyPlanState.status
+    : 'loading';
+
+  const effectiveLegacyPlan = legacyPlanStatus === 'loaded' ? (legacyPlanState?.plan ?? null) : null;
+
+  const removableItems = effectiveLegacyPlan !== null
+    ? effectiveLegacyPlan.items.filter((item) => item.removable)
+    : [];
+
+  const nonRemovableItems = effectiveLegacyPlan !== null
+    ? effectiveLegacyPlan.items.filter((item) => !item.removable)
+    : [];
+
+  // Contadores de agentes para el bloque AGENTES (excluye categoría ci como .github)
+  const agentTools = openSpecTools.filter((t) => isOpenSpecConfigurableTool(t.toolId));
   const configuredCount = installed?.configuredAgentsCount ?? installed?.configuredCount ?? (
-    openSpecTools.length > 0 ? openSpecTools.filter((t) => t.configured).length : (installed?.tools?.length ?? 0)
+    agentTools.length > 0 ? agentTools.filter((t) => t.configured).length : (installed?.tools?.length ?? 0)
   );
   const totalCount = installed?.totalPresentAgentsCount ?? installed?.totalPresentCount ?? (
-    openSpecTools.length > 0 ? openSpecTools.length : configuredCount
+    agentTools.length > 0 ? agentTools.length : configuredCount
   );
 
   // Salvaguardas de Git
@@ -148,22 +226,16 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
     }
   };
 
-  const resolveBlockReasonText = (): string => {
-    if (updatePlan?.reason) {
-      return updatePlan.reason;
-    }
-    const blockReason = deriveUpdateBlockReason(status);
-    if (blockReason === 'cli-not-installed') {
-      return t('pipeline.openspec.engine.matrix.blockedCliNotInstalled');
-    }
-    if (blockReason === 'version-unknown') {
-      return t('pipeline.openspec.engine.matrix.blockedVersionUnknown');
-    }
-    return t('pipeline.openspec.engine.matrix.blocked');
-  };
+  const resolveBlockReasonText = (): string => t(getUpdateBlockReasonKey(effectiveStatus));
 
   const isRepoInitialized = status?.repoState === 'initialized';
-  const engineStep = upgrade ? { installed: cli?.runtimeVersion ?? null, latest: upgrade.latest } : null;
+  const engineStep = upgrade
+    ? {
+        installed: cli?.runtimeVersion ?? null,
+        latest: upgrade.latest,
+        provenance: cli?.provenance ?? 'unknown',
+      }
+    : null;
   const integrationStep = action !== 'blocked' && (
     action !== 'none' || (Boolean(upgrade) && isRepoInitialized)
   );
@@ -217,9 +289,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               engine={engineStep}
               integration={integrationStep}
               repoInitialized={isRepoInitialized}
-              repoState={status?.repoState}
+              repoState={effectiveStatus?.repoState}
               updatePlan={updatePlan}
-              force={forceConfirmed}
+              openRepoPaths={openRepoPaths}
               warnings={{
                 mainBranch: isMainOrMaster ? (currentBranch ?? 'main') : null,
                 dirtyCount: isDirty ? (uncommittedCount ?? 1) : null,
@@ -259,41 +331,188 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           )}
         </div>
 
-        {/* OFRECIMIENTO CONDICIONAL DE --force (DECISIÓN 3: Sólo si hay residuo legacy concreto) */}
-        {hasLegacyResidue && (
+        {/* COPIAS VIEJAS DE LAS INSTRUCCIONES */}
+        {((effectiveRemovalResult !== null && !isRemovalDismissed) || (effectiveRemovalResult === null && hasLegacyResidue)) && (
           <section
             className={styles.reviewSection}
-            aria-label={t('pipeline.openspec.engine.review.forceOptionTitle')}
-            style={{ borderColor: 'color-mix(in srgb, var(--color-git-mod) 40%, transparent)', background: 'color-mix(in srgb, var(--color-git-mod) 5%, transparent)' }}
+            aria-label={t('pipeline.openspec.engine.review.legacySkillsTitle')}
+            style={{
+              borderColor: 'color-mix(in srgb, var(--color-git-mod) 40%, transparent)',
+              background: 'color-mix(in srgb, var(--color-git-mod) 5%, transparent)',
+            }}
           >
-            <h3 className={styles.reviewSectionTitle} style={{ color: 'var(--color-git-mod)' }}>
-              {t('pipeline.openspec.engine.review.forceOptionTitle')}
-            </h3>
-            <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
-              {t('pipeline.openspec.engine.review.forceWarning')}
-            </p>
-            <div style={{ margin: 'var(--space-1) 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-primary)' }}>
-              <span>{t('pipeline.openspec.engine.review.forceFilesToClean')}</span>
-            </div>
-            <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-git-mod)' }}>
-              {coexistence.legacySkills.map((s) => (
-                <li key={s.path}><code>{s.path}</code></li>
-              ))}
-            </ul>
-            <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--space-1)', cursor: 'pointer', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-primary)' }}>
-              <input
-                type="checkbox"
-                checked={forceConfirmed}
-                onChange={(e) => setForceConfirmed(e.target.checked)}
-              />
-              <span>{t('pipeline.openspec.engine.review.forceConfirmLabel')}</span>
-            </label>
+            {effectiveRemovalResult !== null ? (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--space-2)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 'var(--space-2)', flexWrap: 'wrap' }}>
+                  <span style={{ color: 'var(--color-git-mod)', fontSize: 'var(--font-size-xs)' }}>
+                    {t('pipeline.openspec.engine.review.removalSummaryLine', { count: effectiveRemovalResult.removed.length })}
+                  </span>
+                  <div style={{ display: 'flex', gap: 'var(--space-2)', alignItems: 'center' }}>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => setShowRemovalDetails((prev) => !prev)}
+                    >
+                      {showRemovalDetails
+                        ? t('pipeline.openspec.engine.review.hideRemovalList')
+                        : t('pipeline.openspec.engine.review.viewRemovalList')}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.secondaryAction}
+                      onClick={() => setDismissedRemovalRepo(repoPath)}
+                    >
+                      {t('pipeline.openspec.engine.review.closeRemovalSection')}
+                    </button>
+                  </div>
+                </div>
+                {showRemovalDetails && (
+                  <div style={{ marginTop: 'var(--space-1)', fontSize: 'var(--font-size-xs)' }}>
+                    {effectiveRemovalResult.removed.length > 0 && (
+                      <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', color: 'var(--color-text-secondary)' }}>
+                        {effectiveRemovalResult.removed.map((p) => (
+                          <li key={p}><code>{p}</code></li>
+                        ))}
+                      </ul>
+                    )}
+                    {effectiveRemovalResult.skipped.length > 0 && (
+                      <div style={{ marginTop: 'var(--space-2)' }}>
+                        <h4 style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)', margin: '0 0 var(--space-1)' }}>
+                          {t('pipeline.openspec.engine.review.nonRemovableTitle')}
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: 'var(--space-4)', color: 'var(--color-text-secondary)' }}>
+                          {effectiveRemovalResult.skipped.map((item) => (
+                            <li key={item.path}>
+                              <code>{item.path}</code> — {item.reason === 'remove-failed'
+                                ? t('pipeline.openspec.engine.review.reasonRemoveFailed')
+                                : item.reason === 'modified'
+                                ? t('pipeline.openspec.engine.review.reasonModified')
+                                : t('pipeline.openspec.engine.review.reasonUntracked')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <>
+                <h3 className={styles.reviewSectionTitle} style={{ color: 'var(--color-git-mod)' }}>
+                  {t('pipeline.openspec.engine.review.legacySkillsTitle')}
+                </h3>
+                <p style={{ margin: '0 0 var(--space-1)', color: 'var(--color-text-secondary)', fontSize: 'var(--font-size-xs)' }}>
+                  {t('pipeline.openspec.engine.review.legacySkillsDesc')}
+                </p>
+
+                {effectiveLegacyPlan === null ? (
+                  /* Sin plan medido: listá las copias sin botón de retirar (Punto 3) */
+                  <div style={{ margin: 'var(--space-2) 0', fontSize: 'var(--font-size-xs)' }}>
+                    <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', color: 'var(--color-git-mod)' }}>
+                      {coexistence.legacySkills.map((s) => (
+                        <li key={s.path}><code>{s.path}</code></li>
+                      ))}
+                    </ul>
+                    {legacyPlanStatus === 'error' ? (
+                      <p style={{ margin: 'var(--space-1) 0', color: 'var(--color-warning)' }}>
+                        {t('pipeline.openspec.engine.review.legacyPlanCheckFailed')}
+                      </p>
+                    ) : (
+                      <p style={{ margin: 'var(--space-1) 0', color: 'var(--color-text-secondary)' }}>
+                        {t('pipeline.openspec.engine.review.legacyPlanChecking')}
+                      </p>
+                    )}
+                  </div>
+                ) : showRemoveConfirm ? (
+                  <div style={{
+                    margin: 'var(--space-2) 0',
+                    padding: 'var(--space-2)',
+                    border: '1px solid color-mix(in srgb, var(--color-warning) 40%, transparent)',
+                    borderRadius: 'var(--radius-sm)',
+                    background: 'color-mix(in srgb, var(--color-warning) 8%, transparent)',
+                  }}>
+                    <h4 style={{ margin: '0 0 var(--space-1)', fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)' }}>
+                      {t('pipeline.openspec.engine.review.removeConfirmTitle')}
+                    </h4>
+                    <p style={{ margin: '0 0 var(--space-1)', fontSize: 'var(--font-size-xs)', color: 'var(--color-text-primary)' }}>
+                      {t('pipeline.openspec.engine.review.removeConfirmPrompt')}
+                    </p>
+                    <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-git-mod)' }}>
+                      {removableItems.map((item) => (
+                        <li key={item.path}><code>{item.path}</code></li>
+                      ))}
+                    </ul>
+                    <div style={{ display: 'flex', gap: 'var(--space-2)' }}>
+                      <button
+                        type="button"
+                        className={styles.primaryAction}
+                        disabled={removingSkills}
+                        onClick={handleRemoveLegacySkills}
+                      >
+                        {t('pipeline.openspec.engine.review.removeConfirmBtn')}
+                      </button>
+                      <button
+                        type="button"
+                        className={styles.secondaryAction}
+                        disabled={removingSkills}
+                        onClick={() => setShowRemoveConfirm(false)}
+                      >
+                        {t('pipeline.openspec.engine.review.removeCancelBtn')}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    {removableItems.length > 0 && (
+                      <>
+                        <ul style={{ margin: '0 0 var(--space-2)', paddingLeft: 'var(--space-4)', fontSize: 'var(--font-size-xs)', color: 'var(--color-git-mod)' }}>
+                          {removableItems.map((item) => (
+                            <li key={item.path}><code>{item.path}</code></li>
+                          ))}
+                        </ul>
+                        <button
+                          type="button"
+                          className={styles.primaryAction}
+                          disabled={removingSkills}
+                          onClick={() => setShowRemoveConfirm(true)}
+                        >
+                          {t('pipeline.openspec.engine.review.removeLegacySkillsBtn')}
+                        </button>
+                      </>
+                    )}
+                    {removeError && (
+                      <p style={{ margin: 'var(--space-1) 0', fontSize: 'var(--font-size-xs)', color: 'var(--color-error)' }}>
+                        {removeError}
+                      </p>
+                    )}
+                    {nonRemovableItems.length > 0 && (
+                      <div style={{ marginTop: 'var(--space-2)' }}>
+                        <h4 style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-warning)', margin: 'var(--space-2) 0 var(--space-1)' }}>
+                          {t('pipeline.openspec.engine.review.nonRemovableTitle')}
+                        </h4>
+                        <ul style={{ margin: 0, paddingLeft: 'var(--space-4)', color: 'var(--color-text-secondary)' }}>
+                          {nonRemovableItems.map((item) => (
+                            <li key={item.path}>
+                              <code>{item.path}</code> — {item.reason === 'remove-failed'
+                                ? t('pipeline.openspec.engine.review.reasonRemoveFailed')
+                                : item.reason === 'modified'
+                                ? t('pipeline.openspec.engine.review.reasonModified')
+                                : t('pipeline.openspec.engine.review.reasonUntracked')}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    )}
+                  </>
+                )}
+              </>
+            )}
           </section>
         )}
 
         {/* BLOQUE 2: MOTOR */}
         <OpenSpecEngineCard
-          status={status}
+          status={effectiveStatus}
           section="motor"
           isLoading={false}
           compact={false}
@@ -328,9 +547,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
         </OpenSpecAgentsBlock>
 
         {/* BLOQUE 4: PERFIL DE WORKFLOWS (Solo disponible cuando el motor fue leído) */}
-        {status && (
+        {effectiveStatus && (
           <OpenSpecEngineCard
-            status={status}
+            status={effectiveStatus}
             section="profile"
             isLoading={false}
             compact={false}

@@ -59,7 +59,6 @@ export const OpenSpecGlobalInstallConfirm: React.FC<OpenSpecGlobalInstallConfirm
   const [rollbackDone, setRollbackDone] = useState(false);
   const [isInstalling, setIsInstalling] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
   const handleConfirm = async (overrideTarget?: string | null) => {
     if (isBusy || isInstalling) return;
@@ -208,6 +207,53 @@ export const OpenSpecGlobalInstallConfirm: React.FC<OpenSpecGlobalInstallConfirm
   }
 
   return (
+    <OpenSpecGlobalInstallPrompt
+      command={command}
+      nodePath={nodePath}
+      packageManagerPath={packageManagerPath}
+      packageManagerName={packageManagerName}
+      openRepoPaths={openRepoPaths}
+      installError={installError}
+      targetVersion={targetVersion}
+      isInstalling={isInstalling}
+      disabled={isBusy}
+      onConfirm={() => handleConfirm()}
+      onCancel={onCancel}
+    />
+  );
+};
+
+export interface OpenSpecGlobalInstallPromptProps {
+  command?: string | null;
+  nodePath?: string | null;
+  packageManagerPath?: string | null;
+  packageManagerName?: string | null;
+  openRepoPaths?: string[];
+  installError?: string | null;
+  targetVersion?: string | null;
+  isInstalling?: boolean;
+  disabled?: boolean;
+  onConfirm: () => void;
+  onCancel: () => void;
+}
+
+export const OpenSpecGlobalInstallPrompt: React.FC<OpenSpecGlobalInstallPromptProps> = ({
+  command,
+  nodePath,
+  packageManagerPath,
+  packageManagerName,
+  openRepoPaths,
+  installError,
+  targetVersion,
+  isInstalling = false,
+  disabled = false,
+  onConfirm,
+  onCancel,
+}) => {
+  const t = useT();
+  const [copied, setCopied] = useState(false);
+
+  return (
     <div
       className={styles.engineInstallConfirmBox}
       role="region"
@@ -283,8 +329,8 @@ export const OpenSpecGlobalInstallConfirm: React.FC<OpenSpecGlobalInstallConfirm
         <button
           type="button"
           className={styles.primaryAction}
-          onClick={() => handleConfirm()}
-          disabled={isBusy || isInstalling}
+          onClick={onConfirm}
+          disabled={disabled || isInstalling}
         >
           {isInstalling ? (
             <>
@@ -305,7 +351,7 @@ export const OpenSpecGlobalInstallConfirm: React.FC<OpenSpecGlobalInstallConfirm
           type="button"
           className={styles.reviewCopyBtn}
           onClick={onCancel}
-          disabled={isBusy || isInstalling}
+          disabled={disabled || isInstalling}
         >
           {t('pipeline.openspec.engine.install.cancelGlobalAction')}
         </button>

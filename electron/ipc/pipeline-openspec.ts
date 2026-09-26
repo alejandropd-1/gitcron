@@ -20,7 +20,13 @@ import type {
   SetOpenSpecWorkflowResult,
   SetOpenSpecProfileResult,
   OpenSpecArtifactGraphResult,
+  OpenSpecLegacySkillsPlan,
+  OpenSpecRemoveLegacySkillsResult,
 } from '../../types/pipeline';
+import {
+  getLegacySkillsPlan,
+  removeLegacySkills,
+} from '../pipeline/openspec-legacy-skills';
 import {
   discoverOpenSpecCli,
   resolveOpenSpecExecutable,
@@ -49,7 +55,7 @@ import {
   setOpenSpecWorkflow,
   setOpenSpecProfile,
 } from '../pipeline/openspec-global-config';
-import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
+import { inspectInstalledEvidence, readSharedSkillTarget } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
 import {
   generateDiagnosticPreview,
@@ -60,7 +66,7 @@ import {
 import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
-import { getToolDef } from '../pipeline/openspec-tooling';
+import { getToolDef, isOpenSpecConfigurableTool } from '../pipeline/openspec-tooling';
 import {
   analyzeOpenSpecVersion,
   readInstalledContext,
@@ -85,6 +91,8 @@ export interface OpenSpecIpcDeps {
   runDoctor?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecDoctorResult>;
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
   getArtifactGraph?: (repoPath: string, changeId: string, options?: CliExecutionOptions) => Promise<OpenSpecArtifactGraphResult>;
+  recalculateStatus?: (repoPath?: string) => Promise<OpenSpecEngineStatus>;
+  readSharedSkillTarget?: (repoPath: string) => string | null;
   runVersionAnalysis?: (
     repoPath: string,
     options?: {
@@ -108,6 +116,8 @@ export interface OpenSpecIpcDeps {
   resolvePackageManager?: typeof resolvePackageManager;
   setWorkflow?: typeof setOpenSpecWorkflow;
   setProfile?: typeof setOpenSpecProfile;
+  getLegacySkillsPlan?: typeof getLegacySkillsPlan;
+  removeLegacySkills?: typeof removeLegacySkills;
 }
 
 /**
@@ -266,8 +276,8 @@ export async function buildEngineStatusSnapshot(
       const configuredCount =
         installedIntegration.configuredAgentsCount ??
         installedIntegration.configuredCount ??
-        installedIntegration.configuredTools?.length ??
-        installedIntegration.tools?.length ??
+        installedIntegration.configuredTools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
+        installedIntegration.tools?.filter((t) => isOpenSpecConfigurableTool(t)).length ??
         0;
       const totalCount =
         installedIntegration.totalPresentAgentsCount ??
@@ -279,7 +289,7 @@ export async function buildEngineStatusSnapshot(
           installedIntegration.presentToolDirectories &&
             installedIntegration.configuredTools &&
             installedIntegration.presentToolDirectories.some(
-              (tool) => !installedIntegration.configuredTools?.includes(tool),
+              (tool) => isOpenSpecConfigurableTool(tool) && !installedIntegration.configuredTools?.includes(tool),
             ),
         );
 
@@ -352,15 +362,27 @@ export async function buildEngineStatusSnapshot(
     // (2.9): queda fuera de `installedWorkflowsByTarget` y antes era invisible,
     // lo que declaraba convergencia con `.agents` presente pero sin configurar.
     // Nunca puede haber convergencia confirmada con un target presente sin
-    // comparar. Los outputs `external-global` no entran: son sólo diagnóstico
-    // (contrato 2.10).
+    // comparar. Los outputs `external-global` y los no configurables por OpenSpec
+    // (como CI en .github) no entran: son sólo diagnóstico (contratos 2.10 y decisión 12).
+    // Una herramienta servida desde la carpeta compartida (.agents/skills) se
+    // compara con los workflows de esa carpeta (decisión 12).
+    const resolveSharedTarget = deps.readSharedSkillTarget ?? readSharedSkillTarget;
+    const sharedTargetTool = validRepoPath ? resolveSharedTarget(validRepoPath) : null;
+    const agentsWorkflows = installedIntegration.installedWorkflowsByTarget['agents'] ?? [];
     const compared = new Set(Object.keys(installedIntegration.installedWorkflowsByTarget));
-    const targetEntries: Array<[string, string[]]> = [
-      ...Object.entries(installedIntegration.installedWorkflowsByTarget),
-      ...(installedIntegration.presentToolDirectories ?? [])
-        .filter((toolId) => !compared.has(toolId))
-        .map((toolId) => [toolId, []] as [string, string[]]),
-    ];
+
+    const targetEntries: Array<[string, string[]]> = [];
+    for (const [toolId, targetWfs] of Object.entries(installedIntegration.installedWorkflowsByTarget)) {
+      if (!isOpenSpecConfigurableTool(toolId)) continue;
+      const wfs = (toolId === sharedTargetTool && targetWfs.length === 0) ? agentsWorkflows : targetWfs;
+      targetEntries.push([toolId, wfs]);
+    }
+    for (const toolId of installedIntegration.presentToolDirectories ?? []) {
+      if (compared.has(toolId)) continue;
+      if (!isOpenSpecConfigurableTool(toolId)) continue;
+      const wfs = toolId === sharedTargetTool ? agentsWorkflows : [];
+      targetEntries.push([toolId, wfs]);
+    }
     for (const [toolId, targetWfs] of targetEntries) {
       const toolDef = getToolDef(toolId);
       const label = toolDef?.label ?? toolId;
@@ -675,10 +697,16 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const runUpdate = deps.runUpdate ?? runOpenSpecUpdate;
       const force = Boolean((payload as any)?.force);
-      return runUpdate(validRepoPath, {
+      const updateResult = await runUpdate(validRepoPath, {
         force,
         runtime: authorizedRuntime,
       });
+      const recalculateStatus = deps.recalculateStatus ?? ((rp?: string) => buildEngineStatusSnapshot(rp ?? validRepoPath, deps));
+      const engineStatus = await recalculateStatus(validRepoPath);
+      return {
+        ...updateResult,
+        engineStatus,
+      };
     },
   );
 
@@ -1048,7 +1076,7 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
   ipc.handle(
     'pipeline:openspec:install-plan',
     async (_event, payload?: unknown): Promise<OpenSpecInstallPlan> => {
-      validateStrictPayloadKeys(payload, ['repoPath']);
+      validateStrictPayloadKeys(payload, ['repoPath', 'targetVersion']);
       const rawRepoPath = (payload as any)?.repoPath;
       let validRepoPath: string | undefined = undefined;
       if (rawRepoPath !== undefined && rawRepoPath !== null) {
@@ -1059,7 +1087,16 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
         validRepoPath = validated;
       }
 
-      return resolvePackageManagerInstallPlan(validRepoPath);
+      const rawTargetVersion = (payload as any)?.targetVersion;
+      let targetVersion: string | undefined = undefined;
+      if (rawTargetVersion !== undefined && rawTargetVersion !== null) {
+        if (typeof rawTargetVersion !== 'string' || !isValidTargetVersion(rawTargetVersion)) {
+          throw new Error(`Versión de destino inválida: "${String(rawTargetVersion)}"`);
+        }
+        targetVersion = rawTargetVersion.trim();
+      }
+
+      return resolvePackageManagerInstallPlan(validRepoPath, { targetVersion });
     },
   );
 
@@ -1105,6 +1142,44 @@ export function registerOpenSpecIpcHandlers(deps: OpenSpecIpcDeps = {}): void {
 
       const setProfileFn = deps.setProfile ?? setOpenSpecProfile;
       return setProfileFn({ profile: rawProfile, runtime: authorizedRuntime });
+    },
+  );
+
+  // 17. Legacy Skills Plan (Decisión 8 / Tarea 6.3: Sólo lectura)
+  ipc.handle(
+    'pipeline:openspec:legacy-skills-plan',
+    async (_event, payload?: unknown): Promise<OpenSpecLegacySkillsPlan> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const getPlan = deps.getLegacySkillsPlan ?? getLegacySkillsPlan;
+      return getPlan(validRepoPath, {
+        pauseWatcher: deps.pauseWatcher,
+        statusDeps: deps,
+      });
+    },
+  );
+
+  // 18. Remove Legacy Skills (Decisión 8 / Tarea 6.3: Proceso principal borra sólo retirables)
+  ipc.handle(
+    'pipeline:openspec:remove-legacy-skills',
+    async (_event, payload?: unknown): Promise<OpenSpecRemoveLegacySkillsResult> => {
+      validateStrictPayloadKeys(payload, ['repoPath']);
+      const rawRepoPath = (payload as any)?.repoPath;
+      const validRepoPath = validateRepo(rawRepoPath);
+      if (!validRepoPath) {
+        throw new Error('IPC Security Error: Invalid or unauthorized repository path');
+      }
+
+      const removeFn = deps.removeLegacySkills ?? removeLegacySkills;
+      return removeFn(validRepoPath, {
+        pauseWatcher: deps.pauseWatcher,
+        statusDeps: deps,
+      });
     },
   );
 }

@@ -106,6 +106,15 @@ la tarjeta muestran «Falta configurar: Zcode» con la acción de inicializar: `
 con **la unión** de las configuradas y las pendientes elegidas, para no perder ninguna configurada
 (se mide en una copia antes de cablear, tarea 4.1). «Actualizar» no aparece por eso.
 
+**Medido (tarea 4.1, 2026-09-26, por el auditor):** sobre una copia de gitCronos (`.agents`,
+`.claude`, `.codex`, `.opencode`, `.qwen`, `.zcode`, `openspec/config.yaml`) fuera del repositorio,
+`openspec init --tools antigravity,claude,codex,opencode,qwen,zcode --no-animation --no-copilot-cloud .`
+con OpenSpec 1.13.2 contestó «Created: Antigravity, ZCode · Refreshed: Claude Code, Codex, OpenCode,
+Qwen Code». No borró ningún archivo, no modificó ninguno de los existentes (sumas de control iguales)
+y sólo agregó `.zcode/commands/opsx/*.md` y `.zcode/skills/openspec-*/SKILL.md` (más los `.gitkeep`
+de `openspec/` que faltaban en la copia). Después, el motor da las seis configuradas. Por lo tanto la
+acción «Configurar» ejecuta `init --tools` con la unión; no hace falta mostrar el comando en su lugar.
+
 Se conservan las reglas que sí son de GitCron: skills sólo en targets del esquema anterior da
 desactualizada; copias viejas dan detenida con su motivo.
 

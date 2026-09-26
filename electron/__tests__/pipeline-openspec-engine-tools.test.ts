@@ -158,70 +158,70 @@ describe('openspec-engine-tools (Grupo 2)', () => {
     });
   });
 
+  async function createFakeOpenSpecPackage(targetDir: string, version: string = '1.13.2') {
+    const coreDir = path.join(targetDir, 'dist', 'core');
+    const sharedDir = path.join(coreDir, 'shared');
+    await fsp.mkdir(sharedDir, { recursive: true });
+
+    await fsp.writeFile(
+      path.join(targetDir, 'package.json'),
+      JSON.stringify({ name: '@fission-ai/openspec', version }),
+    );
+
+    // dist/core/config.js
+    await fsp.writeFile(
+      path.join(coreDir, 'config.js'),
+      `export const AI_TOOLS = [
+        { name: 'Codex', value: 'codex', skillsDir: '.agents', legacySkillsDirs: ['.codex'] }
+      ];
+      export const OPENSPEC_SKILL_NAMES = ['openspec-propose'];
+      `,
+    );
+
+    // dist/core/available-tools.js
+    await fsp.writeFile(
+      path.join(coreDir, 'available-tools.js'),
+      `export function getAvailableTools(projectPath) {
+        return [{ name: 'Codex', value: 'codex' }];
+      }
+      `,
+    );
+
+    // dist/core/shared/tool-detection.js
+    await fsp.writeFile(
+      path.join(sharedDir, 'tool-detection.js'),
+      `export function getToolStates(projectRoot) {
+        return new Map([['codex', { configured: true, fullyConfigured: true, skillCount: 1 }]]);
+      }
+      export function getAllToolVersionStatus(projectRoot, currentVersion) {
+        return [{
+          toolId: 'codex',
+          toolName: 'Codex',
+          configured: true,
+          generatedByVersion: currentVersion,
+          needsUpdate: false
+        }];
+      }
+      export function getConfiguredTools(projectRoot) {
+        return ['codex'];
+      }
+      `,
+    );
+
+    // dist/core/profile-sync-drift.js
+    await fsp.writeFile(
+      path.join(coreDir, 'profile-sync-drift.js'),
+      `export function getToolsNeedingProfileSync(projectPath, workflows, delivery, configuredTools) {
+        return [];
+      }
+      `,
+    );
+  }
+
   // =========================================================================
   // 2.2 Ejecución en subproceso aislado (decisión 1)
   // =========================================================================
   describe('2.2 Ejecución en subproceso aislado (decisión 1)', () => {
-    async function createFakeOpenSpecPackage(targetDir: string, version: string = '1.13.2') {
-      const coreDir = path.join(targetDir, 'dist', 'core');
-      const sharedDir = path.join(coreDir, 'shared');
-      await fsp.mkdir(sharedDir, { recursive: true });
-
-      await fsp.writeFile(
-        path.join(targetDir, 'package.json'),
-        JSON.stringify({ name: '@fission-ai/openspec', version }),
-      );
-
-      // dist/core/config.js
-      await fsp.writeFile(
-        path.join(coreDir, 'config.js'),
-        `export const AI_TOOLS = [
-          { name: 'Codex', value: 'codex', skillsDir: '.agents', legacySkillsDirs: ['.codex'] }
-        ];
-        export const OPENSPEC_SKILL_NAMES = ['openspec-propose'];
-        `,
-      );
-
-      // dist/core/available-tools.js
-      await fsp.writeFile(
-        path.join(coreDir, 'available-tools.js'),
-        `export function getAvailableTools(projectPath) {
-          return [{ name: 'Codex', value: 'codex' }];
-        }
-        `,
-      );
-
-      // dist/core/shared/tool-detection.js
-      await fsp.writeFile(
-        path.join(sharedDir, 'tool-detection.js'),
-        `export function getToolStates(projectRoot) {
-          return new Map([['codex', { configured: true, fullyConfigured: true, skillCount: 1 }]]);
-        }
-        export function getAllToolVersionStatus(projectRoot, currentVersion) {
-          return [{
-            toolId: 'codex',
-            toolName: 'Codex',
-            configured: true,
-            generatedByVersion: currentVersion,
-            needsUpdate: false
-          }];
-        }
-        export function getConfiguredTools(projectRoot) {
-          return ['codex'];
-        }
-        `,
-      );
-
-      // dist/core/profile-sync-drift.js
-      await fsp.writeFile(
-        path.join(coreDir, 'profile-sync-drift.js'),
-        `export function getToolsNeedingProfileSync(projectPath, workflows, delivery, configuredTools) {
-          return [];
-        }
-        `,
-      );
-    }
-
     it('paquete válido con los cuatro módulos emite informe con source: engine', async () => {
       const pkgDir = path.join(tempDir, 'fake-openspec');
       await createFakeOpenSpecPackage(pkgDir, '1.13.2');
@@ -229,7 +229,7 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       const repoPath = path.join(tempDir, 'repo');
       await fsp.mkdir(repoPath, { recursive: true });
 
-      const report = readEngineToolReport({
+      const report = await readEngineToolReport({
         repoPath,
         executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
         runtimeVersion: '1.13.2',
@@ -263,7 +263,7 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       const repoPath = path.join(tempDir, 'repo');
       await fsp.mkdir(repoPath, { recursive: true });
 
-      const report = readEngineToolReport({
+      const report = await readEngineToolReport({
         repoPath,
         executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
         runtimeVersion: '1.13.2',
@@ -288,7 +288,7 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       const repoPath = path.join(tempDir, 'repo');
       await fsp.mkdir(repoPath, { recursive: true });
 
-      const report = readEngineToolReport({
+      const report = await readEngineToolReport({
         repoPath,
         executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
         runtimeVersion: '1.13.2',
@@ -298,6 +298,40 @@ describe('openspec-engine-tools (Grupo 2)', () => {
 
       expect(report.source).toBe('gitcron-fallback');
       expect(report.fallbackReason).toBe('timeout');
+    });
+
+    it('mientras el proceso hijo corre, el bucle de eventos sigue atendiendo (no bloquea)', async () => {
+      const pkgDir = path.join(tempDir, 'slow-openspec');
+      await createFakeOpenSpecPackage(pkgDir, '1.13.2');
+
+      // config.js tarda 300 ms con top-level await en ESM
+      await fsp.writeFile(
+        path.join(pkgDir, 'dist', 'core', 'config.js'),
+        `await new Promise((r) => setTimeout(r, 300)); export const AI_TOOLS = [{ name: 'Codex', value: 'codex', skillsDir: '.agents' }]; export const OPENSPEC_SKILL_NAMES = [];`,
+      );
+
+      const repoPath = path.join(tempDir, 'repo');
+      await fsp.mkdir(repoPath, { recursive: true });
+
+      let eventLoopServiced = false;
+      setTimeout(() => {
+        eventLoopServiced = true;
+      }, 0);
+
+      const reportPromise = readEngineToolReport({
+        repoPath,
+        executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
+        runtimeVersion: '1.13.2',
+        nodeExecutable: process.execPath,
+        timeoutMs: 5000,
+      });
+
+      // El setTimeout(0) debe resolverse mientras el proceso hijo de 300 ms sigue en vuelo
+      await new Promise((r) => setTimeout(r, 50));
+      expect(eventLoopServiced).toBe(true);
+
+      const report = await reportPromise;
+      expect(report.source).toBe('engine');
     });
 
     it('validador estricto validateEngineToolReport rechaza tipos incorrectos', () => {
@@ -317,35 +351,90 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       ).toBeNull();
     });
 
-    it('integración con paquete real de OdontoPau si existe en la máquina', async () => {
-      const odontoPauPkg = 'C:\\www\\odontoPau\\node_modules\\@fission-ai\\openspec';
+    it('comparación obligatoria sobre C:\\www\\odontoPau y C:\\www\\gitCronos: readEngineToolReport y buildFallbackToolReport coinciden por herramienta', async () => {
+      const realPkg = 'C:\\www\\odontoPau\\node_modules\\@fission-ai\\openspec';
       const odontoPauRepo = 'C:\\www\\odontoPau';
+      const gitCronosRepo = 'C:\\www\\gitCronos';
 
-      if (!fs.existsSync(odontoPauPkg) || !fs.existsSync(odontoPauRepo)) {
-        return; // Omitir si no existe en este entorno
+      if (!fs.existsSync(realPkg)) {
+        console.warn('Prueba comparativa omitida: paquete real no encontrado en C:\\www\\odontoPau\\node_modules\\@fission-ai\\openspec');
+        return;
       }
 
-      const report = readEngineToolReport({
-        repoPath: odontoPauRepo,
-        executablePath: path.join(odontoPauPkg, 'bin', 'openspec.js'),
-        runtimeVersion: '1.13.2',
-        nodeExecutable: process.execPath,
-      });
+      // 1. Verificación sobre C:\www\odontoPau
+      if (fs.existsSync(odontoPauRepo)) {
+        const engineReport = await readEngineToolReport({
+          repoPath: odontoPauRepo,
+          executablePath: path.join(realPkg, 'bin', 'openspec.js'),
+          runtimeVersion: '1.13.2',
+          nodeExecutable: process.execPath,
+        });
+        const fallbackReport = buildFallbackToolReport({
+          repoPath: odontoPauRepo,
+          reason: 'package-not-found',
+          engineVersion: '1.13.2',
+        });
 
-      expect(report.source).toBe('engine');
-      expect(report.engineVersion).toBe('1.13.2');
+        expect(engineReport.source).toBe('engine');
+        expect(fallbackReport.source).toBe('gitcron-fallback');
 
-      const codex = report.tools.find((t) => t.id === 'codex');
-      expect(codex).toBeDefined();
-      expect(codex?.available).toBe(true);
-      expect(codex?.configured).toBe(true);
-      expect(codex?.needsUpdate).toBe(false);
+        const engineAvail = engineReport.tools.filter((t) => t.available).map((t) => t.id).sort();
+        const fallbackAvail = fallbackReport.tools.filter((t) => t.available).map((t) => t.id).sort();
+        expect(engineAvail).toEqual(['codex']);
+        expect(fallbackAvail).toEqual(engineAvail);
 
-      const availableIds = report.tools.filter((t) => t.available).map((t) => t.id);
-      expect(availableIds).toContain('codex');
+        const engineConf = engineReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
+        const fallbackConf = fallbackReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
+        expect(engineConf).toEqual(['codex']);
+        expect(fallbackConf).toEqual(engineConf);
 
-      const configuredIds = report.tools.filter((t) => t.configured).map((t) => t.id);
-      expect(configuredIds).toContain('codex');
+        // Comparación herramienta por herramienta
+        for (const engineTool of engineReport.tools) {
+          const fallbackTool = fallbackReport.tools.find((t) => t.id === engineTool.id);
+          expect(fallbackTool).toBeDefined();
+          expect(fallbackTool?.available).toBe(engineTool.available);
+          expect(fallbackTool?.configured).toBe(engineTool.configured);
+        }
+      }
+
+      // 2. Verificación sobre C:\www\gitCronos
+      if (fs.existsSync(gitCronosRepo)) {
+        const engineReport = await readEngineToolReport({
+          repoPath: gitCronosRepo,
+          executablePath: path.join(realPkg, 'bin', 'openspec.js'),
+          runtimeVersion: '1.13.2',
+          nodeExecutable: process.execPath,
+        });
+        const fallbackReport = buildFallbackToolReport({
+          repoPath: gitCronosRepo,
+          reason: 'package-not-found',
+          engineVersion: '1.13.2',
+        });
+
+        expect(engineReport.source).toBe('engine');
+        expect(fallbackReport.source).toBe('gitcron-fallback');
+
+        const expectedAvail = ['antigravity', 'claude', 'codex', 'opencode', 'qwen', 'zcode'].sort();
+        const expectedConf = ['antigravity', 'claude', 'codex', 'opencode', 'qwen'].sort();
+
+        const engineAvail = engineReport.tools.filter((t) => t.available).map((t) => t.id).sort();
+        const fallbackAvail = fallbackReport.tools.filter((t) => t.available).map((t) => t.id).sort();
+        expect(engineAvail).toEqual(expectedAvail);
+        expect(fallbackAvail).toEqual(expectedAvail);
+
+        const engineConf = engineReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
+        const fallbackConf = fallbackReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
+        expect(engineConf).toEqual(expectedConf);
+        expect(fallbackConf).toEqual(expectedConf);
+
+        // Comparación herramienta por herramienta
+        for (const engineTool of engineReport.tools) {
+          const fallbackTool = fallbackReport.tools.find((t) => t.id === engineTool.id);
+          expect(fallbackTool).toBeDefined();
+          expect(fallbackTool?.available).toBe(engineTool.available);
+          expect(fallbackTool?.configured).toBe(engineTool.configured);
+        }
+      }
     });
   });
 
@@ -474,10 +563,10 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       await fsp.mkdir(repoPath, { recursive: true });
 
       let spawnCount = 0;
-      const customSpawn: typeof import('node:child_process').spawnSync = ((cmd: string, args: string[], opts: any) => {
+      const customSpawn: typeof import('node:child_process').spawn = ((cmd: string, args: string[], opts: any) => {
         spawnCount++;
-        const { spawnSync } = require('node:child_process');
-        return spawnSync(cmd, args, opts);
+        const { spawn } = require('node:child_process');
+        return spawn(cmd, args, opts);
       }) as any;
 
       const opts = {
@@ -485,16 +574,16 @@ describe('openspec-engine-tools (Grupo 2)', () => {
         executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
         runtimeVersion: '1.13.2',
         nodeExecutable: process.execPath,
-        deps: { spawnSync: customSpawn },
+        deps: { spawn: customSpawn },
       };
 
       // Primera lectura -> ejecuta subproceso
-      const report1 = readEngineToolReport(opts);
+      const report1 = await readEngineToolReport(opts);
       expect(report1.source).toBe('engine');
       expect(spawnCount).toBe(1);
 
       // Segunda lectura inmediata -> proviene de caché
-      const report2 = readEngineToolReport(opts);
+      const report2 = await readEngineToolReport(opts);
       expect(report2.source).toBe('engine');
       expect(spawnCount).toBe(1);
 
@@ -502,8 +591,50 @@ describe('openspec-engine-tools (Grupo 2)', () => {
       invalidateEngineToolReportCache(repoPath);
 
       // Tercera lectura -> lanza nuevo subproceso
-      const report3 = readEngineToolReport(opts);
+      const report3 = await readEngineToolReport(opts);
       expect(report3.source).toBe('engine');
+      expect(spawnCount).toBe(2);
+    });
+
+    it('tras un timeout, la lectura siguiente no se sirve de caché y vuelve a lanzar el proceso', async () => {
+      const pkgDir = path.join(tempDir, 'cache-timeout-openspec');
+      await createFakeOpenSpecPackage(pkgDir, '1.13.2');
+
+      // config.js entra en bucle para exceder timeoutMs
+      await fsp.writeFile(
+        path.join(pkgDir, 'dist', 'core', 'config.js'),
+        `const end = Date.now() + 10000; while(Date.now() < end) {} export const AI_TOOLS = [];`,
+      );
+
+      const repoPath = path.join(tempDir, 'repo-timeout');
+      await fsp.mkdir(repoPath, { recursive: true });
+
+      let spawnCount = 0;
+      const customSpawn: typeof import('node:child_process').spawn = ((cmd: string, args: string[], opts: any) => {
+        spawnCount++;
+        const { spawn } = require('node:child_process');
+        return spawn(cmd, args, opts);
+      }) as any;
+
+      const opts = {
+        repoPath,
+        executablePath: path.join(pkgDir, 'bin', 'openspec.js'),
+        runtimeVersion: '1.13.2',
+        nodeExecutable: process.execPath,
+        timeoutMs: 150,
+        deps: { spawn: customSpawn },
+      };
+
+      // Primera lectura -> produce timeout
+      const report1 = await readEngineToolReport(opts);
+      expect(report1.source).toBe('gitcron-fallback');
+      expect(report1.fallbackReason).toBe('timeout');
+      expect(spawnCount).toBe(1);
+
+      // Segunda lectura -> no debe ser servida de caché; vuelve a lanzar el proceso
+      const report2 = await readEngineToolReport(opts);
+      expect(report2.source).toBe('gitcron-fallback');
+      expect(report2.fallbackReason).toBe('timeout');
       expect(spawnCount).toBe(2);
     });
   });

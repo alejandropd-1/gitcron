@@ -1,4 +1,4 @@
-import { spawnSync } from 'node:child_process';
+import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import snapshot from './openspec-tools-snapshot.json';
@@ -290,6 +290,68 @@ export interface FallbackDeps {
   readdirSync?: (p: string) => string[];
 }
 
+export const COMMAND_IDS = [
+  'explore',
+  'new',
+  'continue',
+  'apply',
+  'update',
+  'ff',
+  'sync',
+  'archive',
+  'bulk-archive',
+  'verify',
+  'onboard',
+  'propose',
+];
+
+export const TOOL_COMMAND_TEMPLATES: Record<string, (cmd: string) => string> = {
+  'amazon-q': (c) => path.join('.amazonq', 'prompts', `opsx-${c}.md`),
+  antigravity: (c) => path.join('.agents', 'workflows', `opsx-${c}.md`),
+  auggie: (c) => path.join('.augment', 'commands', `opsx-${c}.md`),
+  bob: (c) => path.join('.bob', 'commands', `opsx-${c}.md`),
+  claude: (c) => path.join('.claude', 'commands', 'opsx', `${c}.md`),
+  cline: (c) => path.join('.clinerules', 'workflows', `opsx-${c}.md`),
+  'command-code': (c) => path.join('.commandcode', 'commands', `opsx-${c}.md`),
+  devin: (c) => path.join('.devin', 'workflows', `opsx-${c}.md`),
+  codebuddy: (c) => path.join('.codebuddy', 'commands', 'opsx', `${c}.md`),
+  continue: (c) => path.join('.continue', 'prompts', `opsx-${c}.prompt`),
+  costrict: (c) => path.join('.cospec', 'openspec', 'commands', `opsx-${c}.md`),
+  crush: (c) => path.join('.crush', 'commands', 'opsx', `${c}.md`),
+  cursor: (c) => path.join('.cursor', 'commands', `opsx-${c}.md`),
+  factory: (c) => path.join('.factory', 'commands', `opsx-${c}.md`),
+  gemini: (c) => path.join('.gemini', 'commands', 'opsx', `${c}.toml`),
+  'github-copilot': (c) => path.join('.github', 'prompts', `opsx-${c}.prompt.md`),
+  iflow: (c) => path.join('.iflow', 'commands', `opsx-${c}.md`),
+  junie: (c) => path.join('.junie', 'commands', `opsx-${c}.md`),
+  kilocode: (c) => path.join('.kilo', 'command', `opsx-${c}.md`),
+  kiro: (c) => path.join('.kiro', 'prompts', `opsx-${c}.prompt.md`),
+  'oh-my-pi': (c) => path.join('.omp', 'commands', `opsx-${c}.md`),
+  opencode: (c) => path.join('.opencode', 'commands', `opsx-${c}.md`),
+  pi: (c) => path.join('.pi', 'prompts', `opsx-${c}.md`),
+  codeassistant: (c) => path.join('.codeassistant', 'commands', `opsx-${c}.md`),
+  qoder: (c) => path.join('.qoder', 'commands', 'opsx', `${c}.md`),
+  lingma: (c) => path.join('.lingma', 'commands', 'opsx', `${c}.md`),
+  qwen: (c) => path.join('.qwen', 'commands', `opsx-${c}.md`),
+  roocode: (c) => path.join('.roo', 'commands', `opsx-${c}.md`),
+  trae: (c) => path.join('.trae', 'commands', `opsx-${c}.md`),
+  zcode: (c) => path.join('.zcode', 'commands', 'opsx', `${c}.md`),
+};
+
+/**
+ * Comprueba si una herramienta tiene al menos un comando OpenSpec configurado,
+ * con las mismas plantillas que toolHasAnyConfiguredCommand del motor.
+ */
+export function toolHasAnyConfiguredCommand(
+  repoPath: string,
+  toolId: string,
+  existsFn: (p: string) => boolean = existsSync,
+): boolean {
+  const template = TOOL_COMMAND_TEMPLATES[toolId];
+  if (!template) return false;
+  return COMMAND_IDS.some((cmdId) => existsFn(path.join(repoPath, template(cmdId))));
+}
+
 /**
  * Genera el informe de respaldo utilizando la copia propia de la versión del ciclo SDD (Decisión 4).
  */
@@ -399,37 +461,14 @@ export function buildFallbackToolReport(options: {
     let configured = false;
     let generatedBy: string | null = null;
 
-    // 1) Comprobación de comandos configurados
-    if (tool.id === 'antigravity') {
-      const workflowsDir = path.join(repoPath, '.agents', 'workflows');
-      if (existsFn(workflowsDir)) {
-        try {
-          const files = readdirFn(workflowsDir);
-          if (files.some((f: string) => f.endsWith('.md'))) {
-            configured = true;
-          }
-        } catch {
-          // Ignorar
-        }
-      }
-    } else if (tool.skillsDir) {
-      const cmdDir = path.join(repoPath, tool.skillsDir, 'commands');
-      if (existsFn(cmdDir)) {
-        try {
-          const files = readdirFn(cmdDir);
-          if (files.some((f: string) => f.endsWith('.md'))) {
-            configured = true;
-          }
-        } catch {
-          // Ignorar
-        }
-      }
-    }
+    // 1) Comprobación de comandos configurados según toolHasAnyConfiguredCommand del motor
+    const hasCommand = toolHasAnyConfiguredCommand(repoPath, tool.id, existsFn);
 
     // 2) Comprobación de skills en carpeta canónica
+    let hasSkill = false;
     if (tool.skillsDir === '.agents') {
       if (activeAgentsOwner === tool.id && hasAgentsSkills) {
-        configured = true;
+        hasSkill = true;
       }
     } else if (tool.skillsDir) {
       const skillsDir = path.join(repoPath, tool.skillsDir, 'skills');
@@ -437,7 +476,7 @@ export function buildFallbackToolReport(options: {
         try {
           const entries = readdirFn(skillsDir);
           if (entries.some((e: string) => (snapshot.skillNames as string[]).includes(e))) {
-            configured = true;
+            hasSkill = true;
           }
         } catch {
           // Ignorar
@@ -458,7 +497,7 @@ export function buildFallbackToolReport(options: {
           try {
             const entries = readdirFn(legacySkills);
             if (entries.some((e: string) => (snapshot.skillNames as string[]).includes(e))) {
-              configured = true;
+              hasSkill = true;
             }
           } catch {
             // Ignorar
@@ -466,6 +505,8 @@ export function buildFallbackToolReport(options: {
         }
       }
     }
+
+    configured = hasSkill || hasCommand;
 
     // C) Extraer generatedBy de SKILL.md de la primera skill que exista
     for (const dir of checkDirs) {
@@ -488,11 +529,6 @@ export function buildFallbackToolReport(options: {
           if (generatedBy) break;
         }
       }
-    }
-
-    // Si está configurada solo por comandos y no hay skills, generatedBy se asume snapshot.version
-    if (configured && !generatedBy && !checkDirs.some((d) => existsFn(d))) {
-      generatedBy = snapshot.version;
     }
 
     const needsUpdate =
@@ -529,7 +565,7 @@ export interface ReadEngineToolReportOptions {
   nodeExecutable?: string;
   timeoutMs?: number;
   deps?: LocatePackageDeps & FallbackDeps & {
-    spawnSync?: typeof spawnSync;
+    spawn?: typeof spawn;
   };
 }
 
@@ -558,11 +594,124 @@ export function invalidateEngineToolReportCache(repoPath?: string): void {
   }
 }
 
+interface ProcessExecResult {
+  status: number | null;
+  stdout: string;
+  stderr: string;
+  error?: Error & { code?: string };
+}
+
+function runRunnerProcessAsync(
+  nodeExec: string,
+  args: string[],
+  payload: string,
+  timeoutMs: number,
+  spawnFn: typeof spawn = spawn,
+): Promise<ProcessExecResult> {
+  return new Promise((resolve) => {
+    let child: ChildProcess;
+    try {
+      child = spawnFn(nodeExec, args, {
+        windowsHide: true,
+        shell: false,
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1',
+        },
+      });
+    } catch (err) {
+      resolve({
+        status: null,
+        stdout: '',
+        stderr: '',
+        error: err instanceof Error ? err : new Error(String(err)),
+      });
+      return;
+    }
+
+    let stdout = '';
+    let stderr = '';
+    let timedOut = false;
+    let killedForBuffer = false;
+    const maxBuffer = 1024 * 1024;
+
+    const timer = setTimeout(() => {
+      timedOut = true;
+      try {
+        child.kill();
+      } catch {
+        // Ignorar
+      }
+    }, timeoutMs);
+
+    child.stdout?.setEncoding('utf8');
+    child.stdout?.on('data', (chunk: string) => {
+      if (stdout.length < maxBuffer) {
+        stdout += chunk;
+      } else if (!killedForBuffer) {
+        killedForBuffer = true;
+        try {
+          child.kill();
+        } catch {
+          // Ignorar
+        }
+      }
+    });
+
+    child.stderr?.setEncoding('utf8');
+    child.stderr?.on('data', (chunk: string) => {
+      if (stderr.length < maxBuffer) {
+        stderr += chunk;
+      }
+    });
+
+    child.on('error', (err: Error) => {
+      clearTimeout(timer);
+      resolve({
+        status: null,
+        stdout,
+        stderr,
+        error: err,
+      });
+    });
+
+    child.on('close', (code: number | null) => {
+      clearTimeout(timer);
+      if (timedOut) {
+        const timeoutErr = Object.assign(new Error('Process timed out'), { code: 'ETIMEDOUT' });
+        resolve({
+          status: code,
+          stdout,
+          stderr,
+          error: timeoutErr,
+        });
+      } else {
+        resolve({
+          status: code,
+          stdout,
+          stderr,
+        });
+      }
+    });
+
+    try {
+      if (child.stdin) {
+        child.stdin.on('error', () => {
+          // Ignorar errores de stream si el proceso termina antes de leer
+        });
+        child.stdin.end(payload, 'utf8');
+      }
+    } catch {
+      // Ignorar errores de escritura
+    }
+  });
+}
+
 /**
  * Lee el informe de herramientas llamando a las funciones internas del motor
- * en un subproceso aislado, o mediante el respaldo si falla (Decisiones 1 a 4).
+ * en un subproceso aislado asíncrono, o mediante el respaldo si falla (Decisiones 1 a 4).
  */
-export function readEngineToolReport(options: ReadEngineToolReportOptions): OpenSpecToolReport {
+export async function readEngineToolReport(options: ReadEngineToolReportOptions): Promise<OpenSpecToolReport> {
   const { repoPath, executablePath, runtimeVersion, workflows = [], delivery = 'both' } = options;
 
   // 1. Ubicar el paquete
@@ -592,7 +741,7 @@ export function readEngineToolReport(options: ReadEngineToolReportOptions): Open
 
   // 2. Ejecutar en subproceso aislado con Node
   const nodeExec = options.nodeExecutable ?? process.execPath;
-  const spawnFn = options.deps?.spawnSync ?? spawnSync;
+  const spawnFn = options.deps?.spawn ?? spawn;
   const timeoutMs = options.timeoutMs ?? 10000;
 
   const payload = JSON.stringify({
@@ -603,18 +752,13 @@ export function readEngineToolReport(options: ReadEngineToolReportOptions): Open
     delivery,
   });
 
-  const result = spawnFn(nodeExec, ['--input-type=module', '-e', RUNNER_SCRIPT], {
-    input: payload,
-    encoding: 'utf8',
-    timeout: timeoutMs,
-    maxBuffer: 1024 * 1024,
-    windowsHide: true,
-    shell: false,
-    env: {
-      ...process.env,
-      ELECTRON_RUN_AS_NODE: '1',
-    },
-  });
+  const result = await runRunnerProcessAsync(
+    nodeExec,
+    ['--input-type=module', '-e', RUNNER_SCRIPT],
+    payload,
+    timeoutMs,
+    spawnFn,
+  );
 
   // 3. Manejo de errores y timeout
   if (result.error) {
@@ -625,7 +769,7 @@ export function readEngineToolReport(options: ReadEngineToolReportOptions): Open
       engineVersion: version,
       deps: options.deps,
     });
-    reportCache.set(cacheKey, fallback);
+    // No cachear fallas transitorias ('timeout' ni 'failed')
     return fallback;
   }
 
@@ -644,7 +788,10 @@ export function readEngineToolReport(options: ReadEngineToolReportOptions): Open
       engineVersion: version,
       deps: options.deps,
     });
-    reportCache.set(cacheKey, fallback);
+
+    if (isApiChanged) {
+      reportCache.set(cacheKey, fallback);
+    }
     return fallback;
   }
 

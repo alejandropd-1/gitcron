@@ -55,7 +55,7 @@ import {
   setOpenSpecWorkflow,
   setOpenSpecProfile,
 } from '../pipeline/openspec-global-config';
-import { inspectInstalledEvidence } from '../pipeline/openspec-evidence';
+import { inspectInstalledEvidence, readSharedSkillTarget } from '../pipeline/openspec-evidence';
 import { checkLatestOpenSpecVersion, getLocalCacheRegistryStatus } from '../pipeline/openspec-registry';
 import {
   generateDiagnosticPreview,
@@ -92,6 +92,7 @@ export interface OpenSpecIpcDeps {
   runContext?: (repoPath: string, options?: CliExecutionOptions) => Promise<OpenSpecContextBriefResult>;
   getArtifactGraph?: (repoPath: string, changeId: string, options?: CliExecutionOptions) => Promise<OpenSpecArtifactGraphResult>;
   recalculateStatus?: (repoPath?: string) => Promise<OpenSpecEngineStatus>;
+  readSharedSkillTarget?: (repoPath: string) => string | null;
   runVersionAnalysis?: (
     repoPath: string,
     options?: {
@@ -361,15 +362,27 @@ export async function buildEngineStatusSnapshot(
     // (2.9): queda fuera de `installedWorkflowsByTarget` y antes era invisible,
     // lo que declaraba convergencia con `.agents` presente pero sin configurar.
     // Nunca puede haber convergencia confirmada con un target presente sin
-    // comparar. Los outputs `external-global` no entran: son sólo diagnóstico
-    // (contrato 2.10).
+    // comparar. Los outputs `external-global` y los no configurables por OpenSpec
+    // (como CI en .github) no entran: son sólo diagnóstico (contratos 2.10 y decisión 12).
+    // Una herramienta servida desde la carpeta compartida (.agents/skills) se
+    // compara con los workflows de esa carpeta (decisión 12).
+    const resolveSharedTarget = deps.readSharedSkillTarget ?? readSharedSkillTarget;
+    const sharedTargetTool = validRepoPath ? resolveSharedTarget(validRepoPath) : null;
+    const agentsWorkflows = installedIntegration.installedWorkflowsByTarget['agents'] ?? [];
     const compared = new Set(Object.keys(installedIntegration.installedWorkflowsByTarget));
-    const targetEntries: Array<[string, string[]]> = [
-      ...Object.entries(installedIntegration.installedWorkflowsByTarget),
-      ...(installedIntegration.presentToolDirectories ?? [])
-        .filter((toolId) => !compared.has(toolId))
-        .map((toolId) => [toolId, []] as [string, string[]]),
-    ];
+
+    const targetEntries: Array<[string, string[]]> = [];
+    for (const [toolId, targetWfs] of Object.entries(installedIntegration.installedWorkflowsByTarget)) {
+      if (!isOpenSpecConfigurableTool(toolId)) continue;
+      const wfs = (toolId === sharedTargetTool && targetWfs.length === 0) ? agentsWorkflows : targetWfs;
+      targetEntries.push([toolId, wfs]);
+    }
+    for (const toolId of installedIntegration.presentToolDirectories ?? []) {
+      if (compared.has(toolId)) continue;
+      if (!isOpenSpecConfigurableTool(toolId)) continue;
+      const wfs = toolId === sharedTargetTool ? agentsWorkflows : [];
+      targetEntries.push([toolId, wfs]);
+    }
     for (const [toolId, targetWfs] of targetEntries) {
       const toolDef = getToolDef(toolId);
       const label = toolDef?.label ?? toolId;

@@ -5,8 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   defaultListOpenSpecChanges,
   getRealGitInfo,
+  readOpenSpecTooling,
   RepoEvidenceReader,
 } from '../pipeline/repo-evidence-reader';
+import { isOpenSpecConfigurableTool } from '../pipeline/openspec-tooling';
 
 describe('RepoEvidenceReader', () => {
   let root: string;
@@ -159,6 +161,48 @@ describe('RepoEvidenceReader', () => {
         { toolId: 'codex', label: 'Codex', directory: '.codex', configured: true },
         { toolId: 'antigravity', label: 'Antigravity', directory: '.agent', configured: false },
       ]);
+    });
+
+    it('6.10: estado OdontoPau - Codex servido desde .agents/skills con marca .openspec-target da configurada, .github informativa', async () => {
+      await fs.mkdir(path.join(root, 'openspec', 'changes'), { recursive: true });
+
+      // .agents con skills y marca codex
+      const agentsSkillsDir = path.join(root, '.agents', 'skills');
+      await fs.mkdir(path.join(agentsSkillsDir, 'openspec-apply'), { recursive: true });
+      await fs.writeFile(path.join(agentsSkillsDir, 'openspec-apply', 'SKILL.md'), '---\ngeneratedBy: "1.13.2"\n---\n');
+      await fs.writeFile(path.join(agentsSkillsDir, '.openspec-target'), 'codex\n');
+
+      // .codex con config.toml y carpeta skills vacía
+      await fs.mkdir(path.join(root, '.codex', 'skills'), { recursive: true });
+      await fs.writeFile(path.join(root, '.codex', 'config.toml'), '# codex config\n');
+
+      // .github con workflow de CI
+      await fs.mkdir(path.join(root, '.github', 'workflows'), { recursive: true });
+      await fs.writeFile(path.join(root, '.github', 'workflows', 'quality-gates.yml'), 'name: CI\n');
+
+      const tooling = await readOpenSpecTooling(root);
+      expect(tooling.present).toBe(true);
+
+      const codexTool = tooling.tools.find((t) => t.toolId === 'codex');
+      const agentsTool = tooling.tools.find((t) => t.toolId === 'agents');
+      const githubTool = tooling.tools.find((t) => t.toolId === 'github');
+
+      // Codex está configurada gracias a la marca en .agents/skills/.openspec-target
+      expect(codexTool).toEqual({ toolId: 'codex', label: 'Codex', directory: '.codex', configured: true });
+      expect(agentsTool).toEqual({ toolId: 'agents', label: 'Agents Multi-Agent', directory: '.agents', configured: true });
+      // GitHub está presente pero configured: false, y no es configurable por OpenSpec (informativa)
+      expect(githubTool).toEqual({ toolId: 'github', label: 'GitHub Workflows', directory: '.github', configured: false });
+      expect(isOpenSpecConfigurableTool(githubTool?.toolId)).toBe(false);
+      expect(isOpenSpecConfigurableTool(codexTool?.toolId)).toBe(true);
+
+      const snapshot = await readerFor(root);
+      expect(snapshot.evidence.openSpecTools).toEqual(tooling.tools);
+
+      // Si se retira la marca .openspec-target, Codex pasa a configured: false
+      await fs.unlink(path.join(agentsSkillsDir, '.openspec-target'));
+      const toolingWithoutTarget = await readOpenSpecTooling(root);
+      const codexUnconfigured = toolingWithoutTarget.tools.find((t) => t.toolId === 'codex');
+      expect(codexUnconfigured?.configured).toBe(false);
     });
   });
 

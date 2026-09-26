@@ -28,11 +28,13 @@ import { isValidOpenSpecChangeSlug } from '../../lib/openspec-slug';
 import { readOpenSpecChangeMetadata } from './openspec-engine';
 import { resolveContainedRepoPath, safeListRepoDirectory, safeReadRepoFile } from './repo-paths';
 import {
+  isOpenSpecConfigurableTool,
   isOpenSpecSkillEntry,
   OPENSPEC_TOOL_DIRECTORIES,
   resolveToolStates,
   type ToolPresence,
 } from './openspec-tooling';
+import { readSharedSkillTarget } from './openspec-evidence';
 
 const execFileAsync = promisify(execFile);
 
@@ -145,19 +147,31 @@ function archivedChange(entry: string): OpenSpecArchivedChangeEvidence | null {
  * init` lo sabe, pero lo aplica configurando, y correrlo para averiguar el
  * estado escribiría archivos.
  */
-async function readOpenSpecTooling(repoPath: string): Promise<{
+export async function readOpenSpecTooling(repoPath: string): Promise<{
   present: boolean;
   tools: OpenSpecToolEvidence[];
 }> {
   const present = (await safeListRepoDirectory(repoPath, 'openspec')).length > 0;
   const presence = new Map<string, ToolPresence>();
+  const sharedTargetTool = readSharedSkillTarget(repoPath);
+  const agentsSkills = await safeListRepoDirectory(repoPath, '.agents/skills');
+  const hasAgentsSkills = agentsSkills.some(isOpenSpecSkillEntry);
+
   for (const tool of OPENSPEC_TOOL_DIRECTORIES) {
     const entries = await safeListRepoDirectory(repoPath, tool.directory);
     if (entries.length === 0) continue;
     // Presente pero sin skills es el estado que interesa mostrar: la herramienta
     // se usa acá y su ejecutor no sabe que el canal existe.
     const skills = await safeListRepoDirectory(repoPath, `${tool.directory}/skills`);
-    presence.set(tool.toolId, { present: true, configured: skills.some(isOpenSpecSkillEntry) });
+    const hasOwnSkills = skills.some(isOpenSpecSkillEntry);
+    const isSharedConfigured =
+      isOpenSpecConfigurableTool(tool.toolId) &&
+      tool.toolId === sharedTargetTool &&
+      hasAgentsSkills;
+    presence.set(tool.toolId, {
+      present: true,
+      configured: hasOwnSkills || isSharedConfigured,
+    });
   }
   return { present, tools: resolveToolStates(presence) };
 }

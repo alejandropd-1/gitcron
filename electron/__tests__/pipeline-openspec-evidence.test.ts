@@ -7,11 +7,12 @@ import {
   DIR_HASH_MAX_ENTRIES,
   extractGeneratedByHeader,
   inspectInstalledEvidence,
+  readSharedSkillTarget,
   skillToWorkflowName,
 } from '../pipeline/openspec-evidence';
 import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
-import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
+import { classifyOpenSpecProfile, deriveProfileWorkflowRows } from '../../lib/openspec-profile';
 
 /**
  * Doble de disco anclado a rutas EXACTAS (invariante 19): `readdir` sólo
@@ -514,6 +515,62 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       expect(snapshot.installedIntegration?.conflicts).toBeNull();
       // .github no debe provocar 'outdated'
       expect(snapshot.integrationState).toBe('up-to-date');
+
+      // Tarea 6.10 / Decisión 12: convergencia de targets
+      // Codex servida desde .agents/skills es convergente; github (CI) queda fuera de la divergencia
+      expect(snapshot.divergence?.isDivergent).toBe(false);
+      expect(snapshot.divergence?.overallStatus).toBe('convergent');
+      expect(snapshot.divergence?.targetConvergences?.['agents']?.status).toBe('convergent');
+      expect(snapshot.divergence?.targetConvergences?.['codex']?.status).toBe('convergent');
+      expect(snapshot.divergence?.targetConvergences?.['github']).toBeUndefined();
+
+      // Perfil de workflows: ningún workflow acusa falta en Codex ni en GitHub Workflows
+      const installedByTarget = Object.fromEntries(
+        Object.entries(snapshot.divergence?.targetConvergences ?? {}).map(([id, c]) => [id, c.installedWorkflows]),
+      );
+      const rows = deriveProfileWorkflowRows(workflows, workflows, installedByTarget);
+      expect(rows).toHaveLength(6);
+      for (const row of rows) {
+        expect(row.missingByIntegration).toEqual([]);
+      }
+
+      // Si se retira .openspec-target, Codex queda con workflows vacíos y causa divergencia
+      fs.unlinkSync(path.join(agentSkillsDir, '.openspec-target'));
+      const snapshotWithoutMarker = await buildEngineStatusSnapshot(tempDir, {
+        discoverCli: async () => ({
+          installed: true,
+          runtimeVersion: '1.13.2',
+          provenance: 'local',
+          displayPath: 'node_modules\\.bin\\openspec.cmd',
+          supportedRange: { min: '1.5.0', max: '1.13.2' },
+          versionClass: 'supported',
+          evidenceStatus: 'confirmed',
+          diagnostics: [],
+        }),
+        readGlobalConfig: async () => ({
+          rawProfile: 'core',
+          configuredWorkflows: workflows,
+          origin: 'cli',
+          readAt: new Date().toISOString(),
+        }),
+        runDoctor: async () => ({ command: 'openspec doctor --json', ok: true, error: null, data: null }),
+        runContext: async () => ({ command: 'openspec context --json', ok: true, error: null, data: null }),
+      });
+
+      expect(snapshotWithoutMarker.divergence?.isDivergent).toBe(true);
+      expect(snapshotWithoutMarker.divergence?.overallStatus).toBe('divergent');
+      expect(snapshotWithoutMarker.divergence?.targetConvergences?.['codex']?.status).toBe('divergent');
+      expect(snapshotWithoutMarker.divergence?.targetConvergences?.['github']).toBeUndefined();
+      const rowsWithoutMarker = deriveProfileWorkflowRows(
+        workflows,
+        workflows,
+        Object.fromEntries(
+          Object.entries(snapshotWithoutMarker.divergence?.targetConvergences ?? {}).map(([id, c]) => [id, c.installedWorkflows]),
+        ),
+      );
+      for (const row of rowsWithoutMarker) {
+        expect(row.missingByIntegration).toEqual(['codex']);
+      }
     } finally {
       try {
         fs.rmSync(tempDir, { recursive: true, force: true });
@@ -1179,6 +1236,76 @@ describe('computeDirContentHash — recorrido acotado (invariante 19)', () => {
       } finally {
         fs.rmSync(tmpDir, { recursive: true, force: true });
       }
+    });
+  });
+
+  describe('6.10: función compartida readSharedSkillTarget', () => {
+    it('(a) resuelve herramienta válida y configurable', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-target-valid-'));
+      try {
+        const skillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(skillsDir, { recursive: true });
+        fs.writeFileSync(path.join(skillsDir, '.openspec-target'), 'codex\n', 'utf-8');
+
+        expect(readSharedSkillTarget(tmpDir)).toBe('codex');
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(b) ignora herramienta no configurable (ej. github / ci)', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-target-ci-'));
+      try {
+        const skillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(skillsDir, { recursive: true });
+        fs.writeFileSync(path.join(skillsDir, '.openspec-target'), 'github\n', 'utf-8');
+
+        expect(readSharedSkillTarget(tmpDir)).toBeNull();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(c) ignora herramienta desconocida o archivo vacío', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-target-unknown-'));
+      try {
+        const skillsDir = path.join(tmpDir, '.agents', 'skills');
+        fs.mkdirSync(skillsDir, { recursive: true });
+        fs.writeFileSync(path.join(skillsDir, '.openspec-target'), 'inventada\n', 'utf-8');
+        expect(readSharedSkillTarget(tmpDir)).toBeNull();
+
+        fs.writeFileSync(path.join(skillsDir, '.openspec-target'), '   \n', 'utf-8');
+        expect(readSharedSkillTarget(tmpDir)).toBeNull();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(d) devuelve null si el archivo no existe', () => {
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'shared-target-none-'));
+      try {
+        expect(readSharedSkillTarget(tmpDir)).toBeNull();
+      } finally {
+        fs.rmSync(tmpDir, { recursive: true, force: true });
+      }
+    });
+
+    it('(e) detecta escape de contención y llama a onEscape', () => {
+      let escapedPath: string | null = null;
+      const target = readSharedSkillTarget('C:\\repo', {
+        realpath: (p) => {
+          if (p.includes('.openspec-target')) return 'C:\\outside\\target';
+          return 'C:\\repo';
+        },
+        lstat: () => ({ isFile: () => true } as any),
+        readFile: () => 'codex',
+        onEscape: (p) => {
+          escapedPath = p;
+        },
+      });
+
+      expect(target).toBeNull();
+      expect(escapedPath).toBe('C:\\outside\\target');
     });
   });
 });

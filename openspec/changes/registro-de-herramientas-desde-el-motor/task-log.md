@@ -1,0 +1,4 @@
+# Registro de tareas
+
+- 2026-09-27 01:35 — persona — marcada — "6.13 Revisión en pantalla (la marca Alejandro): al abrir OpenSpec en cualquier repositorio se ve el esqueleto de precarga, sin saltos, y nunca «Ausente/Desconocido» de paso; en un repositorio sin OpenSpec (Portfolio, tras descartar lo que dejó la prueba) se ve un solo «Inicializar OpenSpec» con la elección de herramientas; con pendientes, una línea y un «Configurar…»; en OdontoPau, AGENTES y salidas sin duplicados ni `.github`; nada se monta ni salta."
+- 2026-09-27 01:35 — persona — marcada — "5.2 Revisión en pantalla (la marca Alejandro): en OdontoPau, AGENTES muestra Codex configurada, la integración al día, sin «Falta en …» ni `.github`; en gitCronos, la integración al día con «Falta configurar: Zcode» y la acción de configurar (o el comando, según 4.1), sin «Actualizar» por eso; en ninguno aparece el aviso de respaldo."

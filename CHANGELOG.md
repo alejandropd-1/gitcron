@@ -4,6 +4,28 @@ Changes are listed from newest to oldest.
 
 ---
 
+## [v1.18.0] - 2026-09-26 - Las herramientas de OpenSpec las decide el motor
+
+GitCron deja de llevar a mano la lista de herramientas de OpenSpec: le pregunta al motor de cada repositorio qué herramientas hay, cuáles están configuradas y cuáles necesitan actualizarse. Con eso desaparecen los «sin configurar» y «desactualizado» que el motor no sostenía, y la pantalla de configuración se lee sin sobresaltos.
+
+### 🤖 Pipeline & Workspace OpenSpec
+
+#### Added
+- **Informe de herramientas del motor.** GitCron corre, en un proceso aparte y sin bloquear la app, las funciones con las que OpenSpec decide qué hay en un proyecto (disponibles, configuradas, vigencia y sincronización con el perfil), usando el paquete de la versión que responde en ese repositorio.
+- **Respaldo declarado.** Si el motor no se puede leer, GitCron usa una copia de la lista de OpenSpec 1.13 (`electron/pipeline/openspec-tools-snapshot.json`, recapturable con `scripts/capturar-herramientas-openspec.mjs`) y lo avisa en pantalla con el motivo. Una prueba falla si la copia no corresponde a la versión del ciclo SDD.
+- **Inicializar y configurar desde la pantalla.** Un repositorio sin OpenSpec ofrece un solo «Inicializar OpenSpec» eligiendo herramientas; uno que ya lo usa muestra «Detectadas sin configurar: …» con un único «Configurar…». Ambos informan qué quedó y cuántos archivos nuevos hay sin confirmar.
+- **Precarga como SDD.** Mientras se lee el motor se ve un esqueleto con la forma de la pantalla, sin saltos.
+
+#### Fixed
+- **«Al día» según el motor.** La integración está al día cuando las herramientas configuradas lo están y el perfil no pide sincronizar; una herramienta presente sin configurar se muestra aparte y nunca ofrece «Actualizar».
+- **Sin «Ausente» ni «Desconocido» mientras se lee.** Sólo se declaran con una medición que los sostenga.
+- **Salidas administrables por carpeta**, presentes sólo si tienen instrucciones de OpenSpec (sin `.agents/skills` repetido ni `.github` fantasma). Se retira «GitHub Workflows», que OpenSpec no tiene.
+- **Cabecera coherente:** el botón no dice «Todo al día» cuando falta inicializar o hay pendientes.
+
+**Validación:** `build` en 0 · `tsc --noEmit` en 0 · 211 archivos y 2300 pruebas en verde (dos pasadas) · `eslint` limpio sobre lo tocado · `openspec validate --strict` válido · revisión en pantalla sobre OdontoPau, gitCronos, Portfolio y preinscriptos.
+
+---
+
 ## [v1.17.0] - 2026-09-25 - Actualizar OpenSpec donde vive y decir la verdad después
 
 Esta versión corrige el botón «Actualizar» de la Configuración de OpenSpec, que en un repositorio con su propia copia del motor actualizaba la del sistema y terminaba en «Listo» sin haber cambiado nada, y hace que la revisión diga lo que realmente pasa después de actualizar.

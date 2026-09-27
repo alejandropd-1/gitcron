@@ -35,7 +35,7 @@ describe('detalle de herramientas en el rail', () => {
     expect(screen.getByText('codex')).toBeTruthy();
     expect(screen.getByText('antigravity')).toBeTruthy();
     expect(screen.getByText(/readiness\.configured/)).toBeTruthy();
-    expect(screen.getByText(/engine\.pendingTool/)).toBeTruthy();
+    expect(screen.getByText(/engine\.pendingTool:/)).toBeTruthy();
   });
 
   it('con todo en orden sigue mostrando la lista', () => {
@@ -123,7 +123,7 @@ describe('detalle de herramientas en el rail', () => {
   it('las herramientas pendientes muestran «Falta configurar» y acción configurar, nunca actualizar', () => {
     render(<OpenSpecToolList present tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
     expect(screen.getByText('antigravity')).toBeTruthy();
-    expect(screen.getByText(/engine\.pendingTool/)).toBeTruthy();
+    expect(screen.getByText(/engine\.pendingTool:/)).toBeTruthy();
     expect(screen.getByRole('button', { name: /engine\.configureAction/ })).toBeTruthy();
     expect(screen.queryByRole('button', { name: /update/i })).toBeNull();
   });

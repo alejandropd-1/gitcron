@@ -2,6 +2,7 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs';
 import path from 'node:path';
 import snapshot from './openspec-tools-snapshot.json';
+import { OPENSPEC_TOOL_PRESENTATION } from './openspec-tooling';
 
 import type {
   EngineToolReportSource,
@@ -545,9 +546,10 @@ export function buildFallbackToolReport(options: {
       configured &&
       (generatedBy === null || generatedBy !== snapshot.version);
 
+    const pres = OPENSPEC_TOOL_PRESENTATION[tool.id];
     return {
       id: tool.id,
-      label: tool.label,
+      label: pres?.label ?? tool.label,
       skillsDir: tool.skillsDir,
       legacySkillsDirs: tool.legacySkillsDirs,
       available,
@@ -830,6 +832,13 @@ export async function readEngineToolReport(options: ReadEngineToolReportOptions)
     });
     reportCache.set(cacheKey, fallback);
     return fallback;
+  }
+
+  for (const tool of validated.tools) {
+    const pres = OPENSPEC_TOOL_PRESENTATION[tool.id];
+    if (pres?.label) {
+      tool.label = pres.label;
+    }
   }
 
   reportCache.set(cacheKey, validated);

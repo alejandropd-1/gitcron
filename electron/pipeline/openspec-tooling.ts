@@ -71,7 +71,7 @@ export interface OpenSpecToolPresentation {
 }
 
 export const OPENSPEC_TOOL_PRESENTATION: Readonly<Record<string, OpenSpecToolPresentation>> = {
-  agents: { label: 'Agents Multi-Agent', descriptionKey: 'pipeline.openspec.engine.output.agentsDesc' },
+  agents: { label: 'Carpeta compartida .agents', descriptionKey: 'pipeline.openspec.engine.output.agentsDesc' },
   codex: { descriptionKey: 'pipeline.openspec.engine.output.codexDesc' },
   claude: { descriptionKey: 'pipeline.openspec.engine.output.claudeDesc' },
   antigravity: { descriptionKey: 'pipeline.openspec.engine.output.antigravityDesc' },

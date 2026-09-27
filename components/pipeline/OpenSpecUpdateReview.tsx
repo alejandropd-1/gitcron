@@ -48,6 +48,7 @@ export interface OpenSpecUpdateReviewProps {
   currentBranch?: string | null;
   isClean?: boolean;
   uncommittedCount?: number;
+  isLoading?: boolean;
   onBack: () => void;
   onPrepareCommit?: () => void;
   onUpdateCompleted?: (result: OpenSpecRunUpdateResult) => void;
@@ -63,6 +64,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   currentBranch,
   isClean = true,
   uncommittedCount,
+  isLoading = false,
   onBack,
   onPrepareCommit,
   onUpdateCompleted,
@@ -238,7 +240,12 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
   const integrationStep = action !== 'blocked' && (
     action !== 'none' || (Boolean(upgrade) && isRepoInitialized)
   );
-  const runnerDisabledReason = action === 'blocked' ? t('pipeline.openspec.engine.matrix.blockedReason', { reason: resolveBlockReasonText() }) : null;
+  const isReading = Boolean(isLoading || !status);
+  const runnerDisabledReason = isReading
+    ? null
+    : action === 'blocked'
+    ? t('pipeline.openspec.engine.matrix.blockedReason', { reason: resolveBlockReasonText() })
+    : null;
 
   return (
     <section className={styles.reviewView} aria-label={t('pipeline.openspec.engine.review.title')}>
@@ -265,7 +272,9 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <div className={styles.reviewFactLine}>
               <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.engineLabel')}</span>
               <span className={styles.reviewFactValue}>
-                {!cli?.installed
+                {isReading
+                  ? t('pipeline.openspec.engine.reading')
+                  : !cli?.installed
                   ? t('pipeline.openspec.engine.status.absent')
                   : upgrade !== null
                   ? t('pipeline.openspec.engine.hostUpgrade.offer', { installed: upgrade.installed, latest: upgrade.latest })
@@ -275,9 +284,15 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             <div className={styles.reviewFactLine}>
               <span className={styles.reviewFactLabel}>{t('pipeline.openspec.engine.summary.integrationLabel')}</span>
               <span className={styles.reviewFactValue}>
-                <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
-                  {actionLabel}
-                </strong>
+                {isReading ? (
+                  <strong style={{ color: 'var(--color-text-secondary)' }}>
+                    {t('pipeline.openspec.engine.reading')}
+                  </strong>
+                ) : (
+                  <strong style={{ color: action === 'none' ? 'var(--color-git-add)' : action === 'blocked' ? 'var(--color-error)' : 'var(--color-warning)' }}>
+                    {actionLabel}
+                  </strong>
+                )}
               </span>
             </div>
           </div>
@@ -287,6 +302,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
               repoPath={repoPath}
               engine={engineStep}
               integration={integrationStep}
+              isLoading={isReading}
+              pendingTools={effectiveStatus?.pendingTools}
               repoInitialized={isRepoInitialized}
               repoState={effectiveStatus?.repoState}
               updatePlan={updatePlan}
@@ -296,6 +313,20 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
                 dirtyCount: isDirty ? (uncommittedCount ?? 1) : null,
               }}
               disabledReason={runnerDisabledReason}
+              onInitialize={() => {
+                const configured = effectiveStatus?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
+                  ?? installed?.configuredTools
+                  ?? [];
+                return runOpenSpecInit(configured.length > 0 ? configured : undefined);
+              }}
+              onConfigurePendingTools={() => {
+                const configured = effectiveStatus?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
+                  ?? installed?.configuredTools
+                  ?? [];
+                const pending = effectiveStatus?.pendingTools ?? [];
+                const union = Array.from(new Set([...configured, ...pending]));
+                return runOpenSpecInit(union);
+              }}
               onIntegrationUpdated={(result) => {
                 setLastIntegration(result);
                 onUpdateCompleted?.(result);
@@ -513,7 +544,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
         <OpenSpecEngineCard
           status={effectiveStatus}
           section="motor"
-          isLoading={false}
+          isLoading={isReading}
+          uncommittedCount={uncommittedCount}
           compact={false}
           defaultAdvancedOpen={true}
           isReviewOpen={true}
@@ -550,6 +582,7 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
             busy={initBusy}
             error={initError}
             needsTool={initNeedsTool}
+            uncommittedCount={uncommittedCount}
             onInitialize={() => {
               const configured = effectiveStatus?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
                 ?? installed?.configuredTools
@@ -571,7 +604,8 @@ export const OpenSpecUpdateReview: React.FC<OpenSpecUpdateReviewProps> = ({
           <OpenSpecEngineCard
             status={effectiveStatus}
             section="profile"
-            isLoading={false}
+            isLoading={isReading}
+            uncommittedCount={uncommittedCount}
             compact={false}
             isReviewOpen={true}
             repoPath={repoPath}

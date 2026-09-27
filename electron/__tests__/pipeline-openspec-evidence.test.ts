@@ -146,7 +146,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       readFile: () => skillContent,
     });
 
-    const hash1 = ev1.outputInventory.find((o) => o.targetName === 'Agents Multi-Agent')?.contentHash;
+    const hash1 = ev1.outputInventory.find((o) => o.id === 'output-agents')?.contentHash;
     expect(hash1).not.toBeNull();
 
     // Modificar contenido conservando el mismo archivo y nombre
@@ -159,7 +159,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       readFile: () => skillContent,
     });
 
-    const hash2 = ev2.outputInventory.find((o) => o.targetName === 'Agents Multi-Agent')?.contentHash;
+    const hash2 = ev2.outputInventory.find((o) => o.id === 'output-agents')?.contentHash;
     expect(hash2).not.toBeNull();
     expect(hash1).not.toBe(hash2);
   });
@@ -226,7 +226,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         }
         return null;
       },
-      readdir: () => [],
+      readdir: (p) => (p.includes('.minimax') ? ['openspec-apply-change'] : []),
       readFile: () => '',
     });
 
@@ -262,7 +262,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
 
     expect(evidence.conflicts).not.toBeNull();
     expect(evidence.conflicts?.some((c) => c.includes('apunta fuera del repositorio'))).toBe(true);
-    const agentsOutput = evidence.outputInventory.find((o) => o.targetName === 'Agents Multi-Agent');
+    const agentsOutput = evidence.outputInventory.find((o) => o.id === 'output-agents');
     expect(agentsOutput?.presenceState).toBe('conflicting');
     expect(agentsOutput?.isSymlink).toBe(true);
   });
@@ -523,6 +523,16 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
       // .github no debe provocar 'outdated'
       expect(snapshot.integrationState).toBe('up-to-date');
 
+      // Requisito 6.6: una sola fila para .agents/skills y .github no presente
+      const agentSkillsOutputs = snapshot.installedIntegration?.outputInventory.filter((o) =>
+        o.displayPath.includes('.agents/skills'),
+      );
+      expect(agentSkillsOutputs).toHaveLength(1);
+      const githubOutput = snapshot.installedIntegration?.outputInventory.find((o) =>
+        o.displayPath.includes('.github'),
+      );
+      expect(githubOutput?.presenceState).toBe('absent');
+
       // Tarea 6.10 / Decisión 12: convergencia de targets
       // Codex servida desde .agents/skills es convergente; github (CI) queda fuera de la divergencia
       expect(snapshot.divergence?.isDivergent).toBe(false);
@@ -643,7 +653,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
         expect(snapshot.divergence?.reason).toEqual({
           kind: 'target-workflows-mismatch',
           toolId: 'agents',
-          label: 'Agents Multi-Agent',
+          label: 'Carpeta compartida .agents',
           targetCount: 0,
           targetWorkflows: [],
           globalCount: 5,
@@ -817,7 +827,7 @@ describe('inspectInstalledEvidence (Audit Points 5, 6, 7, 8 Tests)', () => {
           expect(snapshot.divergence?.reason).toEqual({
             kind: 'target-workflows-mismatch',
             toolId: 'agents',
-            label: 'Agents Multi-Agent',
+            label: 'Carpeta compartida .agents',
             targetCount: 5,
             targetWorkflows: ['apply', 'archive', 'explore', 'propose', 'sync'],
             globalCount: 6,

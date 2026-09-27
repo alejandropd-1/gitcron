@@ -168,6 +168,8 @@ type OpenSpecDashboardProps = {
   onSelectChange?: (changeId: string) => void;
   onPauseAfterTask: () => void;
   onRespondDecision: (decisionId: string, optionId: string) => void;
+  engineStatus?: OpenSpecEngineStatus | null;
+  engineLoading?: boolean;
 };
 
 type CenterTab = 'work' | 'activity' | 'artifacts';
@@ -268,6 +270,8 @@ export function OpenSpecDashboard({
   onSelectChange,
   onPauseAfterTask,
   onRespondDecision,
+  engineStatus: propEngineStatus,
+  engineLoading: propEngineLoading,
 }: OpenSpecDashboardProps) {
   const t = useT();
   /**
@@ -1147,13 +1151,16 @@ export function OpenSpecDashboard({
   }, [repoPath, engineChangeToken]);
 
   const effectiveEngineStatus = useMemo<OpenSpecEngineStatus | null>(() => {
+    if (propEngineStatus !== undefined) return propEngineStatus;
     if (!engineSnapshot) return null;
     if (!latestRegistryCheck) return engineSnapshot;
     return {
       ...engineSnapshot,
       latestAvailable: latestRegistryCheck,
     };
-  }, [engineSnapshot, latestRegistryCheck]);
+  }, [propEngineStatus, engineSnapshot, latestRegistryCheck]);
+
+  const effectiveEngineLoading = propEngineLoading !== undefined ? propEngineLoading : engineLoading;
 
   /**
    * Razones reales observadas del estado del motor para la franja de identidad (7.15).
@@ -2069,6 +2076,18 @@ export function OpenSpecDashboard({
 
             {/* OpenSpec Engine version */}
             {(() => {
+              if (effectiveEngineLoading || !effectiveEngineStatus) {
+                return (
+                  <div
+                    role="status"
+                    title={t('pipeline.openspec.engine.reading')}
+                    className="relative flex items-center gap-1 px-1.5 py-0.5 rounded text-[length:var(--font-size-2xs)] font-semibold shrink-0 font-mono bg-text-primary/[0.035] text-text-secondary/80"
+                  >
+                    <Package size={11} className="shrink-0 animate-pulse" />
+                    <span>{t('pipeline.openspec.engine.reading')}</span>
+                  </div>
+                );
+              }
               const cliInstalled = effectiveEngineStatus?.cli?.installed ?? false;
               const runtimeVer = effectiveEngineStatus?.cli?.runtimeVersion ?? null;
               const isAbsent = !cliInstalled;
@@ -2296,6 +2315,7 @@ export function OpenSpecDashboard({
               <OpenSpecUpdateReview
                 repoPath={repoPath}
                 status={effectiveEngineStatus}
+                isLoading={effectiveEngineLoading}
                 updatePlan={updatePlan}
                 installPlan={installPlan}
                 snapshot={snapshot}

@@ -84,6 +84,7 @@ export interface OpenSpecEngineCardProps {
   onChanged?: () => void;
   title?: string;
   section?: 'all' | 'motor' | 'profile';
+  uncommittedCount?: number;
 }
 
 export { formatInstallErrorCode } from './OpenSpecGlobalInstallConfirm';
@@ -258,6 +259,7 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   onChanged,
   title,
   section = 'all',
+  uncommittedCount,
 }) => {
   const t = useT();
   const [showAdvanced, setShowAdvanced] = useState(Boolean(defaultAdvancedOpen));
@@ -272,56 +274,74 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
   const [isSwitchingProfile, setIsSwitchingProfile] = useState(false);
   const [configuringTool, setConfiguringTool] = useState<string | null>(null);
   const [configureErrors, setConfigureErrors] = useState<Record<string, string>>({});
+  const [showPendingToolSelector, setShowPendingToolSelector] = useState(false);
+  const [deselectedPendingTools, setDeselectedPendingTools] = useState<string[]>([]);
+  const pendingToolsList = status?.pendingTools ?? [];
+  const selectedPendingTools = pendingToolsList.filter((id) => !deselectedPendingTools.includes(id));
+  const [configureSuccessMsg, setConfigureSuccessMsg] = useState<string | null>(null);
+  const [configureGeneralError, setConfigureGeneralError] = useState<string | null>(null);
 
   const gitStoreRepoPath = useGitStore((s) => s.repoPath);
   const effectiveRepoPath = repoPath ?? gitStoreRepoPath ?? undefined;
 
-  const handleConfigurePendingTool = async (toolId: string) => {
-    if (!effectiveRepoPath || configuringTool) return;
+  const handleConfigurePendingTools = async (toolIdsToConfigure: string[]) => {
+    if (!effectiveRepoPath || configuringTool || toolIdsToConfigure.length === 0) return;
     const api = typeof window !== 'undefined' ? (window as unknown as { api?: typeof window.api }).api : null;
     if (!api?.pipelineInitOpenSpec) return;
-    setConfiguringTool(toolId);
-    setConfigureErrors((prev) => {
-      if (!prev[toolId]) return prev;
-      const next = { ...prev };
-      delete next[toolId];
-      return next;
-    });
+    setConfiguringTool(toolIdsToConfigure.join(','));
+    setConfigureGeneralError(null);
+    setConfigureSuccessMsg(null);
     try {
       const configured = status?.toolReport?.tools?.filter((t) => t.configured).map((t) => t.id)
         ?? status?.installedIntegration?.configuredTools
         ?? [];
-      const union = Array.from(new Set([...configured, toolId]));
+      const union = Array.from(new Set([...configured, ...toolIdsToConfigure]));
       const res = await api.pipelineInitOpenSpec(effectiveRepoPath, union);
       if (res?.success) {
+        setShowPendingToolSelector(false);
+        setDeselectedPendingTools([]);
+        const configuredLabels = toolIdsToConfigure
+          .map((id) => status?.toolReport?.tools.find((t) => t.id === id)?.label ?? id)
+          .join(', ');
+        const count = uncommittedCount ?? 0;
+        const msg = count === 1
+          ? t('pipeline.openspec.engine.configureSuccessResultSingle', { tools: configuredLabels })
+          : count > 1
+          ? t('pipeline.openspec.engine.configureSuccessResult', { tools: configuredLabels, count })
+          : t('pipeline.openspec.engine.configureSuccessResultNoFiles', { tools: configuredLabels });
+        setConfigureSuccessMsg(msg);
         usePipelineStore.getState().notifyEngineChanged();
         onChanged?.();
       } else {
         const msg = resolveConfigureErrorMessage(res?.error, t);
-        setConfigureErrors((prev) => ({ ...prev, [toolId]: msg }));
+        setConfigureGeneralError(msg);
       }
     } catch (err: unknown) {
       const errMsg = err instanceof Error ? err.message : (typeof err === 'string' ? err : String(err));
       const msg = resolveConfigureErrorMessage(errMsg, t);
-      setConfigureErrors((prev) => ({ ...prev, [toolId]: msg }));
+      setConfigureGeneralError(msg);
     } finally {
       setConfiguringTool(null);
     }
+  };
+
+  const handleConfigurePendingTool = async (toolId: string) => {
+    await handleConfigurePendingTools([toolId]);
   };
 
   const engineInstalled = status ? status.cli.installed : false;
 
   // 1. Modo compacto (Insignia para header / summaryBar)
   if (compact) {
-    if (isLoading && !status) {
+    if (isLoading || !status) {
       return (
-        <div className={styles.compactEngineBadge} data-state="loading" title={t('pipeline.launcher.discovering')}>
+        <div className={styles.compactEngineBadge} data-state="loading" title={t('pipeline.openspec.engine.reading')}>
           <span className={styles.healthDot} data-state="loading" aria-hidden="true" />
-          <span>{t('pipeline.openspec.engine.axis.engine')}: {t('pipeline.launcher.discovering')}</span>
+          <span>{t('pipeline.openspec.engine.reading')}</span>
         </div>
       );
     }
-    if (!status || !engineInstalled) {
+    if (!engineInstalled) {
       return (
         <div
           className={styles.compactEngineBadge}
@@ -352,35 +372,25 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     );
   }
 
-  // Si solo se pide el bloque de perfil y no hay status, no hay perfil que mostrar
-  if (section === 'profile' && (!status || (isLoading && !status))) {
+  // Si solo se pide el bloque de perfil y no hay status o está cargando, no hay perfil que mostrar
+  if (section === 'profile' && (!status || isLoading)) {
     return null;
   }
 
-  // 2. Estado de Carga
-  if (isLoading && !status) {
+  // 2. Estado de Carga / Lectura
+  if (isLoading || !status) {
     return (
-      <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
+      <section className={styles.engineCardSectionLoading} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
         <header className={styles.engineCardHeader}>
           <h3 className={title ? styles.reviewSectionTitle : undefined}>{title ?? t('pipeline.openspec.engine.cardTitle')}</h3>
-        </header>
-        <p className={styles.engineLoading}>{t('pipeline.launcher.discovering')}</p>
-      </section>
-    );
-  }
-
-  // 3. Estado Desconocido / Ausente
-  if (!status) {
-    return (
-      <section className={styles.engineCardSection} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
-        <header className={styles.engineCardHeader}>
-          <h3 className={title ? styles.reviewSectionTitle : undefined}>{title ?? t('pipeline.openspec.engine.cardTitle')}</h3>
-          <span className={styles.generalStatusBadge} data-status="unknown">
-            <HelpCircle size={12} aria-hidden="true" />
-            {t(GENERAL_STATUS_KEY_MAP.unknown)}
+          <span className={styles.generalStatusBadge} data-status="loading">
+            <span className={styles.healthDot} data-state="loading" aria-hidden="true" />
+            {t('pipeline.openspec.engine.reading')}
           </span>
         </header>
-        <p className={styles.engineError}>{t(REPO_STATE_KEY_MAP.unknown)}</p>
+        <div className={styles.engineCardLoadingContent}>
+          <p className={styles.engineLoading}>{t('pipeline.openspec.engine.reading')}</p>
+        </div>
       </section>
     );
   }
@@ -832,39 +842,101 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
 
         {status.pendingTools && status.pendingTools.length > 0 && (
           <div className={styles.pendingToolsContainer}>
-            {status.pendingTools.map((toolId) => {
-              const toolReportItem = status.toolReport?.tools.find((tool) => tool.id === toolId);
-              const toolLabel = toolReportItem?.label ?? toolId;
+            {(() => {
+              const pendingLabels = status.pendingTools
+                .map((id) => status.toolReport?.tools.find((t) => t.id === id)?.label ?? id)
+                .join(', ');
               return (
-                <div key={toolId} className={styles.summaryFactRow}>
+                <div className={styles.summaryFactRow}>
                   <span style={{ color: 'var(--color-warning)' }}>
-                    {t('pipeline.openspec.engine.pendingTool', { tool: toolLabel })}
+                    {t('pipeline.openspec.engine.pendingToolsDetected', { tools: pendingLabels })}
                   </span>
                   {effectiveRepoPath && (
                     <button
                       type="button"
                       className={styles.secondaryAction}
-                      disabled={configuringTool === toolId}
-                      onClick={() => void handleConfigurePendingTool(toolId)}
+                      disabled={Boolean(configuringTool)}
+                      onClick={() => setShowPendingToolSelector((prev) => !prev)}
                     >
-                      {configuringTool === toolId ? (
+                      {configuringTool ? (
                         <Loader2 size={12} className={styles.spin} aria-hidden="true" />
                       ) : (
-                        t('pipeline.openspec.engine.configureAction')
+                        t('pipeline.openspec.engine.configureActionEllipsis')
                       )}
                     </button>
                   )}
-                  {configureErrors[toolId] && (
-                    <span
-                      style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}
-                      role="alert"
-                    >
-                      {configureErrors[toolId]}
-                    </span>
-                  )}
                 </div>
               );
-            })}
+            })()}
+
+            {showPendingToolSelector && (
+              <fieldset className={styles.pendingToolsSelectorFieldset} disabled={Boolean(configuringTool)}>
+                <legend className={styles.pendingToolsSelectorLegend}>
+                  {t('pipeline.openspec.engine.configureAction')}
+                </legend>
+                <ul className={styles.railChooseList}>
+                  {status.pendingTools.map((toolId) => {
+                    const toolItem = status.toolReport?.tools.find((t) => t.id === toolId);
+                    const label = toolItem?.label ?? toolId;
+                    const checked = selectedPendingTools.includes(toolId);
+                    return (
+                      <li key={toolId}>
+                        <label className={styles.railChooseOption}>
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={(e) => {
+                              if (e.target.checked) {
+                                setDeselectedPendingTools((prev) => prev.filter((id) => id !== toolId));
+                              } else {
+                                setDeselectedPendingTools((prev) => [...prev, toolId]);
+                              }
+                            }}
+                          />
+                          <span>{label}</span>
+                        </label>
+                      </li>
+                    );
+                  })}
+                </ul>
+                <div className={styles.pendingToolsSelectorActions}>
+                  <button
+                    type="button"
+                    className={styles.secondaryAction}
+                    disabled={Boolean(configuringTool) || selectedPendingTools.length === 0}
+                    onClick={() => void handleConfigurePendingTools(selectedPendingTools)}
+                  >
+                    {configuringTool ? (
+                      <Loader2 size={12} className={styles.spin} aria-hidden="true" />
+                    ) : (
+                      t('pipeline.openspec.engine.configureAction')
+                    )}
+                  </button>
+                </div>
+              </fieldset>
+            )}
+
+            {configureSuccessMsg && (
+              <div className={styles.summaryFactRow} role="status">
+                <span style={{ color: 'var(--color-git-add)' }}>{configureSuccessMsg}</span>
+              </div>
+            )}
+
+            {configureGeneralError && (
+              <div className={styles.summaryFactRow} role="alert">
+                <span style={{ color: 'var(--color-error)', fontSize: 'var(--font-size-xs)' }}>
+                  {configureGeneralError}
+                </span>
+                <button
+                  type="button"
+                  className={styles.secondaryAction}
+                  disabled={Boolean(configuringTool)}
+                  onClick={() => void handleConfigurePendingTools(selectedPendingTools.length > 0 ? selectedPendingTools : status.pendingTools!)}
+                >
+                  {t('pipeline.openspec.engine.configureAction')}
+                </button>
+              </div>
+            )}
           </div>
         )}
 

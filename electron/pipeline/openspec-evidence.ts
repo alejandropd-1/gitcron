@@ -285,31 +285,44 @@ export function inspectInstalledEvidence(
   const outputInventory: OpenSpecOutputItem[] = [];
   const scannedSkillDirs = new Set<string>();
 
-  // 1. Inspeccionar cada target en la tabla oficial
+  // 1. Agrupar la tabla oficial por carpeta física real (kind + directory)
+  const toolGroups = new Map<string, OpenSpecToolDef[]>();
   for (const toolDef of OPENSPEC_TOOL_DIRECTORIES) {
-    const isGlobal = toolDef.kind === 'external-global';
+    const key = `${toolDef.kind}:${toolDef.directory}`;
+    const list = toolGroups.get(key) ?? [];
+    list.push(toolDef);
+    toolGroups.set(key, list);
+  }
+
+  // Inspeccionar cada carpeta física única
+  for (const tools of toolGroups.values()) {
+    const primary = tools.find((t) => t.toolId === 'agents') ?? tools[0];
+    const isGlobal = primary.kind === 'external-global';
     let targetPath: string;
     let parentDir: string;
 
-    if (isGlobal && toolDef.toolId === 'minimax-code') {
+    if (isGlobal && primary.toolId === 'minimax-code') {
       parentDir = getHomeDir();
       targetPath = path.join(parentDir, '.minimax');
     } else {
       parentDir = repoPath;
-      targetPath = path.join(repoPath, toolDef.directory);
+      targetPath = path.join(repoPath, primary.directory);
     }
 
-    const observedCasing = getObservedCasing(parentDir, toolDef.directory, safeReaddir);
+    const observedCasing = getObservedCasing(parentDir, primary.directory, safeReaddir);
     const { stat: toolStat, isAbsent, isError } = safeLstat(targetPath);
+    const targetName = tools.length > 1 ? tools.map((t) => t.label).join(', ') : primary.label;
+    const outputId = primary.directory === '.agents' ? 'output-agents' : `output-${primary.toolId}`;
+    const isBlocked = tools.some((t) => t.blocked);
 
     if (isAbsent) {
       outputInventory.push({
-        id: `output-${toolDef.toolId}`,
-        targetName: toolDef.label,
-        kind: toolDef.kind,
-        displayPath: toolDef.displayPath,
-        descriptionKey: toolDef.descriptionKey,
-        blocked: toolDef.blocked,
+        id: outputId,
+        targetName,
+        kind: primary.kind,
+        displayPath: primary.displayPath,
+        descriptionKey: primary.descriptionKey,
+        blocked: isBlocked,
         presenceState: 'absent',
         entryType: 'absent',
         isSymlink: false,
@@ -322,12 +335,12 @@ export function inspectInstalledEvidence(
 
     if (isError || !toolStat) {
       outputInventory.push({
-        id: `output-${toolDef.toolId}`,
-        targetName: toolDef.label,
-        kind: toolDef.kind,
-        displayPath: toolDef.displayPath,
-        descriptionKey: toolDef.descriptionKey,
-        blocked: toolDef.blocked,
+        id: outputId,
+        targetName,
+        kind: primary.kind,
+        displayPath: primary.displayPath,
+        descriptionKey: primary.descriptionKey,
+        blocked: isBlocked,
         presenceState: 'unreadable',
         entryType: 'directory',
         isSymlink: false,
@@ -348,7 +361,7 @@ export function inspectInstalledEvidence(
       if (!isGlobal && canonicalRepoRoot && symlinkTarget) {
         if (!isContainedWithin(canonicalRepoRoot, symlinkTarget)) {
           isConflicting = true;
-          conflictsList.push(`Symlink o junction en ${toolDef.directory} apunta fuera del repositorio: ${symlinkTarget}`);
+          conflictsList.push(`Symlink o junction en ${primary.directory} apunta fuera del repositorio: ${symlinkTarget}`);
         }
       }
     }
@@ -381,8 +394,8 @@ export function inspectInstalledEvidence(
       hashTruncated = hashResult.truncated;
       if (hashTruncated) hasTraversalTruncation = true;
 
-      if (!scannedSkillDirs.has(toolDef.directory)) {
-        scannedSkillDirs.add(toolDef.directory);
+      if (!scannedSkillDirs.has(primary.directory)) {
+        scannedSkillDirs.add(primary.directory);
 
         const { entries } = safeReaddir(dirToInspect);
         if (entries.length > 0) {
@@ -400,11 +413,11 @@ export function inspectInstalledEvidence(
             }
 
             let origin: OpenSpecInstalledSkill['origin'];
-            if (toolDef.directory === '.agents') {
+            if (primary.directory === '.agents') {
               origin = isOfficial ? 'new-agents' : 'custom-agents';
             } else if (isOfficial) {
               origin = 'official-other';
-            } else if (getToolDef(toolDef.toolId)) {
+            } else if (getToolDef(primary.toolId)) {
               origin = 'custom-other';
             } else {
               origin = 'unknown';
@@ -430,23 +443,37 @@ export function inspectInstalledEvidence(
     }
 
     if (detectedOfficialWorkflows.length > 0) {
-      const targetKey = toolDef.directory === '.agents' ? 'agents' : toolDef.toolId;
-      installedWorkflowsByTarget[targetKey] = Array.from(new Set(detectedOfficialWorkflows)).sort();
+      if (primary.directory === '.agents') {
+        installedWorkflowsByTarget['agents'] = Array.from(new Set(detectedOfficialWorkflows)).sort();
+      } else {
+        for (const t of tools) {
+          installedWorkflowsByTarget[t.toolId] = Array.from(new Set(detectedOfficialWorkflows)).sort();
+        }
+      }
     }
 
+    // Una carpeta sólo se marca 'present' si contiene workflows oficiales de OpenSpec.
+    // Si no contiene workflows oficiales (o no hay skills), figura 'absent' para OpenSpec.
+    const isPresent = detectedOfficialWorkflows.length > 0;
+    const presenceState: OpenSpecOutputItem['presenceState'] = isConflicting
+      ? 'conflicting'
+      : isPresent
+        ? 'present'
+        : 'absent';
+
     outputInventory.push({
-      id: `output-${toolDef.toolId}`,
-      targetName: toolDef.label,
-      kind: toolDef.kind,
-      displayPath: toolDef.displayPath,
-      descriptionKey: toolDef.descriptionKey,
-      blocked: toolDef.blocked,
-      presenceState: isConflicting ? 'conflicting' : 'present',
+      id: outputId,
+      targetName,
+      kind: primary.kind,
+      displayPath: primary.displayPath,
+      descriptionKey: primary.descriptionKey,
+      blocked: isBlocked,
+      presenceState,
       entryType: isSymlink ? 'symlink' : 'directory',
       isSymlink,
       symlinkTarget,
       casing: observedCasing,
-      contentHash: folderHash || null,
+      contentHash: presenceState === 'absent' ? null : (folderHash || null),
       hashTruncated,
     });
   }

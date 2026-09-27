@@ -54,6 +54,10 @@ export interface OpenSpecUpdateRunnerProps {
   openRepoPaths?: string[];
   warnings?: { mainBranch?: string | null; dirtyCount?: number | null };
   disabledReason?: string | null;
+  isLoading?: boolean;
+  pendingTools?: string[];
+  onInitialize?: () => void;
+  onConfigurePendingTools?: () => void;
   onEngineInstalled?: (result: OpenSpecInstallResult) => void;
   onIntegrationUpdated?: (result: OpenSpecRunUpdateResult) => void;
 }
@@ -89,11 +93,17 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
   openRepoPaths,
   warnings,
   disabledReason,
+  isLoading,
+  pendingTools,
+  onInitialize,
+  onConfigurePendingTools,
   onEngineInstalled,
   onIntegrationUpdated,
 }) => {
   const t = useT();
   const [isRunning, setIsRunning] = useState(false);
+  const [isInitializing, setIsInitializing] = useState(false);
+  const [isConfiguring, setIsConfiguring] = useState(false);
   const [isRollingBack, setIsRollingBack] = useState(false);
   const [showWarningConfirm, setShowWarningConfirm] = useState(false);
   const [showGlobalConfirm, setShowGlobalConfirm] = useState(false);
@@ -171,6 +181,94 @@ export const OpenSpecUpdateRunner: React.FC<OpenSpecUpdateRunnerProps> = ({
         : t('pipeline.openspec.engine.summary.stepEngineUnavailableUnknown')
       : null
   );
+
+  const handleInitialize = async () => {
+    if (!onInitialize || isInitializing) return;
+    setIsInitializing(true);
+    try {
+      await Promise.resolve(onInitialize());
+    } finally {
+      setIsInitializing(false);
+    }
+  };
+
+  const handleConfigurePending = async () => {
+    if (!onConfigurePendingTools || isConfiguring) return;
+    setIsConfiguring(true);
+    try {
+      await Promise.resolve(onConfigurePendingTools());
+    } finally {
+      setIsConfiguring(false);
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <div className={styles.reviewActionWithReason}>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          disabled
+        >
+          {t('pipeline.openspec.engine.reading')}
+        </button>
+      </div>
+    );
+  }
+
+  if (!hasRun && !engine && (isRepoInitialized === false || repoState === 'not-initialized')) {
+    return (
+      <div className={styles.reviewActionWithReason}>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          disabled={Boolean(effectiveDisabledReason) || isRunning || isInitializing}
+          onClick={handleInitialize}
+        >
+          {isInitializing ? (
+            <>
+              <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+              <span>{t('pipeline.openspec.rail.initBusy')}</span>
+            </>
+          ) : (
+            t('pipeline.openspec.rail.init')
+          )}
+        </button>
+        {effectiveDisabledReason && (
+          <span className={styles.blockedReasonInline} role="alert">
+            {effectiveDisabledReason}
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  if (!hasRun && !engine && pendingTools && pendingTools.length > 0) {
+    return (
+      <div className={styles.reviewActionWithReason}>
+        <button
+          type="button"
+          className={styles.primaryAction}
+          disabled={Boolean(effectiveDisabledReason) || isRunning || isConfiguring}
+          onClick={handleConfigurePending}
+        >
+          {isConfiguring ? (
+            <>
+              <Loader2 size={13} className={styles.spin} aria-hidden="true" />
+              <span>{t('pipeline.openspec.rail.initBusy')}</span>
+            </>
+          ) : (
+            t('pipeline.openspec.engine.configureActionEllipsis')
+          )}
+        </button>
+        {effectiveDisabledReason && (
+          <span className={styles.blockedReasonInline} role="alert">
+            {effectiveDisabledReason}
+          </span>
+        )}
+      </div>
+    );
+  }
 
   // a) Si !hasRun && !engine && !plannedIntegration && !effectiveDisabledReason
   if (!hasRun && !engine && !plannedIntegration && !effectiveDisabledReason) {

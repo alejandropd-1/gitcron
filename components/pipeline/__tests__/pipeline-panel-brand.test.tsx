@@ -180,6 +180,19 @@ describe('SDD adopta la franja de identidad unificada (ContentHeader)', () => {
         onRefresh={() => undefined}
         onPauseAfterTask={() => undefined}
         onRespondDecision={() => undefined}
+        engineStatus={{
+          cli: { installed: false, runtimeVersion: null, provenance: 'unknown', displayPath: null, supportedRange: { min: '1.5.0', max: '1.13.2' }, versionClass: 'unknown', evidenceStatus: 'confirmed', diagnostics: [] },
+          latestAvailable: null,
+          globalConfig: null,
+          installedIntegration: null,
+          repoState: 'unknown',
+          integrationState: 'unknown',
+          freshnessState: 'unknown',
+          divergence: null,
+          toolReport: null,
+          pendingTools: [],
+        }}
+        engineLoading={false}
       />,
     );
 

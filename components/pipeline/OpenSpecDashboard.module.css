@@ -1699,7 +1699,7 @@ summary.centerBlock {
 .readinessList { display: grid; gap: var(--sp-1); margin: var(--sp-3) 0 0; padding: 0; list-style: none; }
 .readinessList > li {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: 1.25rem minmax(6rem, 1.2fr) minmax(5rem, 1fr) minmax(4rem, auto);
   align-items: center;
   gap: var(--sp-2);
   padding: var(--sp-1) 0;
@@ -1708,9 +1708,22 @@ summary.centerBlock {
 }
 .readinessList > li[data-configured='true'] { color: var(--color-git-add); opacity: 0.7; }
 .readinessList > li[data-configured='false'] { color: var(--color-warning); }
-.readinessList strong { color: var(--color-text-primary); font-weight: 650; }
-.readinessList code { color: var(--color-text-secondary); font-size: var(--font-size-xs); }
-.readinessList em { font-style: normal; }
+.readinessList strong { color: var(--color-text-primary); font-weight: 650; overflow-wrap: anywhere; word-break: break-word; }
+.readinessList code { color: var(--color-text-secondary); font-size: var(--font-size-xs); overflow-wrap: anywhere; word-break: break-word; }
+.readinessList em { font-style: normal; overflow-wrap: anywhere; word-break: break-word; }
+.pendingBlockContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  margin-top: var(--sp-2);
+  min-height: 2.5rem;
+}
+.railInitActionContainer {
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+  min-height: 4.5rem;
+}
 /* Escribe en el repositorio, así que se ve como acción y no como enlace. */
 .railInitAction {
   width: 100%;
@@ -1778,6 +1791,50 @@ summary.centerBlock {
 /* El botón ya trae su margen superior de `.railInitAction`, que acá lo duplica
    con el `gap` de la grilla. */
 .railChoose .railInitAction { margin-top: 0; }
+
+.railChooseOption {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  cursor: pointer;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-primary);
+}
+
+.pendingToolsSelectorFieldset {
+  border: 1px solid var(--color-border-subtle);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.pendingToolsSelectorLegend {
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-text-secondary);
+  padding: 0 var(--space-1);
+}
+
+.pendingToolsSelectorActions {
+  display: flex;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  margin-top: var(--space-2);
+}
+
+.configureResultLine {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-git-add);
+  font-weight: 500;
+}
+
+.initSuccessResult {
+  margin: var(--space-2) 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--color-git-add);
+  font-weight: 500;
+}
 
 .railError {
   margin: var(--sp-2) 0 0;
@@ -2160,6 +2217,22 @@ summary.centerBlock {
 .engineCardSection {
   container-type: inline-size;
   margin-bottom: var(--space-5);
+}
+.engineCardSectionLoading {
+  container-type: inline-size;
+  margin-bottom: var(--space-5);
+  min-height: 14rem;
+}
+.engineCardLoadingContent {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 10rem;
+}
+.engineLoading {
+  margin: 0;
+  color: var(--color-text-secondary);
+  font-size: var(--font-size-sm);
 }
 .engineTitleRow {
   display: flex;
@@ -3922,6 +3995,7 @@ summary.centerBlock {
   flex-direction: column;
   align-items: flex-start;
   gap: var(--space-2);
+  min-height: 2.75rem;
 }
 
 .reviewActionWithReason {

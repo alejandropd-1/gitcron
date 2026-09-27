@@ -90,15 +90,15 @@ function makeStatus(overrides?: Partial<OpenSpecEngineStatus>): OpenSpecEngineSt
 }
 
 describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
-  it('Tarjeta: muestra pendiente como «Falta configurar: <nombre>» con acción Configurar y SIN botón Actualizar', () => {
+  it('Tarjeta: muestra pendiente en una sola línea «Detectadas sin configurar: <nombre>» con acción Configurar… y SIN botón Actualizar', () => {
     const status = makeStatus();
     render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
 
-    // Muestra «Falta configurar: Zcode»
-    expect(screen.getByText(/Falta configurar: zcode/i)).toBeDefined();
+    // Muestra «Detectadas sin configurar: Zcode»
+    expect(screen.getByText(/Detectadas sin configurar: Zcode/i)).toBeDefined();
 
-    // Botón «Configurar» presente para la pendiente
-    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
+    // Botón «Configurar…» presente para la pendiente
+    const configureBtn = screen.getByRole('button', { name: /Configurar…/i });
     expect(configureBtn).toBeDefined();
 
     // NO hay botón «Actualizar» provocado por la herramienta pendiente
@@ -176,10 +176,9 @@ describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
     expect(screen.getAllByText(/la versión del paquete no coincide con la versión del motor/i).length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText(/version-mismatch/i)).toBeNull();
 
-    // El botón principal dice «Todo al día» y está deshabilitado
-    const mainActionBtn = screen.getByRole('button', { name: /Todo al día/i });
-    expect(mainActionBtn).toBeDefined();
-    expect((mainActionBtn as HTMLButtonElement).disabled).toBe(true);
+    // Con herramientas pendientes, la cabecera coherente (6.5) ofrece «Configurar…» y NO «Todo al día»
+    expect(screen.queryByRole('button', { name: /Todo al día/i })).toBeNull();
+    expect(screen.getAllByRole('button', { name: /Configurar…/i }).length).toBeGreaterThanOrEqual(1);
 
     // No hay botón «Actualizar»
     expect(screen.queryByRole('button', { name: /^Actualizar$/i })).toBeNull();
@@ -196,15 +195,17 @@ describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
     const status = makeStatus();
     render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
 
-    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
-    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+    const configureEllipsisBtn = screen.getByRole('button', { name: /Configurar…/i });
+    expect((configureEllipsisBtn as HTMLButtonElement).disabled).toBe(false);
 
-    fireEvent.click(configureBtn);
+    fireEvent.click(configureEllipsisBtn);
+    const confirmBtn = screen.getByRole('button', { name: /^Configurar$/i });
+    fireEvent.click(confirmBtn);
 
     // Aparece el error traducido en criollo
     expect(await screen.findByText(/No se encontró el ejecutable de OpenSpec en el sistema/i)).toBeDefined();
     // El botón vuelve a estar habilitado para reintentar
-    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('Tarjeta: init rechaza -> muestra error con detalle y botón re-habilitado para reintentar', async () => {
@@ -214,15 +215,17 @@ describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
     const status = makeStatus();
     render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
 
-    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
-    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+    const configureEllipsisBtn = screen.getByRole('button', { name: /Configurar…/i });
+    expect((configureEllipsisBtn as HTMLButtonElement).disabled).toBe(false);
 
-    fireEvent.click(configureBtn);
+    fireEvent.click(configureEllipsisBtn);
+    const confirmBtn = screen.getByRole('button', { name: /^Configurar$/i });
+    fireEvent.click(confirmBtn);
 
     // Aparece el error con el detalle
     expect(await screen.findByText(/No se pudo configurar la herramienta: Fallo de conexión/i)).toBeDefined();
     // El botón vuelve a estar habilitado para reintentar
-    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(false);
   });
 
   it('Tarjeta: init devuelve invalid-tool-id -> traduce el código conocido y permite reintentar con éxito', async () => {
@@ -242,15 +245,17 @@ describe('Tarea 4.2: UI - OpenSpecEngineCard & OpenSpecUpdateReview', () => {
     const status = makeStatus();
     render(<OpenSpecEngineCard status={status} compact={false} repoPath="/test/repo" />);
 
-    const configureBtn = screen.getByRole('button', { name: /Configurar/i });
-    fireEvent.click(configureBtn);
+    const configureEllipsisBtn = screen.getByRole('button', { name: /Configurar…/i });
+    fireEvent.click(configureEllipsisBtn);
+    const confirmBtn = screen.getByRole('button', { name: /^Configurar$/i });
+    fireEvent.click(confirmBtn);
 
     expect(await screen.findByText(/Identificador de herramienta no reconocido o no válido/i)).toBeDefined();
-    expect((configureBtn as HTMLButtonElement).disabled).toBe(false);
+    expect((confirmBtn as HTMLButtonElement).disabled).toBe(false);
 
-    // Reintentar con éxito limpia el error previo
-    fireEvent.click(configureBtn);
-    expect(await screen.findByText(/Falta configurar: zcode/i)).toBeDefined();
+    // Reintentar con éxito limpia el error previo y muestra resultado exitoso
+    fireEvent.click(confirmBtn);
+    expect(await screen.findByText(/Se configuró Zcode/i)).toBeDefined();
     expect(screen.queryByText(/Identificador de herramienta no reconocido o no válido/i)).toBeNull();
   });
 });

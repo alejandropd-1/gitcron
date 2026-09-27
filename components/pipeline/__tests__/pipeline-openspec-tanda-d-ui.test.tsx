@@ -83,11 +83,13 @@ function makeStatus(overrides?: Partial<OpenSpecEngineStatus>): OpenSpecEngineSt
 describe('Tanda D - Tareas 6.1 a 6.6: UI Estados legibles y sin saltos', () => {
   // 6.1 Estado «leyendo»
   describe('6.1: Estado «leyendo» vs ausencia medida', () => {
-    it('sin estado o con isLoading: muestra «Leyendo OpenSpec…» y ningún texto falso de ausencia', () => {
-      render(<OpenSpecEngineCard status={null} isLoading={true} compact={false} repoPath="/test/repo" />);
+    it('sin estado o con isLoading: muestra esqueleto con aria-busy y ningún texto falso de ausencia (6.10)', () => {
+      const { container } = render(<OpenSpecEngineCard status={null} isLoading={true} compact={false} repoPath="/test/repo" />);
 
-      // Debe mostrar «Leyendo OpenSpec…»
-      expect(screen.getAllByText(/Leyendo OpenSpec…/i).length).toBeGreaterThanOrEqual(1);
+      // Debe mostrar esqueleto con aria-busy="true"
+      const skeleton = container.querySelector('[aria-busy="true"]');
+      expect(skeleton).not.toBeNull();
+      expect(skeleton?.getAttribute('data-estado')).toBe('loading');
 
       // NO debe mostrar textos de ausencia o error prematuro
       expect(screen.queryByText(/^Ausente$/i)).toBeNull();
@@ -327,6 +329,97 @@ describe('Tanda D - Tareas 6.1 a 6.6: UI Estados legibles y sin saltos', () => {
       const upToDateBtn = screen.getByRole('button', { name: /Todo al día/i });
       expect(upToDateBtn).toBeDefined();
       expect((upToDateBtn as HTMLButtonElement).disabled).toBe(true);
+    });
+  });
+
+  // 6.9 Un solo lugar para las pendientes
+  describe('6.9: Deduplicación de pendientes y alineación de grilla', () => {
+    it('repositorio inicializado con una pendiente: exactamente una línea «Detectadas sin configurar», ningún «Inicializar OpenSpec» y fila pendiente con misma estructura', () => {
+      const status = makeStatus({
+        repoState: 'initialized',
+        pendingTools: ['zcode'],
+        toolReport: {
+          source: 'engine',
+          engineVersion: '1.13.2',
+          tools: [
+            { id: 'codex', label: 'Codex', skillsDir: '.agents', available: true, configured: true, needsUpdate: false, generatedBy: '1.13.2' },
+            { id: 'zcode', label: 'Zcode', skillsDir: '.zcode', available: true, configured: false, needsUpdate: false, generatedBy: null },
+          ],
+          profileSyncNeeded: [],
+        },
+      });
+
+      const tools = [
+        { toolId: 'codex', label: 'Codex', directory: '.agents', configured: true },
+        { toolId: 'zcode', label: 'Zcode', directory: '.zcode', configured: false },
+      ];
+
+      const { container } = render(
+        <div>
+          <OpenSpecEngineCard
+            status={status}
+            compact={false}
+            repoPath="/test/repo"
+          />
+          <OpenSpecToolList
+            present={true}
+            tools={tools}
+            toolReport={status.toolReport}
+            onInitialize={vi.fn()}
+          />
+        </div>,
+      );
+
+      // Exactamente una línea «Detectadas sin configurar» (en la tarjeta del motor, ninguna en AGENTES)
+      const detectedLines = screen.getAllByText(/Detectadas sin configurar/i);
+      expect(detectedLines).toHaveLength(1);
+
+      // Ningún «Inicializar OpenSpec» ni texto de autoayuda en AGENTES
+      expect(screen.queryByRole('button', { name: /Inicializar OpenSpec/i })).toBeNull();
+      expect(screen.queryByText(/Una herramienta sin configurar se arregla corriendo/i)).toBeNull();
+
+      // Las filas de herramientas (configurada y pendiente) son <li> de la misma lista
+      const listItems = container.querySelectorAll('ul[class*="readinessList"] > li');
+      expect(listItems.length).toBe(2);
+      expect(listItems[0].tagName).toBe('LI');
+      expect(listItems[1].tagName).toBe('LI');
+      expect(listItems[0].className).toBe(listItems[1].className);
+
+      // La fila pendiente contiene sus 4 elementos en la grilla: ícono, strong, code, em
+      const pendingRow = listItems[1];
+      expect(within(pendingRow as HTMLElement).getByText('Zcode')).toBeDefined();
+      expect(within(pendingRow as HTMLElement).getByText('.zcode')).toBeDefined();
+      expect(within(pendingRow as HTMLElement).getByText(/Falta configurar: Zcode/i)).toBeDefined();
+    });
+  });
+
+  // 6.10 Precarga con esqueleto
+  describe('6.10: Precarga con esqueleto de anatomía motor + AGENTES', () => {
+    it('sin estado: renderiza el esqueleto con aria-busy y ninguno de «Ausente», «Desconocido», «No se puede determinar»', () => {
+      const { container } = render(
+        <OpenSpecEngineCard
+          status={null}
+          isLoading={true}
+          compact={false}
+          repoPath="/test/repo"
+        />,
+      );
+
+      const skeletonRoot = container.querySelector('[aria-busy="true"]');
+      expect(skeletonRoot).not.toBeNull();
+      expect(skeletonRoot?.getAttribute('data-estado')).toBe('loading');
+
+      // Posee bloques de anatomía (motor + agentes con sus filas)
+      const blocks = container.querySelectorAll('section[class*="skeletonBlock"]');
+      expect(blocks.length).toBeGreaterThanOrEqual(2);
+
+      const toolRows = container.querySelectorAll('div[class*="skeletonToolRow"]');
+      expect(toolRows.length).toBeGreaterThanOrEqual(3);
+
+      // Ningún texto engañoso de ausencia prematura
+      expect(screen.queryByText(/^Ausente$/i)).toBeNull();
+      expect(screen.queryByText(/Desconocido/i)).toBeNull();
+      expect(screen.queryByText(/No se puede determinar/i)).toBeNull();
     });
   });
 });

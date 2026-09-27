@@ -6,7 +6,8 @@ import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 import { readOpenSpecTooling } from '../pipeline/repo-evidence-reader';
 import { deriveProfileWorkflowRows } from '../../lib/openspec-profile';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
-import { invalidateEngineToolReportCache } from '../pipeline/openspec-engine-tools';
+import { invalidateEngineToolReportCache, locateOpenSpecPackage } from '../pipeline/openspec-engine-tools';
+import { resolveOpenSpecExecutable } from '../pipeline/openspec-engine';
 
 describe('OpenSpec Tanda B (Tareas 3.1 y 3.2)', () => {
   let tempDirs: string[] = [];
@@ -250,4 +251,26 @@ describe('OpenSpec Tanda B (Tareas 3.1 y 3.2)', () => {
 
     expect(snapshot.integrationState).toBe('outdated');
   });
+
+  it('6.11: sobre C:\\www\\gitCronos real en sólo lectura, el estado del motor da integrationState: up-to-date y pendingTools: [zcode]', async () => {
+    const gitCronosRepo = 'C:\\www\\gitCronos';
+    if (!fs.existsSync(gitCronosRepo)) return;
+
+    const runtime = resolveOpenSpecExecutable({ repoPath: gitCronosRepo });
+    if (!runtime) return;
+
+    const located = locateOpenSpecPackage({
+      repoPath: gitCronosRepo,
+      executablePath: runtime.executablePath,
+    });
+    // Se saltea si no existe el paquete del motor
+    if (!located.ok) return;
+
+    authorizedRepoStore.authorizeRepo(gitCronosRepo);
+    invalidateEngineToolReportCache(gitCronosRepo);
+
+    const snapshot = await buildEngineStatusSnapshot(gitCronosRepo);
+    expect(snapshot.integrationState).toBe('up-to-date');
+    expect(snapshot.pendingTools).toEqual(['zcode']);
+  }, 25000);
 });

@@ -62,16 +62,13 @@ export function OpenSpecToolList({
   const pending = list.filter((tool) => !tool.configured);
 
   const [selectedInitTools, setSelectedInitTools] = useState<string[]>(() => list.map((t) => t.toolId));
-  const [showConfigureSelector, setShowConfigureSelector] = useState(false);
-  const [chosenPendingTools, setChosenPendingTools] = useState<string[]>(() => pending.map((t) => t.toolId));
   const [initSuccessResult, setInitSuccessResult] = useState<string | null>(null);
-  const [configureSuccessResult, setConfigureSuccessResult] = useState<string | null>(null);
 
   if (present === undefined) return null;
 
-  // Se ofrece inicializar cuando hay algo que resolver: sin OpenSpec, o con
-  // alguna herramienta sin configurar. Con todo en orden el botón no aparece.
-  const canInitialize = Boolean(onInitialize || onInitializeWith) && (!present || pending.length > 0);
+  // 6.9: Sólo se ofrece inicializar en AGENTES cuando el repositorio no está inicializado.
+  // Con OpenSpec ya inicializado, las pendientes se resumen sólo en la tarjeta del motor.
+  const canInitialize = Boolean(onInitialize || onInitializeWith) && !present;
   /** El CLI no pudo detectar nada y la respuesta que falta es una elección. */
   const asking = Boolean(needsTool && onInitializeWith);
   const selectableTools = toolReport?.tools ?? snapshot.tools;
@@ -95,28 +92,6 @@ export function OpenSpecToolList({
       : t('pipeline.openspec.init.successResultNoFiles', { tools: toolNames });
     setInitSuccessResult(msg);
   };
-
-  const handleConfigurePending = async () => {
-    setConfigureSuccessResult(null);
-    if (onInitializeWith && chosenPendingTools.length > 0) {
-      onInitializeWith(chosenPendingTools);
-    } else if (onInitialize) {
-      onInitialize();
-    }
-    setShowConfigureSelector(false);
-    const toolNames = chosenPendingTools
-      .map((id) => pending.find((t) => t.toolId === id)?.label ?? id)
-      .join(', ');
-    const count = uncommittedCount ?? 0;
-    const msg = count === 1
-      ? t('pipeline.openspec.engine.configureSuccessResultSingle', { tools: toolNames })
-      : count > 1
-      ? t('pipeline.openspec.engine.configureSuccessResult', { tools: toolNames, count })
-      : t('pipeline.openspec.engine.configureSuccessResultNoFiles', { tools: toolNames });
-    setConfigureSuccessResult(msg);
-  };
-
-  const pendingLabels = pending.map((t) => t.label).join(', ');
 
   return (
     <>
@@ -178,68 +153,10 @@ export function OpenSpecToolList({
         </ul>
       )}
 
-      {/* 6.3 Repositorio con OpenSpec: una sola línea y un solo botón Configurar... para pendientes */}
-      {present && pending.length > 0 && !asking && (
-        <div className={styles.pendingBlockContainer}>
-          <div className={styles.summaryFactRow}>
-            <span>{t('pipeline.openspec.engine.pendingToolsDetected', { tools: pendingLabels })}</span>
-            <button
-              type="button"
-              className={styles.secondaryAction}
-              disabled={busy}
-              onClick={() => setShowConfigureSelector((prev) => !prev)}
-            >
-              {t('pipeline.openspec.engine.configureActionEllipsis')}
-            </button>
-          </div>
-
-          {showConfigureSelector && (
-            <fieldset className={styles.pendingToolsSelectorFieldset} disabled={busy}>
-              <ul className={styles.railChooseList}>
-                {pending.map((tool) => (
-                  <li key={tool.toolId}>
-                    <label className={styles.railChooseOption}>
-                      <input
-                        type="checkbox"
-                        checked={chosenPendingTools.includes(tool.toolId)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setChosenPendingTools((prev) => [...prev, tool.toolId]);
-                          } else {
-                            setChosenPendingTools((prev) => prev.filter((id) => id !== tool.toolId));
-                          }
-                        }}
-                      />
-                      <span>{tool.label}</span>
-                    </label>
-                  </li>
-                ))}
-              </ul>
-              <div className={styles.pendingToolsSelectorActions}>
-                <button
-                  type="button"
-                  className={styles.secondaryAction}
-                  disabled={busy || chosenPendingTools.length === 0}
-                  onClick={() => void handleConfigurePending()}
-                >
-                  {t('pipeline.openspec.engine.configureAction')}
-                </button>
-              </div>
-            </fieldset>
-          )}
-
-          {configureSuccessResult && (
-            <p className={styles.configureResultLine} role="status">
-              {configureSuccessResult}
-            </p>
-          )}
-        </div>
-      )}
-
-      {pending.length > 0 && <p className={styles.railScope}>{t('pipeline.openspec.rail.toolsHelp')}</p>}
+      {!present && pending.length > 0 && <p className={styles.railScope}>{t('pipeline.openspec.rail.toolsHelp')}</p>}
 
       {/* Botón único de inicialización cuando el repo no está inicializado */}
-      {canInitialize && !asking && (!present || pending.length > 0) && (
+      {canInitialize && !asking && (
         <div className={styles.railInitActionContainer}>
           <p className={styles.railScope}>{t('pipeline.openspec.rail.initWrites')}</p>
           <button

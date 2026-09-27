@@ -54,12 +54,17 @@ describe('detalle de herramientas en el rail', () => {
     expect(screen.getByText(/rail\.noTools/)).toBeTruthy();
   });
 
-  it('ofrece inicializar cuando hay algo que resolver, declarando qué escribe', () => {
-    render(<OpenSpecToolList present tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
+  it('ofrece inicializar cuando el repositorio no está inicializado, declarando qué escribe', () => {
+    render(<OpenSpecToolList present={false} tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
 
     expect(screen.getByRole('button', { name: /rail\.init/ })).toBeTruthy();
     // Qué se va a escribir, antes de escribirlo.
     expect(screen.getByText(/rail\.initWrites/)).toBeTruthy();
+  });
+
+  it('con repo inicializado y herramientas pendientes no ofrece inicializar en AGENTES (6.9)', () => {
+    render(<OpenSpecToolList present tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
+    expect(screen.queryByRole('button', { name: /rail\.init/ })).toBeNull();
   });
 
   it('con todo configurado no ofrece inicializar', () => {
@@ -116,15 +121,15 @@ describe('detalle de herramientas en el rail', () => {
   });
 
   it('mientras inicializa no se puede volver a pedir', () => {
-    render(<OpenSpecToolList present tools={[tool('antigravity', false)]} busy onInitialize={() => undefined} />);
+    render(<OpenSpecToolList present={false} tools={[tool('antigravity', false)]} busy onInitialize={() => undefined} />);
     expect((screen.getByRole('button', { name: /rail\.initBusy/ }) as HTMLButtonElement).disabled).toBe(true);
   });
 
-  it('las herramientas pendientes muestran «Falta configurar» y acción configurar, nunca actualizar', () => {
+  it('las herramientas pendientes muestran «Falta configurar» en su fila, sin botón configurar ni actualizar en AGENTES (6.9)', () => {
     render(<OpenSpecToolList present tools={[tool('antigravity', false)]} onInitialize={() => undefined} />);
     expect(screen.getByText('antigravity')).toBeTruthy();
     expect(screen.getByText(/engine\.pendingTool:/)).toBeTruthy();
-    expect(screen.getByRole('button', { name: /engine\.configureAction/ })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: /engine\.configureAction/ })).toBeNull();
     expect(screen.queryByRole('button', { name: /update/i })).toBeNull();
   });
 });

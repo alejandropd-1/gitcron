@@ -206,7 +206,9 @@ try {
   const versionStatusMap = new Map(Array.isArray(versionStatuses) ? versionStatuses.map(v => [v.toolId, v]) : []);
 
   const configuredTools = typeof getConfiguredTools === 'function' ? getConfiguredTools(repoPath) : [];
-  const profileSyncNeeded = getToolsNeedingProfileSync(repoPath, workflows, delivery, configuredTools);
+  const profileSyncNeeded = (Array.isArray(workflows) && workflows.length > 0)
+    ? getToolsNeedingProfileSync(repoPath, workflows, delivery, configuredTools)
+    : [];
 
   const tools = AI_TOOLS.map(t => {
     const vStatus = versionStatusMap.get(t.value);
@@ -744,7 +746,8 @@ export async function readEngineToolReport(options: ReadEngineToolReportOptions)
   }
 
   const { packageDir, version } = located;
-  const cacheKey = `${packageDir}::${version}::${path.normalize(repoPath)}`;
+  const wfKey = Array.isArray(workflows) ? [...workflows].sort().join(',') : '';
+  const cacheKey = `${packageDir}::${version}::${path.normalize(repoPath)}::${wfKey}::${delivery}`;
 
   const cached = reportCache.get(cacheKey);
   if (cached) {

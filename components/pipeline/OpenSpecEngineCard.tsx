@@ -377,21 +377,48 @@ export const OpenSpecEngineCard: React.FC<OpenSpecEngineCardProps> = ({
     return null;
   }
 
-  // 2. Estado de Carga / Lectura
+  // 2. Estado de Carga / Lectura (6.10: esqueleto con anatomía de motor + AGENTES)
   if (isLoading || !status) {
     return (
-      <section className={styles.engineCardSectionLoading} aria-label={title ? undefined : t('pipeline.openspec.engine.cardTitle')}>
-        <header className={styles.engineCardHeader}>
-          <h3 className={title ? styles.reviewSectionTitle : undefined}>{title ?? t('pipeline.openspec.engine.cardTitle')}</h3>
-          <span className={styles.generalStatusBadge} data-status="loading">
-            <span className={styles.healthDot} data-state="loading" aria-hidden="true" />
-            {t('pipeline.openspec.engine.reading')}
-          </span>
-        </header>
-        <div className={styles.engineCardLoadingContent}>
-          <p className={styles.engineLoading}>{t('pipeline.openspec.engine.reading')}</p>
-        </div>
-      </section>
+      <div
+        className={styles.skeletonRoot}
+        aria-busy="true"
+        aria-label={title ?? t('pipeline.openspec.engine.cardTitle')}
+        data-estado="loading"
+      >
+        <section className={styles.skeletonBlock}>
+          <div className={styles.skeletonBlockTitle} />
+          <div className={styles.skeletonCard}>
+            <div className={styles.skeletonLine} style={{ width: '45%' }} />
+            <div className={styles.skeletonLine} style={{ width: '65%' }} />
+            <div className={styles.skeletonLine} style={{ width: '35%' }} />
+          </div>
+        </section>
+
+        <section className={styles.skeletonBlock}>
+          <div className={styles.skeletonBlockTitle} style={{ width: '6rem' }} />
+          <div className={styles.skeletonCard}>
+            <div className={styles.skeletonToolRow}>
+              <div className={styles.skeletonToolIcon} />
+              <div className={styles.skeletonToolName} />
+              <div className={styles.skeletonToolDir} />
+              <div className={styles.skeletonToolStatus} />
+            </div>
+            <div className={styles.skeletonToolRow}>
+              <div className={styles.skeletonToolIcon} />
+              <div className={styles.skeletonToolName} style={{ width: '7.5rem' }} />
+              <div className={styles.skeletonToolDir} style={{ width: '5rem' }} />
+              <div className={styles.skeletonToolStatus} />
+            </div>
+            <div className={styles.skeletonToolRow}>
+              <div className={styles.skeletonToolIcon} />
+              <div className={styles.skeletonToolName} style={{ width: '5rem' }} />
+              <div className={styles.skeletonToolDir} style={{ width: '4rem' }} />
+              <div className={styles.skeletonToolStatus} />
+            </div>
+          </div>
+        </section>
+      </div>
     );
   }
 

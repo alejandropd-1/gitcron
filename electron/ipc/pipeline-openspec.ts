@@ -71,7 +71,7 @@ import {
 import { classifyOpenSpecProfile } from '../../lib/openspec-profile';
 import { compareSemver, parseSemver } from '../../lib/openspec-version';
 import { getRealGitInfo, type RealGitInfo } from '../pipeline/repo-evidence-reader';
-import { getToolDef } from '../pipeline/openspec-tooling';
+import { getToolDef, OPENSPEC_CORE_WORKFLOW_SET } from '../pipeline/openspec-tooling';
 import {
   analyzeOpenSpecVersion,
   readInstalledContext,
@@ -257,10 +257,12 @@ export async function buildEngineStatusSnapshot(
         executablePath: authorizedRuntime?.executablePath ?? null,
         runtimeVersion: cli.runtimeVersion ?? null,
         workflows:
-          (globalConfig?.resolvedWorkflowsState === 'read' && Array.isArray(globalConfig?.resolvedWorkflows))
+          (globalConfig?.resolvedWorkflowsState === 'read' && Array.isArray(globalConfig?.resolvedWorkflows) && globalConfig.resolvedWorkflows.length > 0)
             ? globalConfig.resolvedWorkflows
-            : (globalConfig?.configuredWorkflows ?? []),
-        delivery: globalConfig?.delivery,
+            : ((globalConfig?.configuredWorkflows && globalConfig.configuredWorkflows.length > 0)
+                ? globalConfig.configuredWorkflows
+                : Array.from(OPENSPEC_CORE_WORKFLOW_SET)),
+        delivery: globalConfig?.delivery ?? 'both',
       });
     } catch {
       toolReport = null;

@@ -62,6 +62,14 @@ La vista **Cartografía** suma una capa de IA para explicar nodos del grafo y re
 - **Online reutiliza el vault.** El modo online usa **OpenRouter** con la **misma key cifrada** del Temporal Agent (`getKey('openrouter')`, sólo en main, nunca al renderer ni a logs). No se agrega un dominio nuevo: `https://openrouter.ai` ya estaba en el CSP.
 - **La petición sale del proceso main.** El `fetch` (local u online) se arma y dispara en `electron/ai/carto/*`, no en el renderer. Los settings (`enabled`/`mode`/`model`) no son secreto y viven en JSON plano; las keys siguen sólo en el vault cifrado.
 
+### 8. Informe de herramientas de OpenSpec — código del motor en un proceso aparte (v1.18.0)
+
+Para saber qué herramientas de OpenSpec hay en un repositorio, GitCron ejecuta funciones internas del paquete `@fission-ai/openspec` que ese repositorio usa (`electron/pipeline/openspec-engine-tools.ts`). Mitigaciones:
+
+- **Nunca dentro del proceso main.** El código del motor corre en un proceso hijo (`process.execPath` con `ELECTRON_RUN_AS_NODE=1`), sin shell, con tope de 10 s, salida acotada a 1 MB y `windowsHide`. Un fallo o un cuelgue del motor no toca los privilegios ni la estabilidad de GitCron.
+- **Sólo el paquete que ya responde.** El paquete se ubica desde la copia del repositorio (`node_modules/@fission-ai/openspec`, resuelto con `realpath`) o desde el lanzador del motor del sistema que GitCron ya ejecuta; se usa sólo si su `package.json` se llama `@fission-ai/openspec` y su versión coincide con la que responde `openspec --version`. Más de una candidata en el lanzador → no se usa.
+- **Sólo lectura del repositorio.** Las funciones invocadas leen el sistema de archivos; lo que devuelven se valida con un esquema estricto y, si no coincide, GitCron usa su propia copia de la lista y lo avisa en pantalla.
+
 ## ⚠️ Vulnerabilidades conocidas en dependencias
 
 Estado actual en `v1.2.0`:

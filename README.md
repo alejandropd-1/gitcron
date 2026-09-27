@@ -69,7 +69,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 #### Staging and commits
 
 - Separate unstaged and staged sections.
-- **Live working tree in the right panel** when files change on disk: a serialized `chokidar` watcher emits `repo:fs-change` over IPC (debounced 250 ms in main + 150 ms in renderer). Current files remain visible in a dedicated live section even while inspecting a historical commit. The watcher ignores `node_modules`, `.next`, `dist`, `release`, and `out`.
+- **Live working tree in the right panel** when files change on disk: a single recursive `fs.watch` per repository (`electron/ipc/repo-watch.ts`, 200 ms debounce; `chokidar` was removed because on Windows it held a handle per directory and blocked folder renames) emits `repo:fs-change` over IPC. Current files remain visible in a dedicated live section even while inspecting a historical commit. The watcher ignores `node_modules`, `.next`, `dist`, `release`, and `out`.
 - **Git state changes arrive as events, not by polling**: the watcher observes a closed allowlist inside `.git/` — `index`, `HEAD`, `MERGE_HEAD`, `rebase-merge/`, `rebase-apply/`, and `refs/heads/` — so staging, branch switches, merges, rebases, and commits made from a terminal update the view without waiting for a timer. `.git/objects/`, `.git/logs/`, and lock files stay ignored: Git writes there constantly without changing anything the app shows. Measured on a real clone, a `checkout` of 1109 files produces 2 raw events that the debounce collapses into 1.
 - **Adaptive backup heartbeat**: a `git status` timer still covers filesystem events that Windows, some editors, and atomic saves genuinely drop, but it now runs frequently only after recent activity and spaces out when the repository is idle — measured, 5× fewer reads at rest. A cheap `stat` of `.git/index` (median 16 µs, versus 42 ms for `git status`) skips the full read when nothing changed. It only ever skips a read, never discards an event.
 - Batch stage / unstage to avoid `index.lock` races.
@@ -135,7 +135,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - In-app notifications share one bottom-centered, stackable viewport above the application shell. Success, errors and action prompts remain readable; destructive reset and branch deletion flows report their final outcome explicitly.
 - OS notifications: native alerts when push/pull takes >3s or the window is unfocused, and when auto-fetch detects new remote commits.
 - Configurable keyboard shortcuts: 14 actions (commit, push, pull, branch, fetch, search, etc.) editable from Settings with click-to-capture rebind.
-- Theme toggle in Settings: dark (default) and experimental light mode.
+- Theme toggle in Settings: dark (default) and a native light theme (v1.16): every color is a semantic `light-dark()` token, native controls (`select`, date pickers, scrollbars) follow the theme without CSS inversion, and text and accents meet WCAG AA contrast in both themes.
 - Auto-update now stays inside the app UI: a version-tag dot announces updates, the tag opens the download dropdown, progress stays beside the GitHub releases icon, and `UPDATE` appears there when the download is ready.
 - Settings -> Check for updates now includes a **Recent changes** view sourced from the local `CHANGELOG.md`: the newest version opens by default, older versions stay collapsible, and GitHub Releases remains available as a secondary "full history" action.
 - Startup polish: the Electron splash now shows the GitCron icon with subtle geometric animation, stays visible long enough to avoid first-paint flicker, and the Graph fades in after initial repo data is ready.
@@ -146,7 +146,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Transición de Desvanecimiento Puro (Fade-Only)**: Eliminación definitiva de las distorsiones de escalado bruscas por defecto. Implementación de transiciones de opacidad para una experiencia fluida y prémium al abrir y cerrar paneles.
 - **Guardia de Hidratación (Hydration Guard)**: Implementación de una barrera de renderizado síncrono en el cliente basada en la técnica de Josh W. Comeau para evitar discrepancias de hidratación SSR, introduciendo una pantalla de carga y esqueleto premium durante la sincronización inicial.
 - **Saneamiento Estático y Mantenibilidad de Fallow**: Saneamos la complejidad del grafo clásico (`computeGraph` en `CommitGraph.tsx` simplificada) y modularizamos la hidratación de preferencias en `use-git-actions.ts` hacia helpers modulares independientes, logrando una reducción del 90% en su complejidad cognitiva y elevando el *Maintainability Score* global del proyecto al **90.0% ("Good")**.
-- **Optimización y Componentización Continua**: `app/page.tsx` siguió su reducción controlada hasta **1.711 LOC** (desde ~3.984 en v1.7.x; −324 en F1 v1.8.1: modales restantes, repo chooser a hook y panel LCAR; −131 adicionales al extraer las vistas de diff PR/archivo). Tabs multi-repo, sidebar, vistas internas, modales de acción y confirmaciones destructivas viven en componentes dedicados. Fallow mantiene el *Maintainability Score* en **90.2 ("Good")**; el view-switcher central (graph tab) queda como mayor objetivo de saneamiento pendiente.
+- **Optimización y Componentización Continua**: `app/page.tsx` bajó de ~3.984 LOC en v1.7.x a 1.711 en v1.8.x; hoy mide **1.918 LOC** (2026-09-26), porque SDD y Cartografía sumaron puntos de montaje. Tabs multi-repo, sidebar, vistas internas, modales de acción y confirmaciones destructivas viven en componentes dedicados. El *Maintainability Score* de Fallow (**90.2, "Good"**) es la medición de v1.8.x; el view-switcher central (graph tab) sigue siendo el mayor objetivo de saneamiento pendiente.
 - **Spanish and English UI strings**.
 
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
@@ -166,7 +166,7 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panel Centauro**: Al clickear una rama especulativa, el HUD inferior muestra el rationale de la IA con evidencia del repositorio.
 - **Materialización one-click**: El botón "Materializar" convierte una rama soñada en un branch real de Git (`imagined/<slug>`) con tag `flight/<nivel>` y un `IDEA.md` documentando la decisión.
 - **Brief copiable limpio**: La confirmación de materialización separa metadata fija del bloque copiable para agentes, manteniendo el `IDEA.md` completo en la rama creada.
-- **Configuración por repositorio**: Settings → Temporal Agent permite elegir modelo de IA (7 modelos OpenRouter verificados), scope de privacidad, threshold de confianza, y focus areas.
+- **Configuración por repositorio**: Settings → Temporal Agent permite elegir modelo de IA (catálogo de modelos OpenRouter verificados en `lib/openrouter-models.ts`), scope de privacidad, threshold de confianza, y focus areas.
 - **Persistencia**: Las predicciones se guardan en `prediction.json` por repo y sobreviven a cierre/re-apertura de la app.
 - **Seguridad**: API keys cifradas con `safeStorage` del OS (DPAPI/Keychain/libsecret). Fingerprint SHA-256 como identificador visible. Las keys nunca salen del proceso main.
 - **Toggle FUTUROS**: Botón en la esquina superior del grafo cronométrico para mostrar/ocultar las ramas especulativas. Se activa automáticamente tras una predicción.
@@ -181,9 +181,9 @@ Desktop Git client built with modern web tooling. GitCron is meant to cover a pe
 - **Panorama integrado y cacheado**: El resumen del repo se genera desde estructura determinística, se narra con IA cuando está habilitada y se cachea en SQLite por repo, estructura e idioma.
 - **Providers opt-in**: Soporta LM Studio local y OpenRouter, reutilizando la key cifrada del Temporal Agent sin exponer secretos al renderer.
 
-### 🔵 Pipeline — Workspace OpenSpec (v1.15.0)
+### 🔵 SDD — Workspace OpenSpec (v1.11 → v1.18)
 
-Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
+SDD (antes «Pipeline») muestra en qué punto del ciclo de OpenSpec está el repositorio abierto y qué corresponde hacer a continuación, sin exigir conocer los comandos `/opsx:*`.
 
 - **Workspace de tres zonas unificado**: navegación de cambios activos, archivados y especificaciones a la izquierda; trabajo al centro con el ciclo Explore → Propose → Apply → Validate → Archive; actividad y alertas a la derecha. Transición fluida con ancho unificado (`1100px`) y conmutación entre panel y riel sin saltos de maquetación.
 - **Grafo de artefactos cronológico y ordenado por dependencias**: visualización devuelta por el motor CLI (ciclo SDD 1.13) en una línea horizontal continua, con estado de artefactos (`description`, `dependencies`, `unlocks`, `resolvedOutputPath`, `existingOutputPaths`) y ficha de inspección única.
@@ -198,7 +198,16 @@ Pipeline muestra en qué punto del ciclo de OpenSpec está el repositorio abiert
 - **Evidencia sin inventar**: un dato ausente, incompatible o sin fixture se representa como `unknown` o `pending_fixture`, nunca como cero o verde. Un proceso que termina no marca una tarea como hecha: el progreso se relee de `tasks.md`.
 - **Sesiones persistidas**: cada corrida guarda runtime, cambio, tarea, tiempos y resultado en SQLite, y el historial sobrevive a reinicios.
 
-### 🟡 Preparar el commit desde Pipeline (v1.15.0)
+#### Configuración de OpenSpec (v1.17 → v1.18)
+
+- **Actualizar el motor donde vive**: si el repositorio tiene su propia copia de OpenSpec en `package.json`, «Actualizar» actualiza esa (sin confirmar en Git y conservando la fijación exacta); si usa la del sistema, pide antes una confirmación con el comando exacto y los repositorios abiertos afectados. Instala la versión anunciada y sólo dice «Listo» si después responde esa versión; «volver a la versión anterior» vuelve en el mismo lugar.
+- **Motivos verdaderos**: una actualización detenida dice su causa real, y «integración al día» se afirma sólo después de volver a medir.
+- **Copias viejas de las instrucciones**: cuando OpenSpec mueve las instrucciones de una herramienta a otra carpeta (Codex de `.codex` a `.agents` en 1.13), GitCron lista las copias viejas y las retira sólo si Git puede devolverlas.
+- **Las herramientas las decide el motor**: GitCron corre, en un proceso aparte, las funciones con las que el propio OpenSpec decide qué herramientas hay en un proyecto, cuáles están configuradas y cuáles necesitan actualizarse. Si no puede, usa una copia de la lista de OpenSpec 1.13 (`electron/pipeline/openspec-tools-snapshot.json`) y lo avisa.
+- **Inicializar y configurar desde la pantalla**: un repositorio sin OpenSpec ofrece un solo «Inicializar OpenSpec» eligiendo herramientas; uno que ya lo usa muestra «Detectadas sin configurar: …» con un único «Configurar…».
+- **Precarga sin saltos**: mientras se lee el motor se ve un esqueleto con la forma de la pantalla, nunca «Ausente» o «Desconocido» sin medición.
+
+### 🟡 Preparar el commit desde SDD (v1.12 → v1.15)
 
 El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no confirma: confirmar sigue siendo una acción humana desde Commit.
 
@@ -206,7 +215,7 @@ El commit se arma donde se ve el trabajo, sin cambiar de pestaña. Preparar no c
 - **Atribución con su fuente declarada**: que un archivo viva bajo la carpeta de su cambio es un hecho; que lo diga la rama es una declaración. El hecho manda.
 - **El mensaje se corrige en el mismo lugar donde se decide qué entra**, escribiendo sobre el mismo estado que después se confirma.
 
-### 🟣 Redacción del asunto con IA local (v1.15.0)
+### 🟣 Redacción del asunto con IA local (v1.12 → v1.15)
 
 El tipo convencional de un commit —`feat`, `fix`, `chore`— es el único dato que ninguna fuente del repositorio contiene: no está en el diff, ni en las rutas, ni en la rama, ni en las tareas. Un modelo local lo acierta, y por eso esta función existe.
 
@@ -252,8 +261,9 @@ Renderer:
 
 Main process:
 
-- `electron/main.ts` exposes typed IPC handlers for Git, GitHub, storage, shell, filesystem, and Temporal Agent.
+- `electron/main.ts` creates the window and registers the typed IPC handlers, which live by domain in `electron/ipc/*.ts` (Git operations, sync, branches, GitHub, storage, shell, watchers, Cartography, commit-message AI, and the SDD/OpenSpec channels).
 - `electron/preload.ts` exposes the safe renderer bridge via `window.api`.
+- `electron/pipeline/` holds the SDD back end: repository evidence reader, OpenSpec engine discovery, installation and tool report (`openspec-engine-tools.ts`), archive, runtime sessions and one adapter per runtime.
 - `electron/ai/key-store.ts` manages OS-encrypted API keys (never exposed over IPC).
 - `electron/ai/provider-parsing.ts` normalizes AI-provider JSON extraction and speculative branch parsing across Claude/OpenRouter adapters.
 - `electron/carto/graph-engine.ts`, `electron/ipc/carto-graph.ts`, and `electron/ai/carto/*` provide CodeGraph grounding, filesystem-aware snapshots, providers, and SQLite-backed Cartography AI cache.
@@ -276,7 +286,7 @@ State model:
 
 ## Security
 
-See [SECURITY.md](/C:/www/gitCronos/SECURITY.md) for the full hardening notes. Short version:
+See [SECURITY.md](SECURITY.md) for the full hardening notes. Short version:
 
 - GitHub tokens are stored with Electron `safeStorage` (OS keychain / DPAPI / libsecret).
 - Push / pull / fetch auth uses a process-scoped `http.https://github.com/.extraheader` authorization header instead of changing `origin`, so token-bearing remote URLs are not written to `.git/config`.
@@ -322,6 +332,12 @@ Type check:
 
 ```bash
 ./node_modules/.bin/tsc.cmd --noEmit
+```
+
+Full verification (build → tests twice → types → eslint on touched files → `openspec validate --strict` on the branch's change → `git diff --check` → known pitfalls), with the full log in `tmp/verificacion.log`:
+
+```bash
+pnpm verificar
 ```
 
 ---
@@ -370,18 +386,19 @@ gitCronos/
 
 ## Design system & CSS Tokenization
 
-"The Compiled Soul" design system has been fully tokenized inside [globals.css](file:///c:/www/gitcron/app/globals.css) using Tailwind CSS v4 `@theme` and `@utility` rules:
+The design system («Carbon Soul», Nord-based) is fully tokenized inside [globals.css](app/globals.css) using Tailwind CSS v4 `@theme` and `@utility` rules. Every color token is declared once with `light-dark(<light>, <dark>)`; `color-scheme` (`dark` by default, `light` under `html.light`) picks the value. Tests keep the palette honest: `lib/__tests__/ui-color-scan.test.ts` rejects color literals outside the baseline and `palette-contrast` checks WCAG AA pairs in both themes.
 
-* **Core Base Tokens**:
-  - Deep Navy Base Background (`--color-bg-base`): `#020f1e`
-  - Core Surface Panel (`--color-bg-surface`): `#06182a`
-  - Overlay Dialog Card Backdrop (`--color-bg-overlay`): `#12273c`
-  - Muted Secondary Text (`--color-text-secondary`): `#9eacc0`
-  - Primary Active Title Text (`--color-text-primary`): `#d9e7fc`
-  - Accent Brand Cyan (`--color-primary`): `#5ed8ff`
-  - Neon Green HEAD Highlight (`--color-secondary`): `#a3f185`
-  - Conflict Warning Orange (`--color-git-mod`): `#fd9d1a`
-  - Error/Delete Count Red (`--color-error`): `#ff716c`
+* **Core Base Tokens** (light · dark):
+  - Canvas (`--color-bg-base`): `#d0d7e4` · `#2e3440`
+  - Frames, toolbars, sidebars (`--color-bg-surface`): `#c2ccdb` · `#272c36`
+  - Dialogs, dropdowns, cards (`--color-bg-overlay`): `#c2ccdb` · `#3b4252`
+  - Editable inputs (`--color-bg-input`): `#e7edf7` · `#242933`
+  - Primary text (`--color-text-primary`): `#202632` · `#eceff4`
+  - Secondary text (`--color-text-secondary`): `#434d5f` · `#d8dee9`
+  - Brand cyan (`--color-primary`): `#065877` · `#5ed8ff`
+  - Modified / warning orange (`--color-git-mod`): `#8f3c00` · `#fd9d1a`
+  - Error / delete red (`--color-error`): `#a81c1c` · `#ff716c`
+  - HEAD highlight (`--color-secondary`): alias of `--color-git-add`
 
 * **Advanced Glassmorphism Utilities**:
   - `glass-overlay`: Unified blurred glass overlay for dialogs, context menus, and tooltips.
@@ -418,7 +435,7 @@ To ensure rapid, secure development without branch drifts or versioning mismatch
 
 Since the Classic and Cronometric views share the same global file and base variables, we enforce strict styling boundaries to avoid visual collisions (e.g. overlapping panels, distorted text sizes, or unexpected margins):
 
-1. **Strict CSS Namespacing**: Custom Tailwind v4 variables inside [globals.css](file:///c:/www/gitcron/app/globals.css) must live in labeled, commented block namespaces (`Shared / Global`, `Classic Specific`, `Cronometric Specific`).
+1. **Strict CSS Namespacing**: Custom Tailwind v4 variables inside [globals.css](app/globals.css) must live in labeled, commented block namespaces (`Shared / Global`, `Classic Specific`, `Cronometric Specific`).
 2. **Prefixing Variable Names**: Any color, size, animation, or opacity unique to the timeline canvas view must use the `--crono-` or `--cronometric-` prefix. Never override a base token like `--color-bg-surface` directly for experimental changes.
 3. **Isolated Layout Shells**:
    * **Classic Layout**: Rectangular panel columns flush against each other, with rigid col-resize handles.
@@ -448,7 +465,7 @@ Since the Classic and Cronometric views share the same global file and base vari
 
 - [x] OS notifications for long push / pull operations.
 - [x] Configurable keyboard shortcuts.
-- [x] Light theme (experimental).
+- [x] Light theme — native, token-based, WCAG AA (v1.16.0).
 
 #### Future / Reciente
 
@@ -465,18 +482,21 @@ Since the Classic and Cronometric views share the same global file and base vari
 - [x] Premium Conflict Resolver Card (v1.3.7).
 - [x] Agrupamiento recursivo de ramas en el sidebar (v1.3.7).
 - [x] Multiple Remotes management, Worktrees, and Submodules operations (v1.8.4).
-- [ ] Local AI via LM Studio for commit messages, changelog drafting, project-history notes, and other offline writing helpers.
+- [x] Local AI via LM Studio for commit subjects, from the SDD commit preparation (v1.12.0).
+- [ ] Local AI for changelog drafting, project-history notes, and other offline writing helpers.
+- [ ] One AI engine and model choice for the whole app (Temporal Agent, Cartography, SDD runtimes), including OpenCode and self-hosted Unsloth servers.
+- [ ] Add and remove OpenSpec tools per repository from the interface (adding already works through «Inicializar» / «Configurar…»).
 - [ ] Upgrade Next.js beyond 15.4.x (currently pinned — verify Electron + Tailwind 4 compatibility before bumping).
 - [x] Remove token-bearing temporary `origin` URLs from authenticated Git operations (v1.2.0).
 
 #### 🟡 Backlog / Operaciones Git Faltantes (Auditadas en v1.6.5)
 
 - [x] **Descarte de cambios robusto**:
-  - [ ] Añadir diálogo de confirmación de seguridad para evitar pérdida accidental de datos.
-  - [ ] Unificar el descarte de archivos *untracked* para que los elimine físicamente mediante `fs:delete-file` en lugar de fallar con `git restore`.
+  - [x] Diálogo de confirmación de seguridad antes de descartar.
+  - [x] Descartar un archivo *untracked* lo elimina físicamente mediante `fs:delete-file` en lugar de fallar con `git restore`.
 - [x] **Creación y Push de Tags**:
-  - [ ] Habilitar creación de tags (livianos y anotados) desde el menú contextual del Commit.
-  - [ ] Permitir empujar tags al remoto (`git push origin --tags`).
+  - [x] Creación de tags (livianos y anotados) desde el menú contextual del Commit (`git:create-tag`).
+  - [x] Empujar un tag al remoto (`git:push-tag`).
 - [x] **Reset a commit puntual**: Añadir opciones de reset (`soft`, `mixed`, `hard`) hacia un commit específico seleccionado en el grafo (menú contextual).
 - [x] **Clean untracked en bloque**: Crear diálogo interactivo con checklist para limpiar archivos no trackeados del working tree (`git clean`).
 - [x] **Stash Avanzado**:
@@ -490,8 +510,8 @@ Since the Classic and Cronometric views share the same global file and base vari
 ### 🟣 Vista Cronométrica (Chronometric View) - En Desarrollo / Experimental
 
 #### Core & Timeline Engine
-- [ ] Representación visual alternativa de los commits enfocada en su estampa temporal real.
-- [ ] Navegación temporal interactiva para filtrar períodos de actividad específicos.
+- [x] Representación visual alternativa de los commits enfocada en su estampa temporal real.
+- [x] Navegación temporal interactiva para filtrar períodos de actividad específicos.
 - [ ] Diseño responsivo y fluidas micro-animaciones en la línea de tiempo.
 - [ ] Comparación de ramas y estados históricos alineados cronológicamente.
 
@@ -554,7 +574,7 @@ After publishing, install the update from GitCron and run one authenticated push
 
 ## Current version
 
-- **Core & Vista Clásica (Estable)**: `v1.10.9` - ver [CHANGELOG.md](/CHANGELOG.md) para más detalles.
+- **GitCron**: `v1.18.0` (2026-09-26) — ver [CHANGELOG.md](CHANGELOG.md) para el detalle de cada versión.
 - **Vista Cronométrica (Beta)**: *(Integrada bajo Feature Flag en la rama principal — Activar desde Ajustes)*
 
 ---

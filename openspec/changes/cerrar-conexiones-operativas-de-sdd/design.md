@@ -26,6 +26,28 @@ El 2026-09-29 se verificó que dispatchRespondDecision valida el envío y regist
 
 Extender la resolución de capacidades por intención. Estar instalado permite aparecer en discovery; implementar exige escritura y verificar con comandos exige ejecución de pruebas. Mantener alternativas de consulta o ejecución externa visibles, sin ampliar permisos silenciosamente.
 
+**Tabla intención→capacidad (tarea 2.1, medida por el auditor el 2026-09-29 sobre los adaptadores; no por nombre del agente):**
+
+| Runtime | Lanzable (`runtime-session-hub.ts`) | Leer el repo | Escribir archivos | Correr comandos / pruebas | Reanudar sesión |
+|---|---|---|---|---|---|
+| Claude (`claude-adapter.ts:35-50`) | sí (`:92`, `modifiesRepo: true`) | sí (`Read,Grep,Glob`) | sí (`Edit,Write`, `--permission-mode acceptEdits`) | **no**: `--allowedTools` no incluye `Bash` | desconocido (`session.resume` «effect not tested») |
+| Codex (`codex-adapter.ts:25`) | sí (`:93`, `modifiesRepo: false`) | sí | **no**: `exec --sandbox read-only` | sólo comandos que no escriban; no probado | **no**: `--ephemeral` |
+| OpenCode (`opencode-acp-adapter.ts`) | registrado (`:95-101`) | desconocido: ACP negocia `session/new` pero «prompt execution not initiated» | desconocido | desconocido | desconocido (anunciado, sin probar) |
+| agy | **no** (`:94`, `launchable: false`) | — | — | — | — |
+| LM Studio | **no**: no está en el registro del hub (es proveedor, no runtime) | — | — | — | — |
+
+Intenciones que lanzan sesiones hoy (`PipelineNewChangeFlow.tsx`: explorar y proponer; `PipelineArtifactGraph.tsx`: escribir un artefacto; `OpenSpecDashboard.tsx` `launchTarget`: implementar una tarea):
+
+| Intención | Requiere | Disponible con | Aviso |
+|---|---|---|---|
+| Explorar | leer | Claude, Codex | — |
+| Proponer / escribir artefactos | leer + escribir | Claude | Codex: «sólo puede leer; para escribir la propuesta usá Claude» |
+| Implementar una tarea | leer + escribir + correr pruebas | ninguno completo; Claude parcial | Claude: «escribe el código pero no puede correr pruebas: la verificación queda para vos (`pnpm verificar`)». Codex: no disponible |
+| Reanudar | reanudar | ninguno comprobado | no se ofrece hasta tener prueba |
+
+OpenCode queda como «capacidad sin comprobar» en todas las intenciones hasta `modelos-en-casa` (handshake ACP pendiente); se muestra, no se bloquea por no tener fixture, y lo dice.
+
+
 ### 3. Decisión de implementación
 
 Conectar sync-preview al runner de workflow existente, separando generación de propuesta y aplicación. El runner no escribe las specs canónicas durante preview: usar espacio temporal aislado, importar sólo una propuesta acotada y verificarlo. Revalidar hashes, repositorio y cambio al aplicar bajo exclusión mutua.

@@ -11,13 +11,13 @@ Independiente del mapa de pantallas y Centauro. La dependencia antigua gestionar
 
 Rutina de trabajo: [config.yaml](../../config.yaml). Secuencia del producto: [EXECUTION.md](../../EXECUTION.md). Las rutas de esta tabla son referencias de implementación.
 
-| Tarea | Archivos o responsabilidad acotada |
-|---|---|
-| 1.1 | CLI help/config y design |
-| 1.2 | Lector de config y tests |
-| 1.3 | Settings; panel configuración SDD; tests |
-| 2.1 | Servicio config y test IPC |
-| 2.2 | Servicio config y test IPC |
-| 2.3 | UI Settings y tests |
-| 2.4 | Cache/evento existente y tests |
-| 3.1 | Recorrido integrado y validación |
+| Tarea | Responsable | Archivos o responsabilidad acotada |
+|---|---|---|
+| 1.1 | orquestador | CLI help/config y design |
+| 1.2 | local | Lector de config y tests |
+| 1.3 | local | Settings; panel configuración SDD; tests |
+| 2.1 | local | Servicio config y test IPC |
+| 2.2 | local | Servicio config y test IPC |
+| 2.3 | local | UI Settings y tests |
+| 2.4 | local | Cache/evento existente y tests |
+| 3.1 | orquestador | Recorrido integrado y validación |

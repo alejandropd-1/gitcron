@@ -1,6 +1,6 @@
 # Plan de integración de GitCron
 
-Actualizado el 2026-09-29. La base del relevamiento fue GitCron 1.18.0 / HEAD `6336fdc`, con OpenSpec 1.13.2. Esta entrega separa la planificación de la primera conexión ya implementada. El seguimiento del código está en el cambio de conexiones operativas; plan preparado no significa función terminada.
+Actualizado el 2026-09-29. La base del relevamiento fue GitCron 1.18.0 / HEAD `6336fdc`, con OpenSpec 1.13.2. Esta entrega separa la planificación de la primera conexión implementada por la IA local. El seguimiento del código está en el cambio de conexiones operativas; plan preparado no significa función terminada.
 
 ## Qué conservamos y qué cambia
 

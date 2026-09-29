@@ -11,21 +11,21 @@ Después de cerrar-conexiones-operativas-de-sdd y retomar-trabajo-con-asistencia
 
 Rutina de trabajo: [config.yaml](../../config.yaml). Secuencia del producto: [EXECUTION.md](../../EXECUTION.md). Las rutas de esta tabla son referencias de implementación.
 
-| Tarea | Archivos o responsabilidad acotada |
-|---|---|
-| 1.1 | CLI help/instructions y consumidores actuales |
-| 1.2 | Adaptador de motor y tests |
-| 1.3 | Resolvedor root/store y tests |
-| 2.1 | Adaptador de workflow update y tests |
-| 2.2 | Adaptador verify y tests |
-| 2.3 | Adaptador new/continue y tests |
-| 2.4 | Adaptador ff y tests |
-| 3.1 | Adaptador schema y UI puntual |
-| 3.2 | Adaptador templates y UI puntual |
-| 3.3 | Adaptador store y UI puntual |
-| 3.4 | Adaptador workset y UI puntual |
-| 3.5 | Adaptadores de diagnóstico y UI puntual |
-| 3.6 | Planificador bulk y test |
-| 3.7 | Ejecutor bulk y tests |
-| 3.8 | UI de onboarding y tests |
-| 4.1 | Matriz y recorrido integrado |
+| Tarea | Responsable | Archivos o responsabilidad acotada |
+|---|---|---|
+| 1.1 | orquestador | CLI help/instructions y consumidores actuales |
+| 1.2 | local | Adaptador de motor y tests |
+| 1.3 | local | Resolvedor root/store y tests |
+| 2.1 | local | Adaptador de workflow update y tests |
+| 2.2 | local | Adaptador verify y tests |
+| 2.3 | local | Adaptador new/continue y tests |
+| 2.4 | local | Adaptador ff y tests |
+| 3.1 | local | Adaptador schema y UI puntual |
+| 3.2 | local | Adaptador templates y UI puntual |
+| 3.3 | local | Adaptador store y UI puntual |
+| 3.4 | local | Adaptador workset y UI puntual |
+| 3.5 | local | Adaptadores de diagnóstico y UI puntual |
+| 3.6 | local | Planificador bulk y test |
+| 3.7 | local | Ejecutor bulk y tests |
+| 3.8 | local | UI de onboarding y tests |
+| 4.1 | orquestador | Matriz y recorrido integrado |

@@ -81,7 +81,7 @@ export function PipelineWorkspace({
   const [runtimeHistory, setRuntimeHistory] = useState<RuntimeProjection[]>([]);
   // El aviso de control es único para ambos controles (respuesta y pausa): la
   // última escritura gana, igual que antes de extraer el envío al hook.
-  const { respondDecision: handleRespondDecision, controlNotice, setControlNotice } =
+  const { controlNotice, setControlNotice } =
     usePipelineDecisionControl(repoPath, projection);
   // Selección manual de change (del renderer). Al cambiar de repo se reinicia:
   // un changeId de otro repo no tendría sentido. Tiene precedencia sobre la
@@ -256,7 +256,6 @@ export function PipelineWorkspace({
           revalidating={isRevalidating}
           onRefresh={handleRetry}
           onPauseAfterTask={handlePauseAfterTask}
-          onRespondDecision={handleRespondDecision}
           onSelectChange={setManualSelection}
         />
       ) : nonReadyState ? (

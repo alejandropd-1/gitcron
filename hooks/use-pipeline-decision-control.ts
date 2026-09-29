@@ -11,7 +11,7 @@
 // La decisión sigue pendiente hasta que la proyección la dé resuelta:
 // el ACK del control-bus no la aplica.
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import type { RuntimeProjection } from '@/types/pipeline';
 
 export function usePipelineDecisionControl(
@@ -22,20 +22,31 @@ export function usePipelineDecisionControl(
   const [sendingDecisions, setSendingDecisions] = useState<Record<string, boolean>>({});
 
   const currentRepoRef = useRef<string | null>(repoPath);
-  currentRepoRef.current = repoPath;
-
   const sendingRef = useRef<Record<string, boolean>>({});
+
+  useEffect(() => {
+    currentRepoRef.current = repoPath;
+    sendingRef.current = {};
+  }, [repoPath]);
 
   const [lastRepo, setLastRepo] = useState(repoPath);
   if (lastRepo !== repoPath) {
     setLastRepo(repoPath);
     setSendingDecisions({});
-    sendingRef.current = {};
     setControlNotice(null);
   }
 
   const respondDecision = useCallback(
-    async (decisionId: string, optionId: string): Promise<boolean> => {
+    async (
+      decisionId: string,
+      optionId: string,
+      availability?: string,
+    ): Promise<boolean> => {
+      // Las opciones informativas no se envían a ningún ejecutor
+      if (availability === 'informational') {
+        return false;
+      }
+
       const api = typeof window !== 'undefined' ? window.api : undefined;
       if (!repoPath || !api?.pipelineControl?.respondDecision) return false;
 
@@ -75,22 +86,23 @@ export function usePipelineDecisionControl(
           return false;
         }
 
-        delete sendingRef.current[decisionId];
-        setSendingDecisions((prev) => {
-          if (!prev[decisionId]) return prev;
-          const next = { ...prev };
-          delete next[decisionId];
-          return next;
-        });
-
         const success = (response as { success?: boolean } | null)?.success === true;
         if (!success) {
+          delete sendingRef.current[decisionId];
+          setSendingDecisions((prev) => {
+            if (!prev[decisionId]) return prev;
+            const next = { ...prev };
+            delete next[decisionId];
+            return next;
+          });
           setControlNotice('pipeline.decision.error');
           return false;
         }
 
-        // ACK recibido de Main. La decisión permanece pendiente hasta que
-        // la proyección la declare resuelta (el ACK del control-bus no la aplica).
+        // ACK recibido de Main. La decisión permanece pendiente y sus botones deshabilitados
+        // hasta que la proyección la declare resuelta (el ACK del control-bus no la aplica).
+        // Por eso NO se rehabilitan botones tras un acuse: sendingRef y sendingDecisions
+        // conservan el estado de envío hasta que cambie el repo o la proyección la remueva.
         return true;
       } catch {
         if (currentRepoRef.current !== targetRepo) {

@@ -1,14 +1,17 @@
 'use client';
 
+import React, { useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { useGitStore } from '@/lib/git-store';
 import { ProvenanceBadge } from './primitives/ProvenanceBadge';
 import { UnknownValue } from './primitives/UnknownValue';
-import type { DecisionRequest } from './pipeline-domain';
+import type { DecisionOption, DecisionRequest } from './pipeline-domain';
 
 export type DecisionCardProps = {
   decision: DecisionRequest;
-  onRespondOption?: (decisionId: string, optionId: string) => void;
+  onRespondOption?: (decisionId: string, optionId: string, availability?: string) => void;
   isSending?: boolean;
+  repoPath?: string | null;
 };
 
 /**
@@ -19,16 +22,56 @@ export type DecisionCardProps = {
  * En F05 las opciones con `pending-f05` pasan a estar conectadas mediante
  * respond-decision sobre el command bus de Main.
  */
-export function DecisionCard({ decision, onRespondOption, isSending = false }: DecisionCardProps) {
+export function DecisionCard({
+  decision,
+  onRespondOption,
+  isSending = false,
+  repoPath,
+}: DecisionCardProps) {
   const t = useT();
+  const [evidenceError, setEvidenceError] = useState<string | null>(null);
+  const gitStoreRepoPath = useGitStore((s) => s.repoPath);
+  const effectiveRepoPath = repoPath !== undefined ? repoPath : gitStoreRepoPath;
+
+  const isNotice =
+    decision.options.length > 0 &&
+    decision.options.every((option) => option.availability === 'informational');
+
+  const handleOptionClick = async (option: DecisionOption) => {
+    if (option.availability === 'informational') {
+      setEvidenceError(null);
+      const targetFile = decision.evidenceRefs[0];
+      if (!targetFile || !effectiveRepoPath || typeof window === 'undefined' || !window.api?.shellOpenItem) {
+        setEvidenceError('pipeline.decision.evidenceNotFound');
+        return;
+      }
+      try {
+        const result = await window.api.shellOpenItem(effectiveRepoPath, targetFile);
+        if (!result || !result.success) {
+          setEvidenceError('pipeline.decision.evidenceNotFound');
+        }
+      } catch {
+        setEvidenceError('pipeline.decision.evidenceNotFound');
+      }
+      return;
+    }
+
+    if (onRespondOption) {
+      onRespondOption(decision.decisionId, option.id, option.availability);
+    }
+  };
 
   return (
     <article
       className="pipeline-decision"
       data-kind={decision.kind}
       data-risk={decision.risk}
+      data-notice={isNotice || undefined}
       data-sending={isSending || undefined}
     >
+      {isNotice && (
+        <span className="pipeline-decision__badge">{t('pipeline.decision.notice')}</span>
+      )}
       <h4 className="pipeline-decision__title">{decision.title}</h4>
 
       <p className="pipeline-decision__why">
@@ -75,8 +118,8 @@ export function DecisionCard({ decision, onRespondOption, isSending = false }: D
                 aria-disabled={disabled || undefined}
                 disabled={disabled}
                 onClick={() => {
-                  if (isEnabled && !isSending && onRespondOption) {
-                    onRespondOption(decision.decisionId, option.id);
+                  if (!disabled) {
+                    void handleOptionClick(option);
                   }
                 }}
               >
@@ -94,6 +137,12 @@ export function DecisionCard({ decision, onRespondOption, isSending = false }: D
           );
         })}
       </ul>
+
+      {evidenceError && (
+        <p className="pipeline-decision__evidence-error" role="alert">
+          {t(evidenceError)}
+        </p>
+      )}
 
       {decision.evidenceRefs.length > 0 && (
         <ul className="pipeline-decision__evidence">

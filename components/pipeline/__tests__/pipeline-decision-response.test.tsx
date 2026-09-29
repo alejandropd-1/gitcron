@@ -22,6 +22,7 @@ type RespondPayload = {
 };
 
 const respondDecisionSpy = vi.fn().mockResolvedValue({ success: true });
+const shellOpenItemSpy = vi.fn().mockResolvedValue({ success: true });
 
 vi.mock('@/hooks/use-git-actions', () => ({
   useGitActions: () => ({
@@ -106,7 +107,10 @@ beforeEach(() => {
   vi.clearAllMocks();
   Object.defineProperty(window, 'api', {
     configurable: true,
-    value: { pipelineControl: { respondDecision: respondDecisionSpy } },
+    value: {
+      pipelineControl: { respondDecision: respondDecisionSpy },
+      shellOpenItem: shellOpenItemSpy,
+    },
   });
   useGitStore.setState({
     repoPath: 'C:/test-repo',
@@ -174,7 +178,7 @@ describe('respuesta compartida de decisiones', { timeout: 15_000 }, () => {
     expect(respondDecisionSpy).not.toHaveBeenCalled();
   });
 
-  it('estado «enviando» por decisión: muestra aviso de envío y deshabilita botones mientras está en vuelo', async () => {
+  it('estado «enviando» por decisión: muestra aviso de envío y deshabilita botones mientras está en vuelo y tras el acuse', async () => {
     let resolveIpc: (val: unknown) => void = () => {};
     respondDecisionSpy.mockReturnValue(
       new Promise((resolve) => {
@@ -197,7 +201,48 @@ describe('respuesta compartida de decisiones', { timeout: 15_000 }, () => {
       resolveIpc({ success: true });
     });
 
-    expect(screen.queryByText('pipeline.decision.sending')).toBeNull();
+    // Sin rehabilitar botones tras un acuse: permanece deshabilitado hasta que la proyección resuelva la decisión
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it('tocar «Ver evidencia» llama a shellOpenItem con la ruta relativa y nunca a respondDecision', async () => {
+    setStores({ projection: projection() });
+    renderPanel();
+
+    const viewEvidenceBtn = screen.getByRole('button', { name: 'pipeline.option.viewEvidence' });
+    await act(async () => {
+      fireEvent.click(viewEvidenceBtn);
+    });
+
+    expect(shellOpenItemSpy).toHaveBeenCalledTimes(1);
+    expect(shellOpenItemSpy).toHaveBeenCalledWith('C:/test-repo', 'gates.jsonl');
+    expect(respondDecisionSpy).not.toHaveBeenCalled();
+    expect(screen.queryByText('pipeline.control.respondUnsupported')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('archivo de evidencia que no se puede abrir informa que no se encontró sin afirmar resolución', async () => {
+    shellOpenItemSpy.mockResolvedValueOnce({ success: false, error: 'not found' });
+    setStores({ projection: projection() });
+    renderPanel();
+
+    const viewEvidenceBtn = screen.getByRole('button', { name: 'pipeline.option.viewEvidence' });
+    await act(async () => {
+      fireEvent.click(viewEvidenceBtn);
+    });
+
+    expect(shellOpenItemSpy).toHaveBeenCalledWith('C:/test-repo', 'gates.jsonl');
+    expect(respondDecisionSpy).not.toHaveBeenCalled();
+    expect(screen.getByRole('alert').textContent).toContain('pipeline.decision.evidenceNotFound');
+  });
+
+  it('presenta solicitudes como avisos con badge de aviso y título de bandeja cuando sus opciones son informativas', () => {
+    setStores({ projection: projection() });
+    renderPanel();
+
+    expect(screen.getByRole('heading', { level: 4, name: 'pipeline.inbox.title' })).toBeDefined();
+    const badges = screen.getAllByText('pipeline.decision.notice');
+    expect(badges.length).toBeGreaterThan(0);
   });
 
   it('error visible si el IPC rechaza o devuelve error', async () => {

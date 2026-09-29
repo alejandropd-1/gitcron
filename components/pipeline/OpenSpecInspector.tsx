@@ -62,7 +62,7 @@ export type OpenSpecInspectorProps = {
   projection?: RuntimeProjection | null;
   runtimeHistory?: RuntimeProjection[];
   onPauseAfterTask?: () => void;
-  onRespondDecision?: (decisionId: string, optionId: string) => void;
+  onRespondDecision?: (decisionId: string, optionId: string, availability?: string) => void;
   controlNotice?: string | null;
   sendingDecisions?: Record<string, boolean>;
   onOpenReview?: () => void;
@@ -320,6 +320,7 @@ export function OpenSpecInspector({
               onRespondDecision={onRespondDecision}
               controlNotice={controlNotice}
               sendingDecisions={sendingDecisions}
+              repoPath={repoPath}
             />
           </section>
         </SidebarSection>

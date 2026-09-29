@@ -167,7 +167,7 @@ type OpenSpecDashboardProps = {
    */
   onSelectChange?: (changeId: string) => void;
   onPauseAfterTask: () => void;
-  onRespondDecision: (decisionId: string, optionId: string) => void;
+  onRespondDecision?: (decisionId: string, optionId: string) => void;
   engineStatus?: OpenSpecEngineStatus | null;
   engineLoading?: boolean;
 };
@@ -269,7 +269,6 @@ export function OpenSpecDashboard({
   onRefresh,
   onSelectChange,
   onPauseAfterTask,
-  onRespondDecision,
   engineStatus: propEngineStatus,
   engineLoading: propEngineLoading,
 }: OpenSpecDashboardProps) {

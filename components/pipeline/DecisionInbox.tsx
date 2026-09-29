@@ -7,9 +7,10 @@ import { sortDecisionsByHumanNeed, type DecisionRequest } from './pipeline-domai
 
 export type DecisionInboxProps = {
   decisions: DecisionRequest[];
-  onRespondDecision?: (decisionId: string, optionId: string) => void;
+  onRespondDecision?: (decisionId: string, optionId: string, availability?: string) => void;
   controlNotice?: string | null;
   sendingDecisions?: Record<string, boolean>;
+  repoPath?: string | null;
 };
 
 /**
@@ -23,12 +24,16 @@ export function DecisionInbox({
   onRespondDecision,
   controlNotice,
   sendingDecisions,
+  repoPath,
 }: DecisionInboxProps) {
   const t = useT();
   const ordered = useMemo(() => sortDecisionsByHumanNeed(decisions), [decisions]);
 
   return (
     <div className="pipeline-inbox" data-count={ordered.length}>
+      <header className="pipeline-inbox__header">
+        <h4 className="pipeline-inbox__title">{t('pipeline.inbox.title')}</h4>
+      </header>
       {controlNotice && (
         <p className="pipeline-inbox__notice pipeline-inbox__notice--error" role="alert">
           {t(controlNotice)}
@@ -46,6 +51,7 @@ export function DecisionInbox({
                   decision={decision}
                   onRespondOption={onRespondDecision}
                   isSending={Boolean(sendingDecisions?.[decision.decisionId])}
+                  repoPath={repoPath}
                 />
               </li>
             ))}

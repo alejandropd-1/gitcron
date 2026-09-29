@@ -84,8 +84,32 @@ describe('usePipelineDecisionControl', () => {
       await promise;
     });
 
+    // Sin rehabilitar botones tras un acuse: la decisión permanece en estado de envío
+    // hasta que la proyección la resuelva o cambie el repo
+    expect(result.current.isDecisionSending('dec-1')).toBe(true);
+    expect(result.current.sendingDecisions['dec-1']).toBe(true);
+  });
+
+  it('no envía opciones con availability informational', async () => {
+    const { result } = renderHook(
+      ({ repo, proj }) => usePipelineDecisionControl(repo, proj),
+      {
+        initialProps: {
+          repo: 'C:/repo-a',
+          proj: mockProjection(),
+        },
+      },
+    );
+
+    let sent = false;
+    await act(async () => {
+      sent = await result.current.respondDecision('dec-1', 'opt-info', 'informational');
+    });
+
+    expect(sent).toBe(false);
+    expect(respondDecisionSpy).not.toHaveBeenCalled();
     expect(result.current.isDecisionSending('dec-1')).toBe(false);
-    expect(result.current.sendingDecisions['dec-1']).toBeUndefined();
+    expect(result.current.controlNotice).toBeNull();
   });
 
   it('2. error visible si el IPC rechaza o devuelve error', async () => {

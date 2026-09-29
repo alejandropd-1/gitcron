@@ -1,0 +1,30 @@
+# Tasks
+
+Lista de resultados y comprobaciones pendientes. Referencias de implementación en [execution.md](execution.md).
+
+## 1. Decisiones productivas
+
+- [ ] 1.1 **IA local:** Reemplazar la prueba que sólo invoca un mock por una prueba que monta RepoDetailsPanel y pulsa una opción real de DecisionInbox. **Comprobación:** La prueba de montaje acredita el envío real desde el inspector; completar la sustitución del test original y demostrar que detecta una desconexión, sin revertir la corrección productiva.
+- [ ] 1.2 **IA local:** Conectar el inspector fijo al controlador de decisiones compartido sin crear una segunda implementación del protocolo. **Comprobación:** La prueba de montaje pasa y verifica payload ligado al repo/decisión, no sólo la invocación de un callback artificial.
+- [ ] 1.3 **IA local:** Representar envío pendiente, rechazo y resultado confirmado de una decisión, con protección de doble respuesta. **Comprobación:** Pruebas focalizadas cubren doble clic, error IPC y respuesta tardía de otro repo; documentar cuándo una decisión sigue pendiente.
+
+- [ ] 1.4 **Orquestador/IA local:** Conectar la decisión validada en main con su efecto real en el runtime y el estado persistido. **Comprobación:** Recorrido IPC→ejecutor→proyección acredita opción válida aplicada una sola vez, rechazo de opción ajena, fallo del ejecutor y reintento; un acuse del control-bus no cuenta como aplicación.
+
+## 2. Capacidades según operación
+
+- [ ] 2.1 **Orquestador/auditor:** Fijar la tabla intención→capacidad a partir de los adaptadores reales antes de delegar cambios del launcher. **Comprobación:** Entregar tabla en este design: lectura, escritura, pruebas y resume; demostrar Codex read-only y Claude sin shell, sin inferir capacidad por nombre del agente.
+- [ ] 2.2 **IA local:** Extraer o ampliar el cálculo puro de disponibilidad por intención usando la tabla auditada. **Comprobación:** Casos lectura permitida/escritura ausente/pruebas ausentes/runtime desconocido; no bloquear por no pertenecer a fixtures.
+- [ ] 2.3 **IA local:** Conectar el launcher al cálculo de disponibilidad y mostrar la alternativa aplicable a la intención original. **Comprobación:** Prueba de montaje conserva cambio/tarea destino al seleccionar runtime; alternativa no cambia silenciosamente la intención.
+
+## 3. Sync aislado y aplicación
+
+- [ ] 3.1 **Orquestador/auditor:** Cerrar contrato del runner real y del aislamiento antes de emitir su prompt; incluir cancelación, schema de salida y límites de escritura. **Comprobación:** Documentar en design ejecutor probado o bloqueo concreto; demostrar cómo se impide escribir en el repo durante preview. Sin ejecutor compatible esta sección sigue pendiente.
+- [ ] 3.2 **IA local:** Implementar el adaptador del workflow nativo para obtener contenidos propuestos en el entorno aislado aprobado. **Comprobación:** Con fixture de proceso y ensayo real acotado, preview devuelve propuesta y deja canónicas byte-iguales; timeout/cancelación limpian sólo temporales propios.
+- [ ] 3.3 **IA local:** Registrar las dependencias productivas de sync desde main y reutilizar la disponibilidad por capacidad. **Comprobación:** Prueba de composición usa el registro real: runner conectado, falta de capacidad informada y ausencia de fallback que fusione specs por su cuenta.
+- [ ] 3.4 **IA local:** Vincular propuesta a plan main con root, cambio, hashes, runtime y alcance validados; rechazar paths no permitidos. **Comprobación:** Manipulación del payload, symlink fuera del root, cambio de HEAD/root o edición de spec invalidan el plan antes de escribir.
+- [ ] 3.5 **IA local:** Aplicar sólo la propuesta vigente confirmada con exclusión por repo y recuperación de escrituras interrumpidas. **Comprobación:** Fallo en segunda escritura y reintento no pierden ediciones externas ni declaran éxito parcial; registrar archivos realmente aplicados.
+
+## 4. Integración
+
+- [ ] 4.1 **IA local:** Cubrir navegación entre objetivo, tarea, artefactos y revisión alternando flotante/fijo. **Comprobación:** Se conserva selección, el menú global sigue accesible y ninguna acción queda únicamente en un panel oculto.
+- [ ] 4.2 **Orquestador/auditor:** Auditar el recorrido SDD preparar→inspector confirmar→Graph y la evidencia de capacidades/sync en composición productiva. **Comprobación:** Stage/commit usan operaciones Git existentes; aislar dos repos, cancelación y selección obsoleta. Ejecutar validación integrada del proyecto y revisión visual, sin completar tareas por mocks aislados.

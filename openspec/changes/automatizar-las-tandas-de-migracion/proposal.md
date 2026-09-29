@@ -1,5 +1,7 @@
 ## Why
 
+**Prioridad revisada el 2026-09-28: diferido.** Este cambio conserva su alcance de automatización de migraciones contra una línea de base. No es dependencia del plan de integración UX/SDD/IA de [EXECUTION.md](../../EXECUTION.md), ni se necesita para enviar prompts pequeños a la IA local. Sus mediciones históricas deben relevarse de nuevo antes de implementarlo. No ampliar este generador para convertirlo en un orquestador general.
+
 Las dos migraciones grandes de este proyecto —la paleta de color y la escala tipográfica— llegaron a
 cero con el mismo método: una línea de base que sólo puede bajar, un detector que declara qué
 recorre, y tandas chicas con el plan cerrado antes de ejecutarlas. El método funciona. Lo que no

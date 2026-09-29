@@ -44,24 +44,34 @@ context: |
   web sólo si el CLI no alcanza. El 2026-09-01 se escribió un change entero para
   construir tres piezas que OpenSpec ya tenía.
 
-# Per-artifact rules (optional)
-# Add custom rules for specific artifacts.
-# Example:
-#   rules:
-#     proposal:
-#       - Keep proposals under 500 words
-#       - Always include a "Non-goals" section
-#     tasks:
-#       - Break tasks into chunks of max 2 hours
-
-# Per-operation guidance (optional)
-# Add advisory guidance for how apply and archive work should be conducted.
-# This is separate from artifact rules above.
-# Example:
-#   operations:
-#     apply:
-#       guidance:
-#         - Keep test summaries concise
-#     archive:
-#       guidance:
-#         - Summarize the archive outcome before finishing
+operations:
+  apply:
+    guidance:
+      - >-
+        Trabajamos en tandas pequeñas con un resultado verificable. El prompt incluye
+        objetivo, contexto específico y comprobación; el tamaño depende de la tarea,
+        sin un límite fijo de archivos ni equivalencia obligatoria entre casilla y prompt.
+        Las rutas orientan el alcance, no prohíben leer dependencias necesarias.
+      - >-
+        El orquestador prepara el contexto y audita el diff y sus consumidores reales;
+        la IA local implementa la tanda. Las decisiones pendientes se explicitan cuando
+        cambian el alcance; las correcciones normales dentro del encargo no requieren
+        volver a pedir autorización. Las instrucciones actuales del usuario prevalecen
+        sobre un prompt histórico: ante contradicciones, identificar la fuente concreta.
+      - >-
+        Durante la edición usar comprobaciones focalizadas. Para cerrar una tanda de
+        código, ejecutar pnpm verificar --change <id>; scripts/verificar.mjs es la fuente
+        del orden de las verificaciones. Una corrida rápida no equivale al cierre completo.
+        Registrar fallos o límites sin convertirlos en éxito ni corregir trabajo ajeno
+        fuera del alcance. En tandas sólo documentales, validar los changes afectados
+        en modo estricto y revisar el diff.
+      - >-
+        Dejar un reporte breve en tmp/reportes/<change>-<tanda>.md con base Git, alcance,
+        archivos modificados, comprobaciones ejecutadas y resultados, ruta del log y
+        pendientes. El log del verificador está en tmp/verificacion.log. La auditoría
+        contrasta ese reporte con el checkout; marcar tareas sólo por su evidencia.
+      - >-
+        Esta rutina se mantiene aquí. EXECUTION.md contiene la secuencia del producto;
+        los execution.md describen dependencias y referencias por tarea. Propuestas,
+        specs, diseños y prompts conservan requisitos específicos, sin copiar estas
+        instrucciones ni agregar una rutina general paralela.

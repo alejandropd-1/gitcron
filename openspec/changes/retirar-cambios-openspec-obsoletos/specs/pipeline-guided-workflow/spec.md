@@ -129,7 +129,7 @@ Antes de mover el cambio, la operación SHALL escribir dentro de su directorio u
 human`— seguido de Markdown con el motivo, la explicación, las consecuencias, el reemplazo si existe,
 la declaración explícita de que las delta specs no se aplicaron, el estado de cualquier
 implementación parcial y el comando ejecutado. Ese archivo SHALL viajar con el cambio al archivo
-histórico y SHALL ser la fuente canónica del retiro; las demás superficies SHALL derivar de él y
+histórico y SHALL ser la fuente canónica del retiro sólo una vez verificado el movimiento; mientras permanezca activo describe un intento pendiente; las demás superficies SHALL derivar de él y
 SHALL NOT duplicar la explicación en `proposal.md`, `tasks.md`, SQLite ni i18n. La operación SHALL
 NOT inventar identidad de usuario: el commit posterior aportará la autoría Git.
 
@@ -178,14 +178,14 @@ lo que distingue «el CLI dijo ok» de «el retiro ocurrió».
 
 #### Scenario: Fallo del CLI no declara éxito
 - **WHEN** el CLI rechaza el retiro
-- **THEN** se muestra el motivo real informado por el CLI y el cambio sigue activo, sin declarar éxito
+- **THEN** se muestra el motivo real, se releen origen y destino y se informa el estado observado; si hubo movimiento parcial se ofrece recuperación, sin declarar éxito ni afirmar que sigue activo sin comprobarlo
 
 #### Scenario: Specs canónicas intactas
 - **WHEN** el retiro se completa
 - **THEN** `openspec/specs/` no registra cambios atribuibles a la consolidación del retirado
 
 ### Requirement: El plan de retiro no muta y se invalida si el repositorio cambió
-La operación SHALL separar un plan que sólo describe —`pipeline:retire-change-plan`— de la
+La operación SHALL separar un plan que sólo describe —`pipeline:retire-plan`— de la
 ejecución que escribe —`pipeline:retire-change`—. El plan SHALL mostrar el cambio, las tareas
 completas y pendientes, las capabilities y delta specs que no se sincronizarán, el motivo elegido,
 el reemplazo, el estado de implementación, los archivos que se crearán o moverán, el comando exacto
@@ -212,10 +212,9 @@ si se tildó una tarea que cambia el conteo o si se editó la delta spec.
 ### Requirement: Un cambio retirado se distingue para siempre de uno completado
 Un cambio retirado SHALL presentarse con un badge «Retirado» distinto del «Completado»/«Archivado»,
 SHALL NOT contarse dentro de «Completados», y SHALL declarar que sus delta specs no se consolidaron.
-La lista histórica SHALL seguir siendo una sola —con badges que distingan `Completado` de `Retirado`—
+La lista histórica SHALL seguir siendo una sola —con badges que distingan `Archivado`, `Completado` y `Retirado`—
 en lugar de abrir una sección aparte, para alterar lo menos posible la navegación actual. Si hay
-cambio reemplazante, SHALL poder abrirse desde ahí. Los cambios históricos anteriores sin
-`retirement.md` SHALL interpretarse como `completed` por compatibilidad.
+cambio reemplazante, SHALL poder abrirse desde ahí. Los cambios históricos sin `retirement.md` SHALL conservar estado `archived-unknown` salvo evidencia independiente de finalización. La ausencia de registro SHALL NOT acreditar implementación.
 
 El fundamento es que contar un retirado como completado miente sobre el estado del trabajo, y que dos
 cierres distintos que se ven iguales dejan de distinguirse justo cuando más falta hace —al mirar el
@@ -232,7 +231,7 @@ superficies y respeta la regla del panel de no alterar la navegación por cada f
 
 #### Scenario: Histórico anterior sin registro
 - **WHEN** se muestra un cambio archivado antes de esta feature, sin `retirement.md`
-- **THEN** se presenta como completado, sin badge de retirado
+- **THEN** se presenta como «Archivado» sin acreditar finalización ni contarlo entre completados verificados
 
 #### Scenario: Abrir el reemplazo
 - **WHEN** un retirado declara un cambio reemplazante
@@ -271,7 +270,7 @@ registro mentiroso o bien bloquea todo reintento con un error confuso.
 
 #### Scenario: Fallo después del registro
 - **WHEN** `retirement.md` se escribió y el CLI falla
-- **THEN** el cambio sigue activo, el registro se detecta al reintentar y la operación puede continuar
+- **THEN** el cambio sigue activo como retiro pendiente, no cuenta como retirado y el reintento revalida el registro y el plan antes de continuar
 
 #### Scenario: Retiro ya hecho
 - **WHEN** se intenta retirar un cambio que ya está archivado

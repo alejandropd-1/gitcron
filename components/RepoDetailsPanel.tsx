@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useGitStore, GitFile } from '@/lib/git-store';
 import { useGitActions } from '@/hooks/use-git-actions';
+import { usePipelineDecisionControl } from '@/hooks/use-pipeline-decision-control';
 import { useT } from '@/hooks/use-translation';
 import { cn } from '@/lib/utils';
 import { formatDate, formatInitials } from '@/lib/display-format';
@@ -80,6 +81,10 @@ export function RepoDetailsPanel({
   const reviewOpen = usePipelineStore((s) => s.reviewOpen);
   const toggleReviewOpen = usePipelineStore((s) => s.toggleReviewOpen);
   const aiNotice = usePipelineStore((s) => s.aiNotice);
+  // La sesión activa la entrega el workspace Pipeline (mismo repo, keyeado por
+  // él): el panel no arranca otra lectura ni conserva su propia.
+  const projection = usePipelineStore((s) => s.projection);
+  const { respondDecision: handleRespondDecision } = usePipelineDecisionControl(repoPath, projection);
   const draftLog = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
   const hasDraftLog = draftLog.draftId !== null || Boolean(aiNotice);
 
@@ -226,6 +231,7 @@ export function RepoDetailsPanel({
           sectionState={sectionState}
           isReviewOpen={reviewOpen}
           onOpenReview={toggleReviewOpen}
+          onRespondDecision={handleRespondDecision}
         >
           {prepareOpen && (
             <>

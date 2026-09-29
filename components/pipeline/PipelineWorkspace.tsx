@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
+import { usePipelineDecisionControl } from '@/hooks/use-pipeline-decision-control';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { mergeRuntimeIntoSnapshot, toPipelineSnapshot } from './pipeline-adapter';
 import { DEV_FIXTURE_NAMES, DEV_FIXTURES_ENABLED, loadDevFixture, type DevFixtureName } from './PipelineDevFixtures';
@@ -78,7 +79,10 @@ export function PipelineWorkspace({
   });
   const [projection, setProjection] = useState<RuntimeProjection | null>(null);
   const [runtimeHistory, setRuntimeHistory] = useState<RuntimeProjection[]>([]);
-  const [controlNotice, setControlNotice] = useState<string | null>(null);
+  // El aviso de control es único para ambos controles (respuesta y pausa): la
+  // última escritura gana, igual que antes de extraer el envío al hook.
+  const { respondDecision: handleRespondDecision, controlNotice, setControlNotice } =
+    usePipelineDecisionControl(repoPath, projection);
   // Selección manual de change (del renderer). Al cambiar de repo se reinicia:
   // un changeId de otro repo no tendría sentido. Tiene precedencia sobre la
   // selección automática por rama que hace el backend. El reset se hace durante
@@ -188,27 +192,6 @@ export function PipelineWorkspace({
     usePipelineStore.getState().setRuntimeHistory(runtimeHistory);
   }, [runtimeHistory]);
 
-  const handleRespondDecision = useCallback((decisionId: string, optionId: string) => {
-    const api = typeof window !== 'undefined' ? window.api : undefined;
-    if (!repoPath || !api?.pipelineControl?.respondDecision) return;
-    if (!projection?.active) {
-      setControlNotice('pipeline.control.noSession');
-      return;
-    }
-    if (!projection.controlCapabilities.includes('respond-decision')) {
-      setControlNotice('pipeline.control.respondUnsupported');
-      return;
-    }
-    setControlNotice(null);
-    void api.pipelineControl.respondDecision({
-      repoPath,
-      sessionId: projection.sessionId,
-      decisionId,
-      optionId,
-      nonce: `nonce-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
-    });
-  }, [repoPath, projection]);
-
   const handlePauseAfterTask = useCallback(() => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
     if (!repoPath || !projection?.active || !api?.pipelineControl?.pause) {
@@ -229,7 +212,7 @@ export function PipelineWorkspace({
       const success = (response as { success?: boolean } | null)?.success === true;
       setControlNotice(success ? 'pipeline.control.ackSuccess' : 'pipeline.control.ackError');
     }).catch(() => setControlNotice('pipeline.control.ackError'));
-  }, [repoPath, projection]);
+  }, [repoPath, projection, setControlNotice]);
 
   let nonReadyState: Exclude<PipelineViewState, { kind: 'ready' }> | null = null;
   if (!repoPath) nonReadyState = { kind: 'no-repo' };

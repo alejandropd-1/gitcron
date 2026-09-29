@@ -5,7 +5,7 @@ Lista de resultados y comprobaciones pendientes. Referencias de implementación 
 ## 1. Decisiones productivas
 
 - [ ] 1.1 **IA local:** Reemplazar la prueba que sólo invoca un mock por una prueba que monta RepoDetailsPanel y pulsa una opción real de DecisionInbox. **Comprobación:** La prueba de montaje acredita el envío real desde el inspector; completar la sustitución del test original y demostrar que detecta una desconexión, sin revertir la corrección productiva.
-- [ ] 1.2 **IA local:** Conectar el inspector fijo al controlador de decisiones compartido sin crear una segunda implementación del protocolo. **Comprobación:** La prueba de montaje pasa y verifica payload ligado al repo/decisión, no sólo la invocación de un callback artificial.
+- [x] 1.2 **IA local:** Conectar el inspector fijo al controlador de decisiones compartido sin crear una segunda implementación del protocolo. **Comprobación:** La prueba de montaje pasa y verifica payload ligado al repo/decisión, no sólo la invocación de un callback artificial.
 - [ ] 1.3 **IA local:** Representar envío pendiente, rechazo y resultado confirmado de una decisión, con protección de doble respuesta. **Comprobación:** Pruebas focalizadas cubren doble clic, error IPC y respuesta tardía de otro repo; documentar cuándo una decisión sigue pendiente.
 
 - [ ] 1.4 **Orquestador/IA local:** Conectar la decisión validada en main con su efecto real en el runtime y el estado persistido. **Comprobación:** Recorrido IPC→ejecutor→proyección acredita opción válida aplicada una sola vez, rechazo de opción ajena, fallo del ejecutor y reintento; un acuse del control-bus no cuenta como aplicación.

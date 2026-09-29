@@ -13,13 +13,14 @@ function entry(overrides: Partial<RuntimeDiscoveryEntry> = {}): RuntimeDiscovery
     startAvailability: 'available',
     startConstraints: [],
     startModifiesRepo: true,
+    startRunsCommands: true,
     diagnostics: [],
     ...overrides,
   };
 }
 
-describe('resolveIntentCapability (tabla intención→capacidad)', () => {
-  describe('caso 1: lectura permitida (explore)', () => {
+describe('resolveIntentCapability (mismas capacidades para toda IA lanzable)', () => {
+  describe('caso 1: lectura (explore)', () => {
     it('Claude está disponible para explorar', () => {
       const res = resolveIntentCapability('explore', entry({ runtime: 'claude' }));
       expect(res.status).toBe('available');
@@ -28,17 +29,14 @@ describe('resolveIntentCapability (tabla intención→capacidad)', () => {
     });
 
     it('Codex está disponible para explorar', () => {
-      const res = resolveIntentCapability(
-        'explore',
-        entry({ runtime: 'codex', startModifiesRepo: false }),
-      );
+      const res = resolveIntentCapability('explore', entry({ runtime: 'codex' }));
       expect(res.status).toBe('available');
       expect(res.canLaunch).toBe(true);
       expect(res.alternativeRuntime).toBeNull();
     });
   });
 
-  describe('caso 2: escritura ausente (write-artifact)', () => {
+  describe('caso 2: escritura de artefactos (write-artifact)', () => {
     it('Claude está disponible para escribir propuestas y artefactos', () => {
       const res = resolveIntentCapability(
         'write-artifact',
@@ -49,55 +47,80 @@ describe('resolveIntentCapability (tabla intención→capacidad)', () => {
       expect(res.alternativeRuntime).toBeNull();
     });
 
-    it('Codex no está disponible por tener sandbox de sólo lectura y sugiere Claude', () => {
+    it('Codex con workspace-write está disponible para escribir propuestas sin alternativa forzada', () => {
       const res = resolveIntentCapability(
         'write-artifact',
-        entry({ runtime: 'codex', startModifiesRepo: false }),
+        entry({ runtime: 'codex', startModifiesRepo: true }),
       );
-      expect(res.status).toBe('unavailable');
-      expect(res.canLaunch).toBe(false);
-      expect(res.reasonKey).toBe('pipeline.launcher.intent.codexNoWrite');
-      expect(res.reason).toContain('Sólo puede leer; para escribir la propuesta usá Claude');
-      expect(res.alternativeRuntime).toBe('claude');
-    });
-  });
-
-  describe('caso 3: pruebas ausentes (implement-task)', () => {
-    it('Claude es parcial: escribe código pero no corre pruebas (verificación manual)', () => {
-      const res = resolveIntentCapability(
-        'implement-task',
-        entry({ runtime: 'claude', startModifiesRepo: true }),
-      );
-      expect(res.status).toBe('partial');
+      expect(res.status).toBe('available');
       expect(res.canLaunch).toBe(true);
-      expect(res.reasonKey).toBe('pipeline.launcher.intent.claudeNoTests');
-      expect(res.reason).toContain('pnpm verificar');
       expect(res.alternativeRuntime).toBeNull();
     });
 
-    it('Codex no está disponible: no puede escribir ni correr pruebas y sugiere Claude', () => {
+    it('un runtime que no modifica el repositorio no está disponible para escribir', () => {
       const res = resolveIntentCapability(
-        'implement-task',
-        entry({ runtime: 'codex', startModifiesRepo: false }),
+        'write-artifact',
+        entry({ startModifiesRepo: false }),
       );
       expect(res.status).toBe('unavailable');
       expect(res.canLaunch).toBe(false);
-      expect(res.reasonKey).toBe('pipeline.launcher.intent.codexNoImplement');
-      expect(res.reason).toContain('No puede escribir archivos ni correr pruebas');
-      expect(res.alternativeRuntime).toBe('claude');
+      expect(res.reasonKey).toBe('pipeline.launcher.intent.unavailableWrite');
+    });
+  });
+
+  describe('caso 3: implementación de tareas (implement-task)', () => {
+    it('Claude con Bash está disponible para implementar tareas y correr pruebas', () => {
+      const res = resolveIntentCapability(
+        'implement-task',
+        entry({ runtime: 'claude', startModifiesRepo: true, startRunsCommands: true }),
+      );
+      expect(res.status).toBe('available');
+      expect(res.canLaunch).toBe(true);
+      expect(res.alternativeRuntime).toBeNull();
+    });
+
+    it('Codex con workspace-write está disponible para implementar tareas y correr comandos', () => {
+      const res = resolveIntentCapability(
+        'implement-task',
+        entry({ runtime: 'codex', startModifiesRepo: true, startRunsCommands: true }),
+      );
+      expect(res.status).toBe('available');
+      expect(res.canLaunch).toBe(true);
+      expect(res.alternativeRuntime).toBeNull();
+    });
+
+    it('un runtime que modifica archivos pero no corre comandos avisa verificación manual', () => {
+      const res = resolveIntentCapability(
+        'implement-task',
+        entry({ startModifiesRepo: true, startRunsCommands: false }),
+      );
+      expect(res.status).toBe('partial');
+      expect(res.canLaunch).toBe(true);
+      expect(res.reason).toContain('pnpm verificar');
+    });
+
+    it('un runtime que no modifica archivos no puede implementar tareas', () => {
+      const res = resolveIntentCapability(
+        'implement-task',
+        entry({ startModifiesRepo: false, startRunsCommands: true }),
+      );
+      expect(res.status).toBe('unavailable');
+      expect(res.canLaunch).toBe(false);
+      expect(res.reasonKey).toBe('pipeline.launcher.intent.unavailableWrite');
     });
   });
 
   describe('caso 4: reanudar sesión (resume)', () => {
-    it('no está disponible con ningún runtime hasta contar con pruebas', () => {
+    it('está sin comprobar con cualquier runtime hasta contar con pruebas', () => {
       const resClaude = resolveIntentCapability('resume', entry({ runtime: 'claude' }));
-      expect(resClaude.status).toBe('unavailable');
+      expect(resClaude.status).toBe('unverified');
       expect(resClaude.canLaunch).toBe(false);
       expect(resClaude.reasonKey).toBe('pipeline.launcher.intent.resumeUnavailable');
 
       const resCodex = resolveIntentCapability('resume', entry({ runtime: 'codex' }));
-      expect(resCodex.status).toBe('unavailable');
+      expect(resCodex.status).toBe('unverified');
       expect(resCodex.canLaunch).toBe(false);
+      expect(resCodex.reasonKey).toBe('pipeline.launcher.intent.resumeUnavailable');
     });
   });
 
@@ -108,6 +131,7 @@ describe('resolveIntentCapability (tabla intención→capacidad)', () => {
         launchable: true,
         evidenceStatus: 'pending_fixture',
         startModifiesRepo: true,
+        startRunsCommands: true,
       });
 
       for (const intent of ['explore', 'write-artifact', 'implement-task'] as const) {
@@ -120,16 +144,7 @@ describe('resolveIntentCapability (tabla intención→capacidad)', () => {
     });
   });
 
-  describe('caso 6: runtime desconocido o no lanzable', () => {
-    it('devuelve unavailable para runtime desconocido', () => {
-      const res = resolveIntentCapability(
-        'explore',
-        entry({ runtime: 'desconocido' as any }),
-      );
-      expect(res.status).toBe('unavailable');
-      expect(res.canLaunch).toBe(false);
-    });
-
+  describe('caso 6: runtime no lanzable o entrada nula', () => {
     it('devuelve unavailable si launchable es false (p. ej. agy)', () => {
       const res = resolveIntentCapability(
         'explore',
@@ -144,7 +159,6 @@ describe('resolveIntentCapability (tabla intención→capacidad)', () => {
       const res = resolveIntentCapability('write-artifact', null);
       expect(res.status).toBe('unavailable');
       expect(res.canLaunch).toBe(false);
-      expect(res.alternativeRuntime).toBe('claude');
     });
   });
 });

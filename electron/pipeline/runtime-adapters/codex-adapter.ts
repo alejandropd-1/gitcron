@@ -14,7 +14,7 @@ export const CODEX_DESCRIPTOR: RuntimeDescriptor = {
   runtimeVersion: '0.143.0',
   protocolVersion: null,
   capabilities: [
-    { capabilityId: 'session.start', capabilityVersion: null, availability: 'degraded', evidenceStatus: 'pending_fixture', targetScopes: ['repo', 'run'], constraints: ['read-only sandbox'], evidenceRefs: [] },
+    { capabilityId: 'session.start', capabilityVersion: null, availability: 'available', evidenceStatus: 'pending_fixture', targetScopes: ['repo', 'run'], constraints: ['workspace-write sandbox', 'escribe y ejecuta dentro del repositorio', 'red bloqueada por el sandbox'], evidenceRefs: [] },
     { capabilityId: 'events.stream', capabilityVersion: null, availability: 'available', evidenceStatus: 'pending_fixture', targetScopes: ['session'], constraints: ['bounded JSONL'], evidenceRefs: [] },
     { capabilityId: 'telemetry.snapshot', capabilityVersion: null, availability: 'degraded', evidenceStatus: 'pending_fixture', targetScopes: ['run', 'session'], constraints: ['cost and context unavailable'], evidenceRefs: [] },
     { capabilityId: 'session.resume', capabilityVersion: null, availability: 'unknown', evidenceStatus: 'pending_fixture', targetScopes: ['session'], constraints: ['ephemeral capture does not prove resume'], evidenceRefs: [] },
@@ -22,7 +22,7 @@ export const CODEX_DESCRIPTOR: RuntimeDescriptor = {
 };
 
 function buildCodexArgs(request: RuntimeStartRequest): string[] {
-  const args = ['exec', '--ephemeral', '--sandbox', 'read-only', '--json'];
+  const args = ['exec', '--ephemeral', '--sandbox', 'workspace-write', '--json'];
   if (request.requestedModel) args.push('--model', request.requestedModel);
   args.push('-');
   return args;

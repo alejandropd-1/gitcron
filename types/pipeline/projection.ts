@@ -153,5 +153,12 @@ export interface RuntimeDiscoveryEntry {
    * agente que edita el repo no puede lanzarse con un solo clic.
    */
   startModifiesRepo: boolean;
+  /**
+   * `true` cuando una sesión de este runtime puede ejecutar comandos / pruebas
+   * en el repositorio.
+   */
+  startRunsCommands?: boolean;
+  /** `true` cuando el runtime admite reanudar una sesión previa de forma comprobada. */
+  canResume?: boolean;
   diagnostics: string[];
 }

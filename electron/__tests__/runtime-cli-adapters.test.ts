@@ -142,4 +142,41 @@ describe('structured CLI runtime adapters', () => {
     const session = await adapter.start?.({ ...baseRequest, instruction: 'safe' });
     expect(session).toBeDefined();
   });
+
+  it('configures Codex CLI with workspace-write sandbox and no dangerously-bypass options', async () => {
+    const runner = new FixtureRunner(Buffer.alloc(0));
+    const adapter = createCodexRuntimeAdapter(baseRequest.canonicalRepoPath, runner);
+    await adapter.start?.({ ...baseRequest, instruction: 'test-instruction' });
+
+    const args = runner.capturedSpec?.args ?? [];
+    expect(args).toContain('--sandbox');
+    expect(args).toContain('workspace-write');
+    expect(args).not.toContain('read-only');
+    expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+    expect(args).not.toContain('--dangerously-skip-permissions');
+
+    const startCap = adapter.descriptor.capabilities.find((c) => c.capabilityId === 'session.start');
+    expect(startCap?.availability).toBe('available');
+    expect(startCap?.constraints.some((c) => c.includes('workspace-write'))).toBe(true);
+    expect(startCap?.constraints.some((c) => c.includes('red bloqueada'))).toBe(true);
+  });
+
+  it('configures Claude CLI with Bash tool in allowedTools and no dangerously-skip-permissions', async () => {
+    const runner = new FixtureRunner(Buffer.alloc(0));
+    const adapter = createClaudeRuntimeAdapter(baseRequest.canonicalRepoPath, runner);
+    await adapter.start?.({ ...baseRequest, instruction: 'test-instruction' });
+
+    const args = runner.capturedSpec?.args ?? [];
+    expect(args).toContain('--permission-mode');
+    expect(args).toContain('acceptEdits');
+    expect(args).toContain('--tools=Read,Grep,Glob,Edit,Write,Bash');
+    expect(args).toContain('--allowedTools=Read,Grep,Glob,Edit,Write,Bash');
+    expect(args).not.toContain('--dangerously-skip-permissions');
+    expect(args).not.toContain('--dangerously-bypass-approvals-and-sandbox');
+
+    const startCap = adapter.descriptor.capabilities.find((c) => c.capabilityId === 'session.start');
+    expect(startCap?.availability).toBe('available');
+    expect(startCap?.constraints.some((c) => c.includes('Bash'))).toBe(true);
+    expect(startCap?.constraints.some((c) => c.includes('sin acceso a shell'))).toBe(false);
+  });
 });

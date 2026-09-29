@@ -79,6 +79,11 @@ type AdapterEntry = {
    * decisión no puede depender de leer un string de flags.
    */
   modifiesRepo: boolean;
+  /**
+   * `true` cuando una sesión de este adaptador puede ejecutar comandos / pruebas
+   * en el repositorio.
+   */
+  runsCommands?: boolean;
 };
 
 /**
@@ -89,9 +94,9 @@ type AdapterEntry = {
  * afirmar.
  */
 const ADAPTERS: AdapterEntry[] = [
-  { runtime: 'claude', create: (repo) => createClaudeRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: true },
-  { runtime: 'codex', create: (repo) => createCodexRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: false },
-  { runtime: 'agy', create: (repo) => createAgyWrapperRuntimeAdapter(repo), controlCapabilities: [], launchable: false, modifiesRepo: false },
+  { runtime: 'claude', create: (repo) => createClaudeRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: true, runsCommands: true },
+  { runtime: 'codex', create: (repo) => createCodexRuntimeAdapter(repo), controlCapabilities: STRUCTURED_CLI_CONTROLS, launchable: true, modifiesRepo: true, runsCommands: true },
+  { runtime: 'agy', create: (repo) => createAgyWrapperRuntimeAdapter(repo), controlCapabilities: [], launchable: false, modifiesRepo: false, runsCommands: false },
   {
     runtime: 'opencode',
     executable: 'opencode',
@@ -99,6 +104,7 @@ const ADAPTERS: AdapterEntry[] = [
     controlCapabilities: STRUCTURED_CLI_CONTROLS,
     launchable: true,
     modifiesRepo: true,
+    runsCommands: true,
   },
 ];
 
@@ -169,6 +175,9 @@ export class RuntimeSessionHub {
         startAvailability: startCapability?.availability ?? 'unknown',
         startConstraints: startCapability?.constraints ?? [],
         startModifiesRepo: entry.modifiesRepo,
+        startRunsCommands: entry.runsCommands ?? false,
+        canResume: adapter.descriptor.capabilities
+          .find((capability) => capability.capabilityId === 'session.resume')?.availability === 'available',
         // Lanzable requiere dos cosas: que el adaptador tenga `start()` (lo
         // declara `entry.launchable`) y que el binario esté instalado. La
         // coincidencia de versión con un fixture de referencia dejó de ser

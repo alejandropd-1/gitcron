@@ -9,24 +9,19 @@ export interface IntentCapabilityResolution {
   canLaunch: boolean;
   reasonKey?: string;
   reason: string;
-  alternativeRuntime?: 'claude' | 'codex' | null;
+  alternativeRuntime?: string | null;
   alternativeKey?: string;
   alternativeText?: string;
 }
 
 /**
- * Cálculo puro de disponibilidad por intención según la tabla auditada en design.md
- * (decisión 2, tarea 2.1, medida el 2026-09-29 sobre los adaptadores reales; no por nombre del agente).
+ * Cálculo puro de disponibilidad por intención según las capacidades declaradas
+ * por el adaptador (design.md, decisión 2, «Revisión 2026-09-29»).
  *
- * Capacidades reales medidas:
- * - Claude (claude-adapter.ts:35-50): lee (Read,Grep,Glob), escribe (Edit,Write, acceptEdits),
- *   NO corre Bash/tests, resume no probado.
- * - Codex (codex-adapter.ts:25): lee, NO escribe (exec --sandbox read-only), no corre test suites,
- *   NO resume (--ephemeral).
- * - OpenCode (opencode-acp-adapter.ts): capacidad sin comprobar en todas las intenciones
- *   (handshake ACP negociado, ejecución de prompt no iniciada). Se muestra y no se bloquea por no tener fixture.
- * - agy (runtime-session-hub.ts:94): no lanzable (launchable: false).
- * - LM Studio: proveedor local, no runtime en el hub.
+ * Toda IA lanzable desde SDD tiene las mismas capacidades (leer, escribir y
+ * correr comandos/pruebas en el repositorio, con confirmación previa humana).
+ * La resolución se basa en lo que declara la entrada (launchable, modifiesRepo,
+ * startRunsCommands, canResume, evidenceStatus) sin ramificar por nombre de runtime.
  */
 export function resolveIntentCapability(
   intent: PipelineIntent,
@@ -38,7 +33,7 @@ export function resolveIntentCapability(
       canLaunch: false,
       reasonKey: 'pipeline.launcher.intent.runtimeUnavailable',
       reason: 'Runtime no encontrado o no disponible.',
-      alternativeRuntime: intent === 'resume' ? null : 'claude',
+      alternativeRuntime: null,
     };
   }
 
@@ -49,114 +44,94 @@ export function resolveIntentCapability(
       canLaunch: false,
       reasonKey: 'pipeline.launcher.intent.runtimeNotLaunchable',
       reason: entry.diagnostics?.[0] ?? 'Este runtime no admite arranque de sesiones.',
-      alternativeRuntime: intent === 'resume' ? null : 'claude',
+      alternativeRuntime: null,
     };
   }
 
-  // OpenCode: capacidad sin comprobar en todas las intenciones hasta modelos-en-casa
-  // (handshake ACP pendiente); se muestra, no se bloquea por no tener fixture, y lo dice.
-  if (entry.runtime === 'opencode') {
+  // Runtime con evidencia no verificada contra una referencia viva (p. ej. opencode hoy):
+  // capacidad sin comprobar en todas las intenciones; se muestra y no se bloquea por pending_fixture.
+  if (entry.evidenceStatus && entry.evidenceStatus !== 'verified') {
     return {
       status: 'unverified',
       canLaunch: true,
       reasonKey: 'pipeline.launcher.intent.unverified',
-      reason: 'Capacidad sin comprobar: el protocolo ACP no se contrastó contra una referencia viva.',
+      reason: 'Capacidad sin comprobar: el protocolo no se contrastó contra una referencia viva.',
       alternativeRuntime: null,
     };
   }
 
-  // Reanudar: ninguno comprobado hoy — no se ofrece hasta tener prueba
+  // Reanudar: sin comprobar con ningún adaptador hoy; no se ofrece hasta tener prueba comprobada.
   if (intent === 'resume') {
+    if (entry.canResume === true) {
+      return {
+        status: 'available',
+        canLaunch: true,
+        reason: '',
+        alternativeRuntime: null,
+      };
+    }
     return {
-      status: 'unavailable',
+      status: 'unverified',
       canLaunch: false,
       reasonKey: 'pipeline.launcher.intent.resumeUnavailable',
-      reason: 'Reanudar sesión no está disponible hasta contar con pruebas del adaptador.',
+      reason: 'Reanudar sesión está sin comprobar hasta contar con pruebas del adaptador.',
       alternativeRuntime: null,
     };
   }
 
-  // Intención: Explorar (requiere: leer)
-  // Disponible con Claude y Codex
+  // Intención: Explorar (requiere lectura del repo). Todo runtime lanzable puede leer.
   if (intent === 'explore') {
-    if (entry.runtime === 'claude' || entry.runtime === 'codex') {
-      return {
-        status: 'available',
-        canLaunch: true,
-        reason: '',
-        alternativeRuntime: null,
-      };
-    }
     return {
-      status: 'unavailable',
-      canLaunch: false,
-      reasonKey: 'pipeline.launcher.intent.unavailableExplore',
-      reason: 'Este runtime no está disponible para explorar.',
-      alternativeRuntime: 'claude',
+      status: 'available',
+      canLaunch: true,
+      reason: '',
+      alternativeRuntime: null,
     };
   }
 
-  // Intención: Proponer / escribir artefactos (requiere: leer + escribir)
-  // Claude escribe; Codex tiene sandbox read-only.
+  // Intención: Proponer / escribir artefactos (requiere lectura y modificación del repo).
   if (intent === 'write-artifact') {
-    if (entry.runtime === 'claude' && entry.startModifiesRepo !== false) {
+    if (entry.startModifiesRepo) {
       return {
         status: 'available',
         canLaunch: true,
         reason: '',
         alternativeRuntime: null,
-      };
-    }
-    if (entry.runtime === 'codex' || entry.startModifiesRepo === false) {
-      return {
-        status: 'unavailable',
-        canLaunch: false,
-        reasonKey: 'pipeline.launcher.intent.codexNoWrite',
-        reason: 'Sólo puede leer; para escribir la propuesta usá Claude.',
-        alternativeRuntime: 'claude',
-        alternativeKey: 'pipeline.launcher.intent.useClaudeForArtifact',
-        alternativeText: 'Para escribir la propuesta usá Claude.',
       };
     }
     return {
       status: 'unavailable',
       canLaunch: false,
       reasonKey: 'pipeline.launcher.intent.unavailableWrite',
-      reason: 'Este runtime no puede escribir archivos.',
-      alternativeRuntime: 'claude',
+      reason: 'Este runtime no puede modificar archivos en el repositorio.',
+      alternativeRuntime: null,
     };
   }
 
-  // Intención: Implementar una tarea (requiere: leer + escribir + correr pruebas)
-  // Claude: escribe pero --allowedTools no incluye Bash (no corre pruebas).
-  // Codex: no escribe ni corre pruebas.
+  // Intención: Implementar una tarea (requiere lectura, modificación y ejecución de comandos/pruebas).
   if (intent === 'implement-task') {
-    if (entry.runtime === 'claude') {
+    if (!entry.startModifiesRepo) {
+      return {
+        status: 'unavailable',
+        canLaunch: false,
+        reasonKey: 'pipeline.launcher.intent.unavailableWrite',
+        reason: 'Este runtime no puede modificar archivos en el repositorio.',
+        alternativeRuntime: null,
+      };
+    }
+    if (entry.startRunsCommands === false) {
       return {
         status: 'partial',
         canLaunch: true,
-        reasonKey: 'pipeline.launcher.intent.claudeNoTests',
         reason: 'Escribe el código pero no puede correr pruebas: la verificación queda para vos (pnpm verificar).',
         alternativeRuntime: null,
       };
     }
-    if (entry.runtime === 'codex') {
-      return {
-        status: 'unavailable',
-        canLaunch: false,
-        reasonKey: 'pipeline.launcher.intent.codexNoImplement',
-        reason: 'No puede escribir archivos ni correr pruebas.',
-        alternativeRuntime: 'claude',
-        alternativeKey: 'pipeline.launcher.intent.useClaudeForImplement',
-        alternativeText: 'Para implementar la tarea usá Claude (con verificación manual).',
-      };
-    }
     return {
-      status: 'unavailable',
-      canLaunch: false,
-      reasonKey: 'pipeline.launcher.intent.runtimeUnavailable',
-      reason: 'Este runtime no puede implementar tareas.',
-      alternativeRuntime: 'claude',
+      status: 'available',
+      canLaunch: true,
+      reason: '',
+      alternativeRuntime: null,
     };
   }
 

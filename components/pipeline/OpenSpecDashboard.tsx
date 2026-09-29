@@ -1813,6 +1813,9 @@ export function OpenSpecDashboard({
       case 'focus-decision':
         // El centro no duplica la decisión: lleva el foco al control real, que
         // vive en el panel de actividad.
+        if (!rightOpen && onEnsureRightOpen) {
+          onEnsureRightOpen();
+        }
         attentionRef.current?.focus();
         break;
       case 'view-activity':

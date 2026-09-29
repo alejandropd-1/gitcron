@@ -126,8 +126,6 @@ function getSecondaryActionIcon(intent: PipelineActionIntent): React.ReactNode |
       return <Play size={13} />;
     case 'start-archive':
       return <FolderOpen size={13} />;
-    case 'focus-decision':
-      return <BrainCircuit size={13} />;
     case 'refresh-validation':
       return <RotateCcw size={13} />;
     default:
@@ -467,7 +465,6 @@ export function OpenSpecDashboard({
   const openFlow = (mode: PipelineNewChangeMode) => patchDraft(repoPath, { open: true, mode });
   /** «Cerrar sin empezar» sí descarta: es la persona diciendo que no lo quiere. */
   const dismissFlow = () => clearDraft(repoPath);
-  const attentionRef = useRef<HTMLElement>(null);
 
   type StartView = 'in-progress' | 'archived' | 'new-change';
   const [activeStartView, setActiveStartView] = useState<StartView>(() => (draft.open ? 'new-change' : 'in-progress'));
@@ -874,7 +871,6 @@ export function OpenSpecDashboard({
     fixtureActive,
     selectedChange,
     selectedArchivedChangeId: selectedArchive?.changeId ?? null,
-    decisions: snapshot.decisions,
     projection,
     hasActiveChanges: activeChanges.length > 0,
     hasDiffs: hasDiffEvidence(snapshot),
@@ -1810,14 +1806,6 @@ export function OpenSpecDashboard({
         }
         break;
       }
-      case 'focus-decision':
-        // El centro no duplica la decisión: lleva el foco al control real, que
-        // vive en el panel de actividad.
-        if (!rightOpen && onEnsureRightOpen) {
-          onEnsureRightOpen();
-        }
-        attentionRef.current?.focus();
-        break;
       case 'view-activity':
         setActiveChangeView('activity');
         setCenterTab('activity');
@@ -1930,7 +1918,29 @@ export function OpenSpecDashboard({
       </button>
     ) : null;
 
-    const actionCount = (cancelBtn ? 1 : 0) + (continueBtn ? 1 : 0) + (secondaryBtn ? 1 : 0) + (archiveBtn ? 1 : 0);
+    const decisionCount = snapshot.decisions?.length ?? 0;
+    const noticesBtn = decisionCount > 0 ? (
+      <button
+        type="button"
+        className={styles.railActionItem}
+        data-view-id="openspec-attention"
+        onClick={() => {
+          if (!rightOpen && onEnsureRightOpen) {
+            onEnsureRightOpen();
+          }
+          usePipelineStore.getState().requestAttentionFocus();
+        }}
+      >
+        <span className={styles.railItemIcon} aria-hidden="true">
+          <AlertTriangle size={13} />
+        </span>
+        <span className={styles.railItemLabel}>
+          {t('pipeline.inbox.title')} ({decisionCount})
+        </span>
+      </button>
+    ) : null;
+
+    const actionCount = (cancelBtn ? 1 : 0) + (continueBtn ? 1 : 0) + (secondaryBtn ? 1 : 0) + (archiveBtn ? 1 : 0) + (noticesBtn ? 1 : 0);
 
     if (!mismatchNotice && actionCount === 0) return null;
 
@@ -1950,6 +1960,7 @@ export function OpenSpecDashboard({
               {continueBtn}
               {secondaryBtn}
               {archiveBtn}
+              {noticesBtn}
             </div>
           </div>
         )}

@@ -16,7 +16,7 @@ WebMCP/MCP Apps no son dependencias de estos cambios: añadir un protocolo no re
 |---|---|---|
 | 1 | [Cerrar conexiones operativas](changes/cerrar-conexiones-operativas-de-sdd/proposal.md) | Primer incremento en curso: inspector conectado al envío IPC. Siguen pendientes efecto real de decisiones, feedback, capacidades, sync aislado y recorrido Git. |
 | 2 | `modelos-en-casa` | Decisión previa recuperada; propuesta formal todavía pendiente. Selección y gestión compartidas de proveedores/modelos antes de ampliar la asistencia. |
-| 3 | [Retomar con asistencia contextual](changes/retomar-trabajo-con-asistencia-contextual/proposal.md) | Contexto/conversación durables, orientación breve y flotante pertinente, consumiendo la gestión de modelos compartida. |
+| 3 | [Retomar con asistencia contextual](changes/retomar-trabajo-con-asistencia-contextual/proposal.md) | Contexto/conversación durables, orientación breve y flotante pertinente, consumiendo la gestión de modelos compartida. Candidato para decisiones reales pedidas por una IA durante una sesión (anotado 2026-09-29 en cerrar-conexiones design.md). |
 | Intercalable después de 1 | [Retirar cambios obsoletos](changes/retirar-cambios-openspec-obsoletos/proposal.md) | Retiro explícito sin consolidar deltas e historia honesta. |
 | Intercalable después de 1 | [Configuración global](changes/administrar-configuracion-global-de-openspec/proposal.md) | Un editor global, alcance claro y estado efectivo por repo. |
 | Reevaluar tras probar 1–3 | [Centauro y OpenSpec](changes/vincular-centauro-con-cambios-openspec/proposal.md) | Proponer/vincular desde ideas sin duplicar decisiones ni materialización. |

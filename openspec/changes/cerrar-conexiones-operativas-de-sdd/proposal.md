@@ -6,7 +6,7 @@ SDD ya comparte navegación, staging y commit con GitCron, pero algunas acciones
 
 ## What Changes
 
-- Conectar respuestas humanas del inspector al servicio real y reconciliar su resultado desde evidencia.
+- Presentar como avisos las solicitudes que sólo tienen opciones informativas (auditorías rechazadas), con «Ver evidencia» que abre el archivo, y retirar el envío de respuestas que no tienen destino.
 - Seleccionar ejecutores según la operación solicitada; separar instalación, lectura, escritura, pruebas y reanudación.
 - Completar la sincronización de specs sin archivar mediante un ejecutor efectivo, vista previa y control de concurrencia.
 - Comprobar accesibilidad de acciones al alternar flotante, inspector y centro, preservando navegación y cierre Git comunes.
@@ -20,7 +20,7 @@ Ninguna.
 
 ### Modified Capabilities
 
-- `pipeline-decision-contract`: respuesta desde ambas superficies, efecto reconciliado y persistencia sin confundir ACK con aplicación.
+- `pipeline-decision-contract`: una solicitud con opciones sólo informativas se presenta como aviso y no envía comandos de control.
 - `pipeline-guided-workflow`: recorridos productivos y contratos coherentes de archivo y retorno a Git.
 - `pipeline-runtime-capabilities`: compatibilidad entre intención y capacidades del ejecutor.
 

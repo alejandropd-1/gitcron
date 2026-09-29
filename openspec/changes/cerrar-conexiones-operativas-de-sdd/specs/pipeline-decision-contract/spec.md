@@ -1,26 +1,25 @@
 # Pipeline decision contract
 
-## MODIFIED Requirements
+## ADDED Requirements
 
-### Requirement: Ack separado de efecto
-El estado de un comando SHALL distinguir solicitud, aceptación, acknowledgement, efecto observado, fallo y resultado desconocido. Una respuesta humana desde el inspector o el centro de trabajo SHALL usar la misma operación validada y conservar su repo, sesión, decisión y opción. Un acuse de recepción SHALL NOT marcar la decisión como aplicada ni retirar el pendiente sin evidencia del resultado.
+### Requirement: Un aviso informativo SHALL NOT presentarse como una decisión que se responde
 
-#### Scenario: Interrupción reconocida
-- **WHEN** un runtime confirma recepción de interrupt
-- **THEN** Pipeline muestra ACK y espera reconciliación de sesión y working tree antes de declarar el efecto
+Cuando todas las opciones de una solicitud son informativas —ninguna referencia una capability
+negociada con un ejecutor—, GitCron SHALL presentarla como un aviso, no como una decisión pendiente
+de respuesta. «Ver evidencia» SHALL abrir el archivo de evidencia referido, y SHALL NOT enviarse
+ningún comando de control ni mostrarse un «este ejecutor no admite respuestas». Medido el
+2026-09-29: las únicas solicitudes que existen salen de auditorías rechazadas en `docs/reports/`,
+con la sola opción informativa «Ver evidencia», y ningún runtime declara `respond-decision`;
+presentarlas como decisiones promete una respuesta que no tiene destino.
 
-#### Scenario: Respuesta desde el inspector
-- **WHEN** una persona elige una opción disponible desde el inspector fijo
-- **THEN** se envía la misma operación que desde el centro, ligada al repo y sesión de esa decisión, y el pendiente conserva un estado visible hasta reconciliar el resultado
+#### Scenario: Auditoría rechazada
+- **WHEN** hay una auditoría rechazada en la evidencia del repositorio
+- **THEN** se muestra como aviso con su resumen y «Ver evidencia», que abre el archivo del reporte
 
-#### Scenario: Opción aplicada
-- **WHEN** la opción válida alcanza su ejecutor y éste confirma el resultado
-- **THEN** la resolución persistida registra ese efecto y la proyección actualizada lo presenta sin confundirlo con el acuse inicial
+#### Scenario: Sin comando de control
+- **WHEN** la persona toca «Ver evidencia» en un aviso
+- **THEN** no se envía ningún comando al canal de control y no aparece un mensaje de respuesta no admitida
 
-#### Scenario: Rechazo o fallo
-- **WHEN** la opción no pertenece a la decisión vigente o falla su ejecución
-- **THEN** se informa el rechazo o fallo y no se declara aplicada; un reintento conserva la trazabilidad y no duplica un efecto ya confirmado
-
-#### Scenario: Cambio de repositorio durante la respuesta
-- **WHEN** llega una respuesta tras cambiar de repositorio
-- **THEN** su resultado permanece asociado al repositorio original y no resuelve pendientes del nuevo
+#### Scenario: Evidencia que ya no existe
+- **WHEN** el archivo de evidencia referido no se puede abrir
+- **THEN** se informa que no se encontró, sin afirmar que el aviso se resolvió

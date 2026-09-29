@@ -2,13 +2,13 @@
 
 Lista de resultados y comprobaciones pendientes. Referencias de implementación en [execution.md](execution.md).
 
-## 1. Decisiones productivas
+## 1. Decisiones y avisos
 
 - [x] 1.1 **IA local:** Reemplazar la prueba que sólo invoca un mock por una prueba que monta RepoDetailsPanel y pulsa una opción real de DecisionInbox. **Comprobación:** La prueba de montaje acredita el envío real desde el inspector; completar la sustitución del test original y demostrar que detecta una desconexión, sin revertir la corrección productiva.
 - [x] 1.2 **IA local:** Conectar el inspector fijo al controlador de decisiones compartido sin crear una segunda implementación del protocolo. **Comprobación:** La prueba de montaje pasa y verifica payload ligado al repo/decisión, no sólo la invocación de un callback artificial.
-- [ ] 1.3 **IA local:** Representar envío pendiente, rechazo y resultado confirmado de una decisión, con protección de doble respuesta. **Comprobación:** Pruebas focalizadas cubren doble clic, error IPC y respuesta tardía de otro repo; documentar cuándo una decisión sigue pendiente.
+- [ ] 1.3 **IA local:** Avisos en lugar de decisiones sin destino (requisito «Un aviso informativo…» del delta pipeline-decision-contract): cuando todas las opciones de una solicitud son informativas (hoy, las auditorías rechazadas de docs/reports con «Ver evidencia», components/pipeline/pipeline-adapter.ts:~160), DecisionInbox/DecisionCard la presentan como aviso (título de la bandeja y rótulo en criollo, es/en/zh) y «Ver evidencia» abre el archivo con window.api.shellOpenItem(repoPath, ruta relativa); no se llama a pipelineControl.respondDecision ni aparece «respondUnsupported». Si el archivo no se abre, se informa. El hook use-pipeline-decision-control sólo envía opciones con availability ejecutable (hoy ninguna). **Comprobación:** Pruebas de montaje en el inspector: tocar «Ver evidencia» llama a shellOpenItem con la ruta y nunca a respondDecision; archivo inexistente → aviso de no encontrado.
 
-- [ ] 1.4 **Orquestador/IA local:** Conectar la decisión validada en main con su efecto real en el runtime y el estado persistido. **Comprobación:** Recorrido IPC→ejecutor→proyección acredita opción válida aplicada una sola vez, rechazo de opción ajena, fallo del ejecutor y reintento; un acuse del control-bus no cuenta como aplicación.
+- [ ] 1.4 **IA local:** Retirar la conexión muerta y dejar anotado el camino futuro: OpenSpecDashboard.tsx recibe onRespondDecision (:170, :272) sin usarlo; sacarlo junto con su paso desde PipelineWorkspace. El estado «enviando» y la protección de doble clic del hook quedan para opciones ejecutables futuras, sin rehabilitar botones tras un acuse. **Comprobación:** tsc y pruebas del workspace sin la prop; ninguna ruta de UI llama a respondDecision con una opción informativa.
 
 ## 2. Capacidades según operación
 

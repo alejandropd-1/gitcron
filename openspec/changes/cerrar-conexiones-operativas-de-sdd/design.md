@@ -20,6 +20,8 @@ Conservar la fachada de acciones Git y los guards main existentes. El inspector 
 
 El 2026-09-29 se verificó que dispatchRespondDecision valida el envío y registra ACK, pero no despacha la opción al ejecutor. La conexión del renderer es un incremento parcial: falta resolver la opción vigente, ejecutar su efecto y persistir/reconciliar el resultado con idempotencia. El feedback de la UI depende de ese contrato. La decisión sigue pendiente hasta que la proyección la dé resuelta: el ACK del control-bus no la aplica.
 
+**Revisión 2026-09-29 (auditor, decisión de Alejandro «A ahora, B después»):** las únicas solicitudes existentes salen de auditorías rechazadas en docs/reports (repo-evidence-reader.ts:452-510) con la opción informativa «Ver evidencia» (pipeline-adapter.ts:~160), y ningún runtime declara respond-decision (runtime-session-hub.ts:61: sólo cancel-run y kill-process). No hay efecto que aplicar: 1.3 y 1.4 pasan a presentar avisos honestos y retirar la conexión muerta. **Futuro (B):** decisiones reales pedidas por una IA durante una sesión («¿uso esta librería?») y contestadas desde GitCron; requiere medir qué runtime puede pedirlas y recibirlas. Va a retomar-trabajo-con-asistencia-contextual o a modelos-en-casa, no a este cambio.
+
 ### 2. Decisión de implementación
 
 Extender la resolución de capacidades por intención. Estar instalado permite aparecer en discovery; implementar exige escritura y verificar con comandos exige ejecución de pruebas. Mantener alternativas de consulta o ejecución externa visibles, sin ampliar permisos silenciosamente.

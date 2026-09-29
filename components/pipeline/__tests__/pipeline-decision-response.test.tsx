@@ -5,7 +5,7 @@
 // RepoDetailsPanel real (SDD) con su inspector, y el clic en la opción visible
 // debe llegar al contrato IPC que ya usaba PipelineWorkspace.
 
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import { act, cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { RuntimeProjection } from '@/types/pipeline';
 import { RepoDetailsPanel } from '../../RepoDetailsPanel';
@@ -172,5 +172,134 @@ describe('respuesta compartida de decisiones', { timeout: 15_000 }, () => {
     fireEvent.click(screen.getByRole('button', { name: 'pipeline.option.approve' }));
 
     expect(respondDecisionSpy).not.toHaveBeenCalled();
+  });
+
+  it('estado «enviando» por decisión: muestra aviso de envío y deshabilita botones mientras está en vuelo', async () => {
+    let resolveIpc: (val: unknown) => void = () => {};
+    respondDecisionSpy.mockReturnValue(
+      new Promise((resolve) => {
+        resolveIpc = resolve;
+      }),
+    );
+
+    setStores({ projection: projection() });
+    renderPanel();
+
+    const button = screen.getByRole('button', { name: 'pipeline.option.approve' });
+    expect((button as HTMLButtonElement).disabled).toBe(false);
+
+    fireEvent.click(button);
+
+    expect(screen.getByText('pipeline.decision.sending')).toBeDefined();
+    expect((button as HTMLButtonElement).disabled).toBe(true);
+
+    await act(async () => {
+      resolveIpc({ success: true });
+    });
+
+    expect(screen.queryByText('pipeline.decision.sending')).toBeNull();
+  });
+
+  it('error visible si el IPC rechaza o devuelve error', async () => {
+    // Caso A: IPC responde success: false
+    respondDecisionSpy.mockResolvedValueOnce({ success: false, error: 'rejected' });
+    setStores({ projection: projection() });
+    const { unmount } = renderPanel();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'pipeline.option.approve' }));
+    });
+
+    expect(screen.getByRole('alert').textContent).toContain('pipeline.decision.error');
+
+    unmount();
+
+    // Caso B: IPC rechaza con excepción
+    respondDecisionSpy.mockRejectedValueOnce(new Error('IPC crash'));
+    renderPanel();
+
+    await act(async () => {
+      fireEvent.click(screen.getByRole('button', { name: 'pipeline.option.approve' }));
+    });
+
+    expect(screen.getByRole('alert').textContent).toContain('pipeline.decision.error');
+  });
+
+  it('protección de doble clic: un segundo clic mientras se envía no vuelve a enviar', async () => {
+    let resolveIpc: (val: unknown) => void = () => {};
+    respondDecisionSpy.mockReturnValue(
+      new Promise((resolve) => {
+        resolveIpc = resolve;
+      }),
+    );
+
+    setStores({ projection: projection() });
+    renderPanel();
+
+    const button = screen.getByRole('button', { name: 'pipeline.option.approve' });
+
+    // Primer clic envía
+    fireEvent.click(button);
+    expect(respondDecisionSpy).toHaveBeenCalledTimes(1);
+
+    // Segundo clic mientras está pendiente
+    fireEvent.click(button);
+    expect(respondDecisionSpy).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      resolveIpc({ success: true });
+    });
+  });
+
+  it('una respuesta que llega después de cambiar de repositorio no toca el estado del repositorio nuevo', async () => {
+    let resolveIpc: (val: unknown) => void = () => {};
+    respondDecisionSpy.mockReturnValue(
+      new Promise((resolve) => {
+        resolveIpc = resolve;
+      }),
+    );
+
+    setStores({ projection: projection() });
+    const { rerender } = renderPanel();
+
+    fireEvent.click(screen.getByRole('button', { name: 'pipeline.option.approve' }));
+    expect(respondDecisionSpy).toHaveBeenCalledTimes(1);
+    expect(screen.getByText('pipeline.decision.sending')).toBeDefined();
+
+    // El usuario cambia de repositorio
+    await act(async () => {
+      useGitStore.setState({ repoPath: 'C:/other-repo' });
+    });
+    rerender(
+      <RepoDetailsPanel
+        activeTab="Pipeline"
+        graphMode="chronometric"
+        detailsW={320}
+        visible
+        isDragging={false}
+        onResizeStart={vi.fn()}
+        onOpenStashModal={vi.fn()}
+        onOpenCommitFile={vi.fn()}
+        onSelectFile={vi.fn()}
+        onDiscardRequest={vi.fn()}
+        onRequestAmend={vi.fn()}
+        onRequestSquash={vi.fn()}
+        onFileContextMenu={vi.fn()}
+        onRequestResetAll={vi.fn()}
+        onRequestCleanUntracked={vi.fn()}
+      />,
+    );
+
+    expect(screen.queryByText('pipeline.decision.sending')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    // Llega respuesta tardía con error del repo anterior
+    await act(async () => {
+      resolveIpc({ success: false });
+    });
+
+    // El repo nuevo no debe verse afectado por la respuesta del repo anterior
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(screen.queryByText('pipeline.decision.sending')).toBeNull();
   });
 });

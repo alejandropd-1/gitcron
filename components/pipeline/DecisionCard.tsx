@@ -8,6 +8,7 @@ import type { DecisionRequest } from './pipeline-domain';
 export type DecisionCardProps = {
   decision: DecisionRequest;
   onRespondOption?: (decisionId: string, optionId: string) => void;
+  isSending?: boolean;
 };
 
 /**
@@ -18,16 +19,27 @@ export type DecisionCardProps = {
  * En F05 las opciones con `pending-f05` pasan a estar conectadas mediante
  * respond-decision sobre el command bus de Main.
  */
-export function DecisionCard({ decision, onRespondOption }: DecisionCardProps) {
+export function DecisionCard({ decision, onRespondOption, isSending = false }: DecisionCardProps) {
   const t = useT();
 
   return (
-    <article className="pipeline-decision" data-kind={decision.kind} data-risk={decision.risk}>
+    <article
+      className="pipeline-decision"
+      data-kind={decision.kind}
+      data-risk={decision.risk}
+      data-sending={isSending || undefined}
+    >
       <h4 className="pipeline-decision__title">{decision.title}</h4>
 
       <p className="pipeline-decision__why">
         {decision.why ?? <UnknownValue reason="not-reported" />}
       </p>
+
+      {isSending && (
+        <p className="pipeline-decision__sending" role="status" aria-live="polite">
+          {t('pipeline.decision.sending')}
+        </p>
+      )}
 
       <div className="pipeline-decision__risk" data-risk={decision.risk}>
         <span className="pipeline-decision__risk-label">{t('pipeline.decision.risk')}</span>
@@ -49,7 +61,7 @@ export function DecisionCard({ decision, onRespondOption }: DecisionCardProps) {
           const isEnabled =
             option.availability === 'informational' ||
             (option.availability === 'pending-f05' && Boolean(onRespondOption));
-          const disabled = !isEnabled;
+          const disabled = !isEnabled || isSending;
 
           return (
             <li
@@ -63,7 +75,7 @@ export function DecisionCard({ decision, onRespondOption }: DecisionCardProps) {
                 aria-disabled={disabled || undefined}
                 disabled={disabled}
                 onClick={() => {
-                  if (isEnabled && onRespondOption) {
+                  if (isEnabled && !isSending && onRespondOption) {
                     onRespondOption(decision.decisionId, option.id);
                   }
                 }}
@@ -73,7 +85,7 @@ export function DecisionCard({ decision, onRespondOption }: DecisionCardProps) {
               <span className="pipeline-decision__consequence">
                 {option.consequence ?? <UnknownValue reason="not-reported" />}
               </span>
-              {disabled && (
+              {!isSending && disabled && (
                 <span className="pipeline-decision__unavailable">
                   {t(`pipeline.availability.${option.availability}`)}
                 </span>

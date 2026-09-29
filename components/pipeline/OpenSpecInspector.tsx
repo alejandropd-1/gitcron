@@ -63,6 +63,8 @@ export type OpenSpecInspectorProps = {
   runtimeHistory?: RuntimeProjection[];
   onPauseAfterTask?: () => void;
   onRespondDecision?: (decisionId: string, optionId: string) => void;
+  controlNotice?: string | null;
+  sendingDecisions?: Record<string, boolean>;
   onOpenReview?: () => void;
   isReviewOpen?: boolean;
   sectionState?: SidebarSectionState;
@@ -78,6 +80,8 @@ export function OpenSpecInspector({
   runtimeHistory: propRuntimeHistory,
   onPauseAfterTask = () => undefined,
   onRespondDecision = () => undefined,
+  controlNotice,
+  sendingDecisions,
   onOpenReview: _onOpenReview,
   isReviewOpen: _isReviewOpen = false,
   sectionState: propSectionState,
@@ -311,7 +315,12 @@ export function OpenSpecInspector({
             tabIndex={-1}
             aria-label={t('pipeline.openspec.attention.title')}
           >
-            <DecisionInbox decisions={snapshot?.decisions ?? []} onRespondDecision={onRespondDecision} />
+            <DecisionInbox
+              decisions={snapshot?.decisions ?? []}
+              onRespondDecision={onRespondDecision}
+              controlNotice={controlNotice}
+              sendingDecisions={sendingDecisions}
+            />
           </section>
         </SidebarSection>
 

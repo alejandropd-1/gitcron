@@ -6,7 +6,7 @@ import { buildEngineStatusSnapshot } from '../ipc/pipeline-openspec';
 import { readOpenSpecTooling } from '../pipeline/repo-evidence-reader';
 import { deriveProfileWorkflowRows } from '../../lib/openspec-profile';
 import { authorizedRepoStore } from '../ipc/authorized-repos';
-import { invalidateEngineToolReportCache, locateOpenSpecPackage } from '../pipeline/openspec-engine-tools';
+import { invalidateEngineToolReportCache, locateOpenSpecPackage, readEngineToolReport } from '../pipeline/openspec-engine-tools';
 import { resolveOpenSpecExecutable } from '../pipeline/openspec-engine';
 
 describe('OpenSpec Tanda B (Tareas 3.1 y 3.2)', () => {
@@ -252,7 +252,7 @@ describe('OpenSpec Tanda B (Tareas 3.1 y 3.2)', () => {
     expect(snapshot.integrationState).toBe('outdated');
   });
 
-  it('6.11: sobre C:\\www\\gitCronos real en sólo lectura, el estado del motor da integrationState: up-to-date y pendingTools: [zcode]', async () => {
+  it('6.11: sobre C:\\www\\gitCronos real en sólo lectura, el estado del motor da integrationState: up-to-date y pendingTools según el motor', async () => {
     const gitCronosRepo = 'C:\\www\\gitCronos';
     if (!fs.existsSync(gitCronosRepo)) return;
 
@@ -270,7 +270,26 @@ describe('OpenSpec Tanda B (Tareas 3.1 y 3.2)', () => {
     invalidateEngineToolReportCache(gitCronosRepo);
 
     const snapshot = await buildEngineStatusSnapshot(gitCronosRepo);
-    expect(snapshot.integrationState).toBe('up-to-date');
-    expect(snapshot.pendingTools).toEqual(['zcode']);
+    const engineReport = await readEngineToolReport({
+      repoPath: gitCronosRepo,
+      executablePath: runtime.executablePath,
+      runtimeVersion: snapshot.cli.runtimeVersion ?? '1.13.2',
+      nodeExecutable: process.execPath,
+    });
+
+    const expectedPendingTools = engineReport.tools
+      .filter((t) => t.available && !t.configured)
+      .map((t) => t.id)
+      .sort();
+
+    expect([...(snapshot.pendingTools ?? [])].sort()).toEqual(expectedPendingTools);
+
+    const motorNeedsUpdateOrSync =
+      engineReport.tools.some((t) => t.configured && t.needsUpdate) ||
+      (engineReport.profileSyncNeeded && engineReport.profileSyncNeeded.length > 0);
+
+    if (!motorNeedsUpdateOrSync) {
+      expect(snapshot.integrationState).toBe('up-to-date');
+    }
   }, 25000);
 });

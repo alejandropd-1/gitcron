@@ -8,6 +8,8 @@ import { sortDecisionsByHumanNeed, type DecisionRequest } from './pipeline-domai
 export type DecisionInboxProps = {
   decisions: DecisionRequest[];
   onRespondDecision?: (decisionId: string, optionId: string) => void;
+  controlNotice?: string | null;
+  sendingDecisions?: Record<string, boolean>;
 };
 
 /**
@@ -16,12 +18,22 @@ export type DecisionInboxProps = {
  * No es un feed. Se ordena por necesidad humana —riesgo primero— y no por el
  * último delta recibido, que es la diferencia que pide el brief.
  */
-export function DecisionInbox({ decisions, onRespondDecision }: DecisionInboxProps) {
+export function DecisionInbox({
+  decisions,
+  onRespondDecision,
+  controlNotice,
+  sendingDecisions,
+}: DecisionInboxProps) {
   const t = useT();
   const ordered = useMemo(() => sortDecisionsByHumanNeed(decisions), [decisions]);
 
   return (
     <div className="pipeline-inbox" data-count={ordered.length}>
+      {controlNotice && (
+        <p className="pipeline-inbox__notice pipeline-inbox__notice--error" role="alert">
+          {t(controlNotice)}
+        </p>
+      )}
       {ordered.length === 0 ? (
         <p className="pipeline-inbox__empty">{t('pipeline.inbox.empty')}</p>
       ) : (
@@ -30,7 +42,11 @@ export function DecisionInbox({ decisions, onRespondDecision }: DecisionInboxPro
           <ul className="pipeline-inbox__list">
             {ordered.map((decision) => (
               <li key={decision.decisionId}>
-                <DecisionCard decision={decision} onRespondOption={onRespondDecision} />
+                <DecisionCard
+                  decision={decision}
+                  onRespondOption={onRespondDecision}
+                  isSending={Boolean(sendingDecisions?.[decision.decisionId])}
+                />
               </li>
             ))}
           </ul>

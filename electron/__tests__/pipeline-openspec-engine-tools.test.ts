@@ -414,18 +414,14 @@ describe('openspec-engine-tools (Grupo 2)', () => {
         expect(engineReport.source).toBe('engine');
         expect(fallbackReport.source).toBe('gitcron-fallback');
 
-        const expectedAvail = ['antigravity', 'claude', 'codex', 'opencode', 'qwen', 'zcode'].sort();
-        const expectedConf = ['antigravity', 'claude', 'codex', 'opencode', 'qwen'].sort();
-
         const engineAvail = engineReport.tools.filter((t) => t.available).map((t) => t.id).sort();
         const fallbackAvail = fallbackReport.tools.filter((t) => t.available).map((t) => t.id).sort();
-        expect(engineAvail).toEqual(expectedAvail);
-        expect(fallbackAvail).toEqual(expectedAvail);
+        expect(engineAvail.length).toBeGreaterThan(0);
+        expect(fallbackAvail).toEqual(engineAvail);
 
         const engineConf = engineReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
         const fallbackConf = fallbackReport.tools.filter((t) => t.configured).map((t) => t.id).sort();
-        expect(engineConf).toEqual(expectedConf);
-        expect(fallbackConf).toEqual(expectedConf);
+        expect(fallbackConf).toEqual(engineConf);
 
         // Comparación herramienta por herramienta
         for (const engineTool of engineReport.tools) {

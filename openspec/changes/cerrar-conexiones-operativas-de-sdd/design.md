@@ -18,7 +18,7 @@ Ver proposal.md para alcance y dependencias; specs/ contiene los contratos obser
 
 Conservar la fachada de acciones Git y los guards main existentes. El inspector obtiene callbacks del mismo controlador que PipelineWorkspace; nunca genera una segunda implementación de decisiones o commit.
 
-El 2026-09-29 se verificó que dispatchRespondDecision valida el envío y registra ACK, pero no despacha la opción al ejecutor. La conexión del renderer es un incremento parcial: falta resolver la opción vigente, ejecutar su efecto y persistir/reconciliar el resultado con idempotencia. El feedback de la UI depende de ese contrato.
+El 2026-09-29 se verificó que dispatchRespondDecision valida el envío y registra ACK, pero no despacha la opción al ejecutor. La conexión del renderer es un incremento parcial: falta resolver la opción vigente, ejecutar su efecto y persistir/reconciliar el resultado con idempotencia. El feedback de la UI depende de ese contrato. La decisión sigue pendiente hasta que la proyección la dé resuelta: el ACK del control-bus no la aplica.
 
 ### 2. Decisión de implementación
 

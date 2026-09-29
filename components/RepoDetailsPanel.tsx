@@ -84,7 +84,11 @@ export function RepoDetailsPanel({
   // La sesión activa la entrega el workspace Pipeline (mismo repo, keyeado por
   // él): el panel no arranca otra lectura ni conserva su propia.
   const projection = usePipelineStore((s) => s.projection);
-  const { respondDecision: handleRespondDecision } = usePipelineDecisionControl(repoPath, projection);
+  const {
+    respondDecision: handleRespondDecision,
+    controlNotice: decisionNotice,
+    sendingDecisions,
+  } = usePipelineDecisionControl(repoPath, projection);
   const draftLog = useSyncExternalStore(subscribeDraftLog, getDraftLogSnapshot, getDraftLogSnapshot);
   const hasDraftLog = draftLog.draftId !== null || Boolean(aiNotice);
 
@@ -232,6 +236,8 @@ export function RepoDetailsPanel({
           isReviewOpen={reviewOpen}
           onOpenReview={toggleReviewOpen}
           onRespondDecision={handleRespondDecision}
+          controlNotice={decisionNotice}
+          sendingDecisions={sendingDecisions}
         >
           {prepareOpen && (
             <>

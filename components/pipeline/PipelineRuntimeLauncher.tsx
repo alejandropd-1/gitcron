@@ -1,14 +1,16 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useT } from '@/hooks/use-translation';
 import type { RuntimeDiscoveryEntry, RuntimeProjection } from '@/types/pipeline';
 import { runtimeDisplayName } from './pipeline-domain';
 import { canStartRuntimeSession } from './pipeline-guided-forms';
+import { resolveIntentCapability, type PipelineIntent } from './pipeline-intent-capabilities';
 
 export type PipelineRuntimeLauncherProps = {
   repoPath: string;
   projection: RuntimeProjection | null;
+  intent?: PipelineIntent;
   initialInstruction?: string;
   changeId?: string | null;
   taskId?: string | null;
@@ -52,6 +54,7 @@ export type PipelineRuntimeLauncherProps = {
 export function PipelineRuntimeLauncher({
   repoPath,
   projection,
+  intent = 'explore',
   initialInstruction = '',
   changeId = null,
   taskId = null,
@@ -104,17 +107,20 @@ export function PipelineRuntimeLauncher({
   }, [discovery, onDiscoveringChange]);
 
   const selectedEntry = discovery?.find((entry) => entry.runtime === runtime) ?? null;
+  const intentCapability = useMemo(() => resolveIntentCapability(intent, selectedEntry), [intent, selectedEntry]);
   const modifiesRepo = selectedEntry?.startModifiesRepo === true;
-  const canStart = canStartRuntimeSession({
-    blockedByFixture,
-    runtimeSelected: runtime,
-    runtimeLaunchable: selectedEntry?.launchable === true,
-    instruction,
-    sessionActive: active,
-    busy,
-    modifiesRepo,
-    writeConfirmed,
-  });
+  const canStart =
+    intentCapability.canLaunch &&
+    canStartRuntimeSession({
+      blockedByFixture,
+      runtimeSelected: runtime,
+      runtimeLaunchable: selectedEntry?.launchable === true,
+      instruction,
+      sessionActive: active,
+      busy,
+      modifiesRepo,
+      writeConfirmed,
+    });
 
   const handleStart = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.api : undefined;
@@ -248,6 +254,33 @@ export function PipelineRuntimeLauncher({
               {(selectedEntry.startConstraints ?? []).length > 0
                 && ` · ${(selectedEntry.startConstraints ?? []).join(' · ')}`}
             </p>
+          )}
+
+          {/* Aviso y alternativa de capacidad según la intención elegida */}
+          {selectedEntry && intentCapability.status !== 'available' && (
+            <div
+              className="pipeline-launcher__intent-notice"
+              data-status={intentCapability.status}
+              role={intentCapability.status === 'unavailable' ? 'alert' : 'status'}
+            >
+              <p className="pipeline-launcher__intent-reason">
+                {intentCapability.reasonKey ? t(intentCapability.reasonKey) : intentCapability.reason}
+              </p>
+              {intentCapability.alternativeRuntime && (
+                <div className="pipeline-launcher__alternative">
+                  <button
+                    type="button"
+                    className="pipeline-launcher__alternative-button"
+                    disabled={active || locked}
+                    onClick={() => setRuntime(intentCapability.alternativeRuntime!)}
+                  >
+                    {t('pipeline.launcher.intent.useAlternative', {
+                      runtime: runtimeDisplayName(intentCapability.alternativeRuntime) ?? intentCapability.alternativeRuntime,
+                    })}
+                  </button>
+                </div>
+              )}
+            </div>
           )}
 
           {/* La instrucción ya viene compuesta desde el flujo guiado. Editarla es

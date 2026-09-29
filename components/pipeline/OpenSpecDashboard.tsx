@@ -2715,6 +2715,7 @@ export function OpenSpecDashboard({
                             key={`${selectedChange.changeId}:${launchTarget.taskId ?? 'archive'}`}
                             repoPath={repoPath}
                             projection={projection}
+                            intent="implement-task"
                             initialInstruction={launchTarget.instruction}
                             changeId={selectedChange.changeId}
                             taskId={launchTarget.taskId}

@@ -13,8 +13,8 @@ Lista de resultados y comprobaciones pendientes. Referencias de implementación 
 ## 2. Capacidades según operación
 
 - [x] 2.1 **Orquestador/auditor:** Fijar la tabla intención→capacidad a partir de los adaptadores reales antes de delegar cambios del launcher. **Comprobación:** Entregar tabla en este design: lectura, escritura, pruebas y resume; demostrar Codex read-only y Claude sin shell, sin inferir capacidad por nombre del agente.
-- [ ] 2.2 **IA local:** Extraer o ampliar el cálculo puro de disponibilidad por intención usando la tabla auditada. **Comprobación:** Casos lectura permitida/escritura ausente/pruebas ausentes/runtime desconocido; no bloquear por no pertenecer a fixtures.
-- [ ] 2.3 **IA local:** Conectar el launcher al cálculo de disponibilidad y mostrar la alternativa aplicable a la intención original. **Comprobación:** Prueba de montaje conserva cambio/tarea destino al seleccionar runtime; alternativa no cambia silenciosamente la intención.
+- [x] 2.2 **IA local:** Extraer o ampliar el cálculo puro de disponibilidad por intención usando la tabla auditada. **Comprobación:** Casos lectura permitida/escritura ausente/pruebas ausentes/runtime desconocido; no bloquear por no pertenecer a fixtures.
+- [x] 2.3 **IA local:** Conectar el launcher al cálculo de disponibilidad y mostrar la alternativa aplicable a la intención original. **Comprobación:** Prueba de montaje conserva cambio/tarea destino al seleccionar runtime; alternativa no cambia silenciosamente la intención.
 
 ## 3. Sync aislado y aplicación
 

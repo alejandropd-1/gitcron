@@ -453,6 +453,7 @@ export function PipelineNewChangeFlow({
                 key={`explore:${instruction}`}
                 repoPath={repoPath}
                 projection={projection}
+                intent="explore"
                 initialInstruction={instruction}
                 changeId={null}
                 taskId={null}
@@ -627,6 +628,7 @@ export function PipelineNewChangeFlow({
                 key={`propose:${instruction}`}
                 repoPath={repoPath}
                 projection={projection}
+                intent="write-artifact"
                 initialInstruction={instruction}
                 changeId={null}
                 taskId={null}

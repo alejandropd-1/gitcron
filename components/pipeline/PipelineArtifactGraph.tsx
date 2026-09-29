@@ -449,6 +449,7 @@ export function PipelineArtifactGraph({
               <PipelineRuntimeLauncher
                 repoPath={repoPath ?? ''}
                 projection={null}
+                intent="write-artifact"
                 initialInstruction={selectedArtifact.instruction}
                 changeId={changeId}
                 onStarted={() => setLaunchingArtifactId(null)}

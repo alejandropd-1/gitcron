@@ -2108,6 +2108,55 @@ body, .font-sans {
   color: var(--color-text-primary);
 }
 
+.pipeline-launcher__intent-notice {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2);
+  border-radius: var(--radius-sm);
+  background-color: var(--color-bg-overlay);
+  border-left: 2px solid var(--color-border-subtle);
+  font-size: var(--font-size-xs);
+}
+
+.pipeline-launcher__intent-notice[data-status='unavailable'] {
+  border-left-color: var(--color-error);
+}
+
+.pipeline-launcher__intent-notice[data-status='partial'] {
+  border-left-color: var(--color-git-mod);
+}
+
+.pipeline-launcher__intent-notice[data-status='unverified'] {
+  border-left-color: var(--color-secondary);
+}
+
+.pipeline-launcher__intent-reason {
+  margin: 0;
+  color: var(--color-text-secondary);
+}
+
+.pipeline-launcher__intent-notice[data-status='unavailable'] .pipeline-launcher__intent-reason {
+  color: var(--color-error);
+}
+
+.pipeline-launcher__alternative {
+  margin-top: var(--space-2);
+}
+
+.pipeline-launcher__alternative-button {
+  padding: 0;
+  border: 0;
+  background: none;
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  color: var(--color-primary);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.pipeline-launcher__alternative-button:hover {
+  color: var(--color-text-primary);
+}
+
 .pipeline-launcher__confirm {
   display: flex;
   align-items: flex-start;

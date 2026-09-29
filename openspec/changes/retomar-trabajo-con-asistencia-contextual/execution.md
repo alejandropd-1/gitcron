@@ -11,21 +11,21 @@ Después de cerrar-conexiones-operativas-de-sdd y de la gestión compartida de p
 
 Rutina de trabajo: [config.yaml](../../config.yaml). Secuencia del producto: [EXECUTION.md](../../EXECUTION.md). Las rutas de esta tabla son referencias de implementación.
 
-| Tarea | Responsable | Archivos o responsabilidad acotada |
-|---|---|---|
-| 1.1 | orquestador | Tipos de navegación, binding main y stores identificados en el relevamiento |
-| 1.2 | local | Un resolvedor y test |
-| 1.3 | local | Registro de contribuciones y test |
-| 2.1 | local | Persistencia IA y test de migración |
-| 2.2 | local | Handler IPC; preload/tipos correspondientes; tests |
-| 2.3 | local | Servicio de consulta y test |
-| 2.4 | local | Shell de asistencia y test de montaje |
-| 2.5 | local | Dos adaptadores de vista y tests |
-| 2.6 | local | Dos adaptadores de vista y tests |
-| 2.7 | local | Adaptador Settings; launcher; tests focalizados |
-| 3.1 | local | Un selector/resolvedor y tests |
-| 3.2 | local | Cache/resolvedor del resumen y tests |
-| 3.3 | local | Servicio narrador y tests |
-| 3.4 | local | ViewSwitcherRail; shell de paneles; tests |
-| 3.5 | local | Componentes de entrada y tarea; i18n; tests focalizados |
-| 4.1 | orquestador | Recorrido de aceptación y validación integrada |
+| Tarea | Archivos o responsabilidad acotada |
+|---|---|
+| 1.1 | Tipos de navegación, binding main y stores identificados en el relevamiento |
+| 1.2 | Un resolvedor y test |
+| 1.3 | Registro de contribuciones y test |
+| 2.1 | Persistencia IA y test de migración |
+| 2.2 | Handler IPC; preload/tipos correspondientes; tests |
+| 2.3 | Servicio de consulta y test |
+| 2.4 | Shell de asistencia y test de montaje |
+| 2.5 | Dos adaptadores de vista y tests |
+| 2.6 | Dos adaptadores de vista y tests |
+| 2.7 | Adaptador Settings; launcher; tests focalizados |
+| 3.1 | Un selector/resolvedor y tests |
+| 3.2 | Cache/resolvedor del resumen y tests |
+| 3.3 | Servicio narrador y tests |
+| 3.4 | ViewSwitcherRail; shell de paneles; tests |
+| 3.5 | Componentes de entrada y tarea; i18n; tests focalizados |
+| 4.1 | Recorrido de aceptación y validación integrada |

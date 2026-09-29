@@ -53,8 +53,9 @@ operations:
         sin un límite fijo de archivos ni equivalencia obligatoria entre casilla y prompt.
         Las rutas orientan el alcance, no prohíben leer dependencias necesarias.
       - >-
-        El orquestador prepara el contexto y audita el diff y sus consumidores reales;
-        la IA local implementa la tanda. Las decisiones pendientes se explicitan cuando
+        Cualquier IA puede preparar, implementar o revisar una tanda: no se reparten
+        por rol. Quien revisa contrasta el diff y sus consumidores reales con lo pedido,
+        aunque haya sido otra IA la que implementó. Las decisiones pendientes se explicitan cuando
         cambian el alcance; las correcciones normales dentro del encargo no requieren
         volver a pedir autorización. Las instrucciones actuales del usuario prevalecen
         sobre un prompt histórico: ante contradicciones, identificar la fuente concreta.

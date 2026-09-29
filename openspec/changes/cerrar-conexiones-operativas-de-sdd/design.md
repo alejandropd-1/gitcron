@@ -47,6 +47,14 @@ Intenciones que lanzan sesiones hoy (`PipelineNewChangeFlow.tsx`: explorar y pro
 
 OpenCode queda como «capacidad sin comprobar» en todas las intenciones hasta `modelos-en-casa` (handshake ACP pendiente); se muestra, no se bloquea por no tener fixture, y lo dice.
 
+**Revisión 2026-09-29 (decisión de Alejandro):** los límites de la tabla anterior no son de las IAs sino de cómo GitCron las lanza: Codex con `--sandbox read-only`, Claude sin `Bash` en `--allowedTools`. Desde sus propias aplicaciones o la terminal, todas leen, escriben y corren comandos. Por lo tanto **toda IA lanzable desde SDD tiene las mismas capacidades**: leer, escribir en el repositorio y correr comandos (pruebas incluidas) dentro de él, y ninguna se clasifica por rol (explorador, planificador, auditor, orquestador…). Medido con `codex exec --help` y `claude --help` (2026-09-29):
+
+- Codex: `exec --sandbox workspace-write` (escribe y ejecuta comandos dentro del repositorio; la red queda bloqueada por el sandbox, lo que se declara). Se descarta `--dangerously-bypass-approvals-and-sandbox`: quita toda contención y la propia herramienta la reserva a entornos ya aislados.
+- Claude: `--allowedTools` suma `Bash` a `Read,Grep,Glob,Edit,Write`, con `--permission-mode acceptEdits`. Se descarta `--dangerously-skip-permissions` por lo mismo.
+- La confirmación que ya existe antes de una sesión que escribe pasa a decir, en criollo, que la IA va a poder modificar archivos **y correr comandos** en ese repositorio. Sin confirmación no arranca.
+- La disponibilidad por intención (2.2) deja de mirar el nombre del runtime: lee las capacidades que cada adaptador declara. Lo que sigue sin comprobarse (OpenCode, reanudar) se dice como «sin comprobar», no como límite de la IA.
+
+
 
 ### 3. Decisión de implementación
 

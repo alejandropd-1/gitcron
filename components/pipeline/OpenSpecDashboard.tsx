@@ -1530,6 +1530,10 @@ export function OpenSpecDashboard({
    */
   const isMountedRef = useRef(true);
   useEffect(() => {
+    // Se vuelve a marcar al montar: en desarrollo React monta, desmonta y
+    // remonta cada efecto, y sin esto el panel quedaba creyéndose desmontado
+    // —«Preparar» con el spinner para siempre—, visto por Ale el 2026-09-29.
+    isMountedRef.current = true;
     return () => {
       isMountedRef.current = false;
       abortInFlightAiDraft();

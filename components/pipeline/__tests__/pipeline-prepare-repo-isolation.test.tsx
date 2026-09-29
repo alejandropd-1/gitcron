@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import { StrictMode } from 'react';
 import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { useGitStore, type RepoState } from '@/lib/git-store';
@@ -64,8 +65,10 @@ function snapshot(repoId = 'repoA'): PipelineSnapshot {
   } as PipelineSnapshot;
 }
 
-function renderDashboard(repoPath: string) {
+function renderDashboard(repoPath: string, strict = false) {
+  const Wrapper = strict ? StrictMode : ({ children }: { children: React.ReactNode }) => <>{children}</>;
   return render(
+    <Wrapper>
     <OpenSpecDashboard
       snapshot={snapshot(repoPath)}
       repoPath={repoPath}
@@ -82,7 +85,8 @@ function renderDashboard(repoPath: string) {
       onRefresh={() => undefined}
       onPauseAfterTask={() => undefined}
       onRespondDecision={() => undefined}
-    />,
+    />
+    </Wrapper>,
   );
 }
 
@@ -283,5 +287,25 @@ describe('Auditoría 4.2: Aislamiento entre dos repositorios en la preparación 
     expect(state.commitMessage).toBe('feat(repoA): mensaje redactado en A');
     expect(state.openRepos[1].commitMessage).toBe('');
     expect(cancel).not.toHaveBeenCalled();
+  });
+
+  it('4. En modo estricto de React (la app en desarrollo), Preparar termina: apaga el spinner y escribe la sugerencia', async () => {
+    // Ale lo vio el 2026-09-29: el doble montaje de desarrollo dejaba el panel
+    // creyéndose desmontado y el botón girando para siempre.
+    stageFilesMock.mockResolvedValue(true);
+    renderDashboard('C:/repoA', true);
+    fireEvent.click(screen.getByRole('button', { name: /openspec.prepare.open/ }));
+    elegirTodo();
+    fireEvent.click(screen.getByRole('button', { name: /pipeline.openspec.prepare.action/ }));
+
+    await vi.waitFor(() => {
+      expect(useGitStore.getState().commitMessage).toMatch(/chore/);
+    });
+    // El botón deja de girar y lo elegido se vacía: la preparación terminó.
+    await vi.waitFor(() => {
+      const boton = screen.getByRole('button', { name: /pipeline.openspec.prepare.action/ });
+      expect(boton.querySelector('[class*="spin"]')).toBeNull();
+      expect(boton.getAttribute('aria-disabled')).toBe('true');
+    });
   });
 });

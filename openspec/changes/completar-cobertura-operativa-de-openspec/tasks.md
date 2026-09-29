@@ -29,3 +29,11 @@ Lista de resultados y comprobaciones pendientes. Referencias de implementación 
 ## 4. Aceptación
 
 - [ ] 4.1 **Orquestador/auditor:** Auditar cada fila de la matriz en montaje productivo y actualizar documentación de soporte. **Comprobación:** Core, ampliado, schema custom, store autorizado y versión desconocida; no cerrar mientras haya filas del alcance sólo simuladas. Validación integrada y visual.
+
+## 5. Sync aislado y aplicación (traído de cerrar-conexiones-operativas-de-sdd)
+
+- [ ] 5.1 **Orquestador/auditor:** Cerrar contrato del runner real y del aislamiento antes de emitir su prompt; incluir cancelación, schema de salida y límites de escritura. **Comprobación:** Documentar en design ejecutor probado o bloqueo concreto; demostrar cómo se impide escribir en el repo durante preview. Sin ejecutor compatible esta sección sigue pendiente.
+- [ ] 5.2 **IA local:** Implementar el adaptador del workflow nativo para obtener contenidos propuestos en el entorno aislado aprobado. **Comprobación:** Con fixture de proceso y ensayo real acotado, preview devuelve propuesta y deja canónicas byte-iguales; timeout/cancelación limpian sólo temporales propios.
+- [ ] 5.3 **IA local:** Registrar las dependencias productivas de sync desde main y reutilizar la disponibilidad por capacidad. **Comprobación:** Prueba de composición usa el registro real: runner conectado, falta de capacidad informada y ausencia de fallback que fusione specs por su cuenta.
+- [ ] 5.4 **IA local:** Vincular propuesta a plan main con root, cambio, hashes, runtime y alcance validados; rechazar paths no permitidos. **Comprobación:** Manipulación del payload, symlink fuera del root, cambio de HEAD/root o edición de spec invalidan el plan antes de escribir.
+- [ ] 5.5 **IA local:** Aplicar sólo la propuesta vigente confirmada con exclusión por repo y recuperación de escrituras interrumpidas. **Comprobación:** Fallo en segunda escritura y reintento no pierden ediciones externas ni declaran éxito parcial; registrar archivos realmente aplicados.

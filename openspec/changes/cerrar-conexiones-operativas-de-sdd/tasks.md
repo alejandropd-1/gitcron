@@ -20,11 +20,7 @@ Lista de resultados y comprobaciones pendientes. Referencias de implementación 
 
 ## 3. Sync aislado y aplicación
 
-- [ ] 3.1 **Orquestador/auditor:** Cerrar contrato del runner real y del aislamiento antes de emitir su prompt; incluir cancelación, schema de salida y límites de escritura. **Comprobación:** Documentar en design ejecutor probado o bloqueo concreto; demostrar cómo se impide escribir en el repo durante preview. Sin ejecutor compatible esta sección sigue pendiente.
-- [ ] 3.2 **IA local:** Implementar el adaptador del workflow nativo para obtener contenidos propuestos en el entorno aislado aprobado. **Comprobación:** Con fixture de proceso y ensayo real acotado, preview devuelve propuesta y deja canónicas byte-iguales; timeout/cancelación limpian sólo temporales propios.
-- [ ] 3.3 **IA local:** Registrar las dependencias productivas de sync desde main y reutilizar la disponibilidad por capacidad. **Comprobación:** Prueba de composición usa el registro real: runner conectado, falta de capacidad informada y ausencia de fallback que fusione specs por su cuenta.
-- [ ] 3.4 **IA local:** Vincular propuesta a plan main con root, cambio, hashes, runtime y alcance validados; rechazar paths no permitidos. **Comprobación:** Manipulación del payload, symlink fuera del root, cambio de HEAD/root o edición de spec invalidan el plan antes de escribir.
-- [ ] 3.5 **IA local:** Aplicar sólo la propuesta vigente confirmada con exclusión por repo y recuperación de escrituras interrumpidas. **Comprobación:** Fallo en segunda escritura y reintento no pierden ediciones externas ni declaran éxito parcial; registrar archivos realmente aplicados.
+Trasladado el 2026-09-29 a completar-cobertura-operativa-de-openspec (grupo 5), con su requisito, por decisión de Alejandro: se cierra este cambio y se prioriza modelos-en-casa.
 
 ## 4. Integración
 
